@@ -50,10 +50,10 @@ export const dccRules = {
   /* Turn ------------------------------------------------------------------ */
   mainPool: "action",
   movement: "feet",
-  /** A move and an action for each action die; a dwarf with a shield bashes too. */
+  /** A move and an action for each action die; a dwarf with a shield bashes too, and an armed brawler punches. */
   turn(u) {
     const dice = u.spec.actionDice?.length || 1;
-    return { action: dice, bonus: u.spec.shieldBash ? 1 : 0, move: u.spec.speeds?.walk ?? Math.max(0, ...Object.values(u.spec.speeds ?? { walk: 30 })) };
+    return { action: dice, bonus: u.spec.shieldBash || u.spec.freeAttack ? 1 : 0, move: u.spec.speeds?.walk ?? Math.max(0, ...Object.values(u.spec.speeds ?? { walk: 30 })) };
   },
   costOf(action) {
     if ( action.economy === "free" ) return {};

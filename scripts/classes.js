@@ -34,13 +34,18 @@ export function classId({ sheetClass = "", sheetName = "", className = "" } = {}
   return KNOWN.find(k => name.includes(k)) ?? name.replace(/\s+/g, "-");
 }
 
-/** What a class plainly is, for the few rules that go by class. */
+/**
+ * What a class plainly is, for the few rules that go by class. XCC's: the Messenger is a cleric (holy acts, disapproval,
+ * turning the unholy, healing), each Specialist ("sp-scout", "sp-commando" ...) a thief (backstab, a luck die), the
+ * Brawler fights with its fists.
+ */
 export function archetype(id) {
   const c = String(id ?? "");
   return {
-    thief: c === "thief",
+    thief: c === "thief" || c.startsWith("sp-"),
     halfling: c === "halfling" || /halfling/.test(c),
-    cleric: c === "cleric",
+    cleric: c === "cleric" || c === "messenger",
+    brawler: c === "brawler",
     dwarf: c === "dwarf" || c === "xcc-dwarf",
     elf: c === "elf",
     zero: c === "zero-level" || c === "0-level"

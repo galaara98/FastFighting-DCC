@@ -60,6 +60,37 @@ function initiativeDie(actor) {
   return Number(String(formula).match(/d(\d+)/)?.[1]) || 20;
 }
 
+/**
+ * An XCC brawler's fists. Unarmed: two attacks together, a d16 each, a crit on a natural 16, and no fumble on one alone
+ * (only double 1s, which the engine doesn't roll). Armed: a free unarmed attack, a d14, once a round besides its own.
+ * To hit and damage: its attack bonus, Strength and Luck (when it helps), on its unarmed damage die. Armor too heavy
+ * (a check penalty of -4 or worse): no crits.
+ */
+export function brawlerFists(actor, { armed, firstDie, crit }) {
+  const sys = actor.system;
+  const mod = flatOf(sys.details?.attackBonus) + (Number(sys.abilities?.str?.mod) || 0) + Math.max(0, Number(sys.abilities?.lck?.mod) || 0);
+  const die = /\d*d\d+/.exec(String(sys.class?.unarmedDamage ?? ""))?.[0] ?? "1d3";
+  const damage = [parseFormula(mod ? `${die}${mod > 0 ? "+" : "-"}${Math.abs(mod)}` : die, "bludgeoning")];
+  const heavy = (actor.itemTypes?.armor ?? []).some(a => a.system.equipped && Number(a.system.checkPenalty) <= -4);
+  const name = game.i18n.has("XCC.Brawler.UnarmedAttack") ? game.i18n.localize("XCC.Brawler.UnarmedAttack") : game.i18n.localize("FFDCC.Unarmed");
+  const fist = (id, faces, extra = {}) => ({
+    id: `${actor.id}.${id}`, name, kind: "strike", cost: 1, bonus: mod, melee: true, reach: 5, damage,
+    die: faces !== firstDie ? faces : undefined, critOn: heavy ? 99 : undefined, crit, ...extra
+  });
+  if ( armed ) return [fist("fist-free", 14, { economy: "bonus" })];
+  const one = fist("fist", 16, { fumbleOn: 0 });
+  return [{ ...one, id: `${actor.id}.fists`, sequence: [one, { ...one, id: `${one.id}.2` }] }];
+}
+
+/** An XCC brawler's Toughness: so much off every melee blow (a reaction it always has). */
+export function toughnessOf(actor) {
+  const value = String(actor.system.class?.toughness ?? "").trim();
+  const reduce = /d\d+/.test(value) ? parseFormula(value, "untyped") : (flatOf(value) > 0 ? part([], flatOf(value), "untyped") : null);
+  if ( !reduce ) return undefined;
+  const label = game.i18n.has("XCC.Brawler.Toughness") ? game.i18n.localize("XCC.Brawler.Toughness") : game.i18n.localize("FFDCC.Toughness");
+  return [{ id: "toughness", label, on: "hit", reduce, melee: true }];
+}
+
 /** The languages it speaks: its sheet's; with none listed, Common (every character; any creature not a beast or mindless). */
 function languagesOf(actor, { pc, undead }) {
   const listed = String(actor.system.details?.languages ?? "").split(/[,;/]/).map(s => s.trim().toLowerCase()).filter(Boolean);
@@ -113,7 +144,7 @@ export class DccAdapter extends SystemAdapter {
     };
 
     const deeds = deedOf(sys.details?.attackBonus) ? deedsFrom(await this.#tables.deeds()) : null;
-    const { actions, shieldBash } = await this.#actions(actor, { pc, kind, level, dice, luckMod, line, deeds: !!deeds });
+    const { actions, shieldBash, freeAttack } = await this.#actions(actor, { pc, kind, level, dice, luckMod, line, deeds: !!deeds });
     const resources = {};
     const boosts = [];
     if ( pc ) {
@@ -158,7 +189,10 @@ export class DccAdapter extends SystemAdapter {
       actions,
       actionDice: dice,
       shieldBash,
+      freeAttack,
       deeds,
+      // An XCC brawler's Toughness: so much off every melee blow.
+      reactions: kind.brawler ? toughnessOf(actor) : undefined,
       fumble,
       iwr: { immune, resist: {}, weak: {} },
       resources,
@@ -311,9 +345,13 @@ export class DccAdapter extends SystemAdapter {
         });
       }
     }
+    // An XCC brawler's fists (fighting unarmed, or a free punch besides its weapon).
+    const armed = actions.some(a => a.melee && a.kind === "strike");
+    const fists = pc && kind.brawler ? brawlerFists(actor, { armed, firstDie, crit: await this.#crit(sys, null, luckMod) }) : [];
+    actions.push(...fists);
     actions.push(...await this.#spells(actor, { pc, kind, level, dice, line }));
     if ( pc && kind.cleric ) actions.push(...await this.#clericSkills(actor, dice));
-    return { actions, shieldBash };
+    return { actions, shieldBash, freeAttack: fists.some(a => a.economy === "bonus") };
   }
 
   async #weaponAction(actor, w, { pc, firstDie, luckMod, line, deeds, kind }) {

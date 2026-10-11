@@ -11,6 +11,8 @@
     "PickPockets": "Pick Pockets",
     "LayOnHands": "Lay on Hands",
     "TurnUnholy": "Turn Unholy",
+    "Unarmed": "Unarmed attack",
+    "Toughness": "Toughness",
     "Surrendered": "Surrendered",
     "SurrenderedHint": "Gave up the fight (FastFighting). Delete this effect once the matter is settled.",
     "Settings": {

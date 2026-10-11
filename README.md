@@ -30,6 +30,7 @@ Enable both in a DCC world.
 - **Initiative:** the system's own die: a d20, a d16 with a two-handed weapon in hand, or a weapon's own.
 - **Withdrawing and shooting into a melee:** a creature that withdraws from a melee gives every foe engaged with it a free attack. A shot into a melee is at -1; when it misses, half the time it goes toward a random friend of the shooter's in that melee, and the attack is made again against it.
 - **Two-weapon fighting:** a weapon set up as the primary hand and one as the off hand attack together, one action for both, on the dice the system steps down for each (Table 4-3), with each hand's crit rule (no crits, or only on the die's highest face: a halfling's).
+- **XCC classes:** the Messenger plays as a cleric (holy acts with disapproval, turning the unholy, healing), each Specialist (Acrobat, Commando, Scout, Criminal and the rest) as a thief (backstab, a luck die). The Brawler fights with its fists: unarmed, two attacks together on a d16 each (a crit on a natural 16; no fumble on one alone), or, armed, a free unarmed attack on a d14 once a round besides its own; its attack bonus, Strength and Luck (when it helps) on its unarmed damage die; no crits in armor too heavy (a check penalty of -4 or worse). Its Toughness takes so much off every melee blow.
 - **Deed dice and Mighty Deeds:** warriors and dwarves (anyone whose attack bonus is a die) roll it with every attack, adding it to the roll and the damage. Before the roll they declare the deed that would help most:
   - trip;
   - blinding attack;
