@@ -3,7 +3,7 @@
  * all). No book's text is quoted here.
  */
 import { describe, expect, test } from "vitest";
-import { plain, damageIn, damageMultiple, roundsIn, targetsIn, saveIn, outcomeIn, modsIn, tableRow, spellResult, statLine, hitDice, actionDice, critOnFor, lowestSuccess } from "../scripts/text.js";
+import { plain, damageIn, damageMultiple, roundsIn, targetsIn, saveIn, outcomeIn, modsIn, tableRow, spellResult, statLine, hitDice, actionDice, critOnFor } from "../scripts/text.js";
 import { meanPart } from "../scripts/core.js";
 import { text } from "./foundry-i18n.js";
 
@@ -112,8 +112,6 @@ describe("spell check results", () => {
 
   test("nothing a fight would notice", () => {
     expect(spellResult("The caster learns the name of a distant star.").nothing).toBe(true);
-    expect(lowestSuccess(1)).toBe(12);
-    expect(lowestSuccess(3)).toBe(16);
   });
 });
 

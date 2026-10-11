@@ -310,12 +310,6 @@ export function spellResult(text, { casterLevel = 0, save = "" } = {}) {
   return out;
 }
 
-/**
- * The lowest total at which a spell of this level succeeds when its table doesn't say (DCC: 12 for first level,
- * two more for each level above).
- */
-export const lowestSuccess = level => 10 + 2 * Math.max(1, Number(level) || 1);
-
 /* -------------------------------------------- */
 /*  Stat lines                                  */
 /* -------------------------------------------- */
