@@ -87,6 +87,8 @@ export const dccRules = {
   },
   basicAction: { action: 1 },
   talkCost: { action: 1 },
+  /** A playstyle's taunt: an action (one action die), as an XCC Gnome's Draw Agro is. */
+  tauntCost: { action: 1 },
   stealCost: { action: 1 },
   feintCost: {},
   /** Standing up takes half a move. */
