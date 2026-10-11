@@ -107,9 +107,28 @@ export function disrespect(actor) {
   const steps = /(-?\d+)\s*d/i.exec(raw);
   const penalty = steps ? Math.abs(Number(steps[1])) * 2 : Math.abs(flatOf(raw)) || 2;
   const label = xccWord("XCC.Jammer.Disrespected", "FFDCC.Disrespected");
+  const disrespected = { mods: { attack: -penalty, checks: -penalty, damage: -penalty }, rounds: Math.max(1, level + per), label };
   return [{ id: `${actor.id}.disrespect`, name: xccWord("XCC.Jammer.Disrespect", "FFDCC.Disrespect"), kind: "control", cost: 1, range: { increment: 60 },
-    disrespect: true, save: { type: "wil", dc: Math.round(10.5 + bonus) },
-    outcome: { mods: { attack: -penalty, checks: -penalty, damage: -penalty }, rounds: Math.max(1, level + per), label } }];
+    disrespect: true, save: { type: "wil", dc: Math.round(10.5 + bonus) }, onSave: [disrespected, disrespected, null, null] }];
+}
+
+/** How badly a foe that fails to resist a Gnome's Draw Agro wants the gnome: past anything but an obsession of its own. */
+const AGRO = 80;
+
+/**
+ * An XCC Gnome's Draw Agro: a check (Personality, level, and Luck when it helps) its foe saves against with Will,
+ * within 60 feet. Failed, the foe spends its next turn going for the gnome, or pays a step down the dice chain (two from
+ * 5th level; a step counted as -2) on its rolls against anyone else (a taunt: the core's). Its save DC is the check:
+ * here, the check's average. Only a thinking creature takes the bait.
+ */
+export function drawAgro(actor) {
+  const sys = actor.system;
+  const level = Number(sys.details?.level?.value) || 1;
+  const bonus = (Number(sys.abilities?.per?.mod) || 0) + level + Math.max(0, Number(sys.abilities?.lck?.mod) || 0);
+  const penalty = level >= 5 ? 4 : 2;
+  const agro = { taunt: AGRO, defy: { attack: -penalty, checks: -penalty }, rounds: 1, label: xccWord("XCC.Status.Agro", "FFDCC.Agro") };
+  return [{ id: `${actor.id}.drawAgro`, name: xccWord("XCC.Gnome.DrawAgro", "FFDCC.DrawAgro"), kind: "control", cost: 1, range: { increment: 60 },
+    drawAgro: true, save: { type: "wil", dc: Math.round(10.5 + bonus) }, onSave: [agro, agro, null, null] }];
 }
 
 /**
@@ -426,9 +445,11 @@ export class DccAdapter extends SystemAdapter {
     const armed = actions.some(a => a.melee && a.kind === "strike");
     const fists = pc && kind.brawler ? brawlerFists(actor, { armed, firstDie, crit: await this.#crit(sys, null, luckMod) }) : [];
     actions.push(...fists);
-    // The other XCC classes' own: a Hottie's round defending, a Jammer's Disrespect, an Athlete's wrestling.
+    // The other XCC classes' own: a Hottie's round defending, a Jammer's Disrespect, a Gnome's Draw Agro, an Athlete's
+    // wrestling.
     if ( pc && kind.hottie ) actions.push(...notInTheFace(actor));
     if ( pc && kind.jammer ) actions.push(...disrespect(actor));
+    if ( pc && kind.gnome ) actions.push(...drawAgro(actor));
     if ( pc && kind.athlete ) actions.push(...wrestling(actor, { firstDie, crit: await this.#crit(sys, null, luckMod) }));
     actions.push(...await this.#spells(actor, { pc, kind, level, dice, line }));
     if ( pc && kind.cleric ) actions.push(...await this.#clericSkills(actor, dice));

@@ -358,8 +358,9 @@ export const dccRules = {
   },
   /** Immune to a control effect when it's immune to every condition it lays on, or the effect only takes some. */
   isImmune(target, action) {
-    // (A Jammer's Disrespect means nothing to the mindless: slimes, golems, the walking dead that don't think.)
-    if ( action?.disrespect && target.spec.flags?.mindless ) return true;
+    // (A Jammer's Disrespect, or a Gnome's Draw Agro, means nothing to the mindless: slimes, golems, the walking dead
+    // that don't think.)
+    if ( (action?.disrespect || action?.drawAgro) && target.spec.flags?.mindless ) return true;
     const immune = new Set(target.spec.iwr?.immune ?? []);
     if ( (action.traits ?? []).some(t => immune.has(t)) ) return true;
     // Turn Unholy: only the unholy, and only up to so many hit dice.
@@ -391,12 +392,20 @@ export const dccRules = {
 
   /**
    * Fleeting Luck (Mojo): a character's natural 20 earns its pool a point; a natural 1 on a d14 or bigger takes every
-   * pool there is. (Creatures' rolls don't count: it's the players'.)
+   * pool there is. (Creatures' rolls don't count: it's the players'.) A Gnome's Draw Agro earns its pool a point when
+   * the foe it goaded comes at it (once for each time it lands).
    */
   afterRoll(run, u, roll, ctx) {
     // (A charge, made: open to blows until its next turn.)
     if ( ctx?.kind === "attack" && charging(u, ctx.action) ) u.charging = true;
     const pools = run.sharedPools;
+    const gnome = ctx?.kind === "attack" ? ctx.target : null;
+    const goaded = gnome?.spec.fleeting ? (u.effects ?? []).find(e => e.taunt && !e.paid && e.sourceId === gnome.id && String(e.key).endsWith(".drawAgro")) : null;
+    if ( goaded && pools && gnome.spec.fleeting.key in pools ) {
+      goaded.paid = true;
+      pools[gnome.spec.fleeting.key] += 1;
+      run.log?.push({ round: run.round, actor: gnome.spec.name, actorId: gnome.id, side: gnome.side, type: "fleeting", text: t("FleetingGain", { label: labelOf(gnome) }), gained: 1 });
+    }
     if ( u.spec.kind !== "pc" || !pools || !roll || !Number.isFinite(roll.natural) ) return;
     const faces = ctx?.faces ?? 20;
     const key = u.spec.fleeting?.key;

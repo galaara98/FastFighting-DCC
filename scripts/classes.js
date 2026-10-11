@@ -48,6 +48,7 @@ export function archetype(id) {
     brawler: c === "brawler",
     hottie: c === "dungeon-hottie",
     jammer: c === "jammer",
+    gnome: c === "gnome",
     athlete: c === "athlete",
     acrobat: c === "sp-acrobat" || c === "half-elf",
     dwarf: c === "dwarf" || c === "xcc-dwarf",
