@@ -10,6 +10,12 @@
     "LayOnHands": "Lay on Hands",
     "TurnUnholy": "Turn Unholy",
     "Surrendered": "Surrendered",
-    "SurrenderedHint": "Gave up the fight (FastFighting). Delete this effect once the matter is settled."
+    "SurrenderedHint": "Gave up the fight (FastFighting). Delete this effect once the matter is settled.",
+    "Settings": {
+      "loreBoost": {
+        "Name": "Lore-Collector advantage",
+        "Hint": "How much likelier a Lore-Collector's rolls against a foe it has sized up are to succeed, through its next turn, after spending its turn on an Intelligence check (when it worked; never without it). 1.25× is a nudge, 2.5× a sure thing more often than not. Default 2.25×: it costs the whole turn, but deed dice and Luck already swing a fight hard."
+      }
+    }
   }
 }

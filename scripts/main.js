@@ -4,11 +4,17 @@
  * through the core's public API.
  */
 import { DccAdapter } from "./adapter.js";
+import { registerLoreBoost } from "./lore.js";
 
 export const MODULE_ID = "fast-fighting-dcc";
 
 /** The core API this helper is written against (older cores have no api.version: that is 1). */
 const NEEDS_API = 7;
+
+Hooks.once("init", () => {
+  // How much a Lore-Collector's sizing a foe up pays off (lore.js).
+  registerLoreBoost();
+});
 
 Hooks.once("fastFighting.init", api => {
   // module.json limits this module to dcc worlds; this guard covers anything that slips past.

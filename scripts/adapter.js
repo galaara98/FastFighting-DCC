@@ -17,6 +17,7 @@ import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
 import { deriveDccTraits } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
 import { commitDccOutcome, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
+import { loreBoost } from "./lore.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
 function flatOf(value) {
@@ -139,7 +140,7 @@ export class DccAdapter extends SystemAdapter {
       resources,
       boosts: boosts.length ? boosts : null,
       // Sizing a foe up (a Lore-Collector): what it can recall or work out, an Intelligence check against DC 10.
-      sizeUp: { mod: Number(sys.abilities?.int?.mod) || 0, dc: 10, label: game.i18n.localize("FFDCC.IntelligenceCheck") },
+      sizeUp: { mod: Number(sys.abilities?.int?.mod) || 0, dc: 10, label: game.i18n.localize("FFDCC.IntelligenceCheck"), boost: loreBoost() },
       luck,
       // A player character's Luck works against a monster's crits.
       critAgainst: pc ? luckMod : 0,
