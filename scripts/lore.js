@@ -1,9 +1,9 @@
 /**
  * The Lore-Collector's payoff for sizing a foe up in DCC: how much likelier its next rolls are to succeed, a
- * world setting from 1.25× to 2.5×. The default: an Intelligence check takes the whole turn, though deed dice and Luck already swing a fight hard.
+ * world setting from 1.25× to 3×. The default: an Intelligence check takes the whole turn, though deed dice and Luck already swing a fight hard.
  */
 
-export const LORE_BOOST = Object.freeze({ min: 1.25, max: 2.5, step: 0.05, default: 2.25 });
+export const LORE_BOOST = Object.freeze({ min: 1.25, max: 3, step: 0.05, default: 2.25 });
 const MODULE_ID = "fast-fighting-dcc";
 
 /** Register the setting (on init). */
