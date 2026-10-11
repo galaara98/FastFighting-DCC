@@ -444,6 +444,11 @@ export class DccAdapter extends SystemAdapter {
     return rankDccLeaders(specs.map(s => s.leadership).filter(Boolean));
   }
 
+  /** DCC's words for armor class and hit points: the helper's own (the system has only the long forms). */
+  term(key) {
+    return key === "ac" ? t("Ac") : key === "hp" ? t("Hp") : null;
+  }
+
   resourceLabel(key) {
     if ( key === "luck" ) return game.i18n.localize("FFDCC.Luck");
     if ( key === "spellburn" ) return game.i18n.localize("FFDCC.Spellburn");
