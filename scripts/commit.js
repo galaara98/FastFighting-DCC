@@ -34,6 +34,20 @@ function spent(spec, final, key) {
   return Math.max(0, start - (final.resources?.[key] ?? start));
 }
 
+/**
+ * Whose side the token is on after the fight, when words (or a quarrel) changed it: won over (switched sides), talked
+ * out of the fight (it takes no side now), or a neutral that turned on the party. Null when nothing changed.
+ * @returns {"friendly"|"hostile"|"neutral"|null}
+ */
+export function sideChange(final) {
+  if ( final.swayed === "switched" ) return final.side === "friendly" ? "friendly" : "hostile";
+  if ( final.side !== "neutralParty" || final.status === STATUS.DEAD ) return null;
+  if ( final.against?.includes("friendly") ) return "hostile";
+  return final.swayed === "neutral" ? "neutral" : null;
+}
+const SIDE_LINES = { friendly: "Switches sides (now friendly)", hostile: "Turned on the party (now hostile)", neutral: "Stands aside (now neutral)" };
+const DISPOSITIONS = { friendly: "FRIENDLY", hostile: "HOSTILE", neutral: "NEUTRAL" };
+
 /** Human-readable list of what will change, for the confirmation dialog. */
 export function describeDccOutcome(spec, final) {
   const lines = [];
@@ -44,7 +58,8 @@ export function describeDccOutcome(spec, final) {
   else if ( final.status === STATUS.SURRENDERED ) lines.push("Surrenders");
   else if ( final.status === STATUS.STOOD_DOWN ) lines.push("Stands down (talked out of fighting)");
   else if ( final.status === STATUS.DOWN ) lines.push(final.stable ? "Unconscious" : `Bleeding out (${s.bleed ?? 0} round${s.bleed === 1 ? "" : "s"} left)`);
-  if ( final.swayed === "switched" ) lines.push(`Switches sides (now ${final.side})`);
+  const changed = sideChange(final);
+  if ( changed ) lines.push(final.swayed === "switched" ? `Switches sides (now ${changed})` : SIDE_LINES[changed]);
   const alive = final.status !== STATUS.DEAD;
   if ( s.bledOut && alive ) lines.push("Saved from bleeding out: -1 Stamina for good, and a scar");
   if ( s.body ) lines.push(`Rolled the body: alive at 1 HP, groggy, -1 ${ABILITY_NAMES[s.body] ?? s.body} for good`);
@@ -144,9 +159,10 @@ export async function commitDccOutcome(tokenDoc, spec, final, options = {}) {
     }]);
     if ( effect ) undo.createdEffects.push(effect.id);
   }
-  if ( final.swayed === "switched" ) {
+  const changed = sideChange(final);
+  if ( changed ) {
     undo.tokenUpdate = { ...(undo.tokenUpdate ?? {}), disposition: tokenDoc.disposition };
-    await tokenDoc.update({ disposition: final.side === "friendly" ? CONST.TOKEN_DISPOSITIONS.FRIENDLY : CONST.TOKEN_DISPOSITIONS.HOSTILE });
+    await tokenDoc.update({ disposition: CONST.TOKEN_DISPOSITIONS[DISPOSITIONS[changed]] });
   }
   // Spells lost to a failed check stay lost for the day.
   for ( const id of s.lost ?? [] ) {

@@ -52,7 +52,8 @@ Writes the drawn fight onto the tokens, as the confirmation dialog lists:
 - Luck and spellburn spent;
 - spells lost for the day, a cleric's disapproval range;
 - the Stamina lost to bleeding out, or the ability lost and Groggy when the body was rolled;
-- statuses still on a creature (stunned, paralyzed, asleep, blinded, frightened, held, slowed, prone).
+- statuses still on a creature (stunned, paralyzed, asleep, blinded, frightened, held, slowed, prone);
+- the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the party: Hostile).
 
 Undo puts it all back.
 
