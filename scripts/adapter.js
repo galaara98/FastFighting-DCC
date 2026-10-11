@@ -14,7 +14,7 @@ import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
 import { deedsFrom } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
-import { deriveDccTraits } from "./traits.js";
+import { deriveDccTraits, speaksCommon } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
 import { commitDccOutcome, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
 import { loreBoost } from "./lore.js";
@@ -45,6 +45,27 @@ const MODES = ["fly", "swim", "climb", "burrow"];
 const COPPER = { pp: 1000, ep: 50, gp: 100, sp: 10, cp: 1 };
 /** What a character carries that it could hand over (or ask for: its kind is the item type). */
 const GOODS = ["weapon", "armor", "equipment", "treasure", "ammunition"];
+
+/**
+ * The die it rolls for initiative, as the system has it: its own (a d20), a two-handed weapon's in hand (a d16), or a
+ * weapon in hand that sets its own (that one first).
+ */
+function initiativeDie(actor) {
+  let formula = actor.system.attributes?.init?.die || "1d20";
+  const held = actor.items.filter(i => i.type === "weapon" && i.system.equipped);
+  const twoHanded = held.find(i => i.system.twoHanded);
+  const custom = held.find(i => i.system.config?.initiativeDieOverride);
+  if ( twoHanded ) formula = twoHanded.system.initiativeDie || "1d16";
+  if ( custom ) formula = custom.system.initiativeDie || formula;
+  return Number(String(formula).match(/d(\d+)/)?.[1]) || 20;
+}
+
+/** The languages it speaks: its sheet's; with none listed, Common (every character; any creature not a beast or mindless). */
+function languagesOf(actor, { pc, undead }) {
+  const listed = String(actor.system.details?.languages ?? "").split(/[,;/]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+  if ( listed.length ) return listed;
+  return speaksCommon({ pc, name: actor.name, undead, notes: plain(actor.system.details?.notes?.value ?? "") }) ? ["common"] : [];
+}
 
 export class DccAdapter extends SystemAdapter {
   static systemId = "dcc";
@@ -132,7 +153,7 @@ export class DccAdapter extends SystemAdapter {
       hitDie: hd.faces,
       defenses,
       shield: null, // a DCC shield is in the AC
-      initiative: { mod: flatOf(sys.attributes?.init?.value) },
+      initiative: { mod: flatOf(sys.attributes?.init?.value), die: initiativeDie(actor) },
       speeds,
       actions,
       actionDice: dice,
@@ -171,7 +192,7 @@ export class DccAdapter extends SystemAdapter {
           steal: { dc: 10 + Math.max(defenses.ref, Number(sys.abilities?.int?.mod) || 0), label: t("Reflex") }
         },
         resolve: defenses.wil - (Math.floor(level / 2) + 1),
-        languages: String(sys.details?.languages ?? "").split(/[,;/]/).map(s => s.trim().toLowerCase()).filter(Boolean),
+        languages: languagesOf(actor, { pc, undead: !!line.undead }),
         mindless: !!derived.flags.mindless
       },
       theft: kind.thief ? { skill: game.i18n.localize("FFDCC.PickPockets"), mod: flatOf(sys.skills?.pickPockets?.value) + (Number(sys.abilities?.agl?.mod) || 0) } : null,

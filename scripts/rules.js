@@ -11,8 +11,11 @@
  * within (level) rounds it lives (a permanent point of Stamina lost, and a scar); otherwise it dies. After a fight a
  * dead character's friends may roll the body: a Luck check (a d20 at or under the character's Luck) finds them only
  * unconscious, at 1 hit point, groggy, with a permanent point of Strength, Agility or Stamina lost.
+ *
+ * Withdrawing from a melee: every foe engaged with it gets one free attack. Firing into a melee: -1 to hit, and a shot
+ * that misses goes toward a random friend of the shooter's in that melee half the time (the attack again, against it).
  */
-import { DOWNED_MODELS, STATUS } from "./core.js";
+import { DOWNED_MODELS, STATUS, bestReactionStrike } from "./core.js";
 import { t } from "./words.js";
 
 const has = (u, key) => (u?.conds?.[key] ?? 0) > 0;
@@ -49,6 +52,29 @@ export const dccRules = {
   /** Standing up takes half a move. */
   standCost(u) {
     return { move: Math.ceil((u.spec.speeds?.walk ?? 30) / 2) };
+  },
+  /**
+   * Withdrawing from a melee: each foe engaged with it gets one free attack (any that has a melee attack and can act),
+   * at each foe that withdraws.
+   */
+  opportunity(reactor) {
+    if ( has(reactor, "incapacitated") || has(reactor, "paralyzed") || has(reactor, "stunned") || has(reactor, "asleep") ) return null;
+    return bestReactionStrike(reactor);
+  },
+  /** (A free attack at every foe that withdraws: no limit in a round.) */
+  reactions() {
+    return 99;
+  },
+  /**
+   * A shot into a melee that missed: half the time it strays toward a random friend of the shooter's engaged with the
+   * target. Returns that friend, or null.
+   */
+  strayShot(run, u, target, action) {
+    if ( action?.melee ) return null;
+    const friends = [...(target.adjacent ?? [])].map(id => run.byId.get(id))
+      .filter(o => o && o !== u && o.side === u.side && o.status === STATUS.STANDING);
+    if ( !friends.length || !run.rng.chance(0.5) ) return null;
+    return run.rng.pick(friends);
   },
   /** A stout door: AC 15, about 15 hit points; forcing it is a Strength check against DC 15. */
   door: { ac: 15, hp: 15, threshold: 0, forceDC: 15, pickDC: 15 },
@@ -182,8 +208,10 @@ export const dccRules = {
     defense() {
       return 0;
     },
-    attack({ attacker, target, action, distance, positioning }) {
+    attack({ attacker, target, action, distance, positioning, alliesAdjacent }) {
       let bonus = 0;
+      // Firing into a melee (the target engaged with the shooter's friends): -1.
+      if ( !action?.melee && action?.range && alliesAdjacent > 0 ) bonus -= 1;
       // Attacking a prone or helpless foe in melee: +2; a stunned or blind one too.
       if ( (target.prone || has(target, "incapacitated") || has(target, "stunned")) && action?.melee ) bonus += 2;
       if ( attacker.prone ) bonus -= 4;

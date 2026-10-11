@@ -24,6 +24,16 @@ const CLEVER = /\b(?:wizard|sorcer|witch|warlock|cleric|priest|acolyte|shaman|ma
  * @param {boolean} [d.casts]    it casts spells
  * @returns {{traits, flags, reasons}}
  */
+/**
+ * Does a creature speak Common when its sheet lists no languages? Every character does; so does any creature that
+ * isn't a beast or mindless.
+ */
+export function speaksCommon({ pc = false, name = "", undead = false, notes = "" } = {}) {
+  if ( pc ) return true;
+  const what = `${name} ${notes}`;
+  return !BEAST.test(name) && !(undead && MINDLESS.test(what)) && !MINDLESS.test(name);
+}
+
 export function deriveDccTraits(d) {
   const reasons = {};
   const flags = {};

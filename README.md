@@ -27,6 +27,8 @@ Enable both in a DCC world.
 - **Class:** the character sheet chosen for the actor or its token, which is how DCC and XCC pick a class. A sheet that has been opened records the class itself. For one that hasn't (an imported pregen), the class is read from the sheet chosen, then from the class name. Everything else comes from the character's own numbers (a deed die, spells and how they're cast), so classes from other books still work.
 - **Attacks:** each weapon's to-hit, damage, range, action die, crit range, crit die and crit table, and fumble range. A monster's stat line fills in anything its sheet leaves out (attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check).
 - **Action dice:** one action for each (a giant's d24 then d16, a high-level character's second die). Crit ranges scale to the die.
+- **Initiative:** the system's own die: a d20, a d16 with a two-handed weapon in hand, or a weapon's own.
+- **Withdrawing and shooting into a melee:** a creature that withdraws from a melee gives every foe engaged with it a free attack. A shot into a melee is at -1; when it misses, half the time it goes toward a random friend of the shooter's in that melee, and the attack is made again against it.
 - **Two-weapon fighting:** a weapon set up as the primary hand and one as the off hand attack together, one action for both, on the dice the system steps down for each (Table 4-3), with each hand's crit rule (no crits, or only on the die's highest face: a halfling's).
 - **Deed dice and Mighty Deeds:** warriors and dwarves (anyone whose attack bonus is a die) roll it with every attack, adding it to the roll and the damage. Before the roll they declare the deed that would help most:
   - trip;
@@ -50,7 +52,7 @@ Enable both in a DCC world.
 - **Dying:** monsters and 0-level characters die at 0 hit points. Anyone else bleeds out for as many rounds as their level, and if healed in time loses a point of Stamina for good. After the fight, friends who hold the field roll the body of each fallen player character: a Luck check (a d20 at or under their Luck) finds them only unconscious, at 1 hit point, groggy, a point of Strength, Agility or Stamina gone for good.
 - **Personality:** a funnel peasant isn't a veteran. Monsters are read from what they are (beasts, the walking dead, giants, spellcasters), their Will save and their alignment.
 - **Leadership:** Personality, a title (king, thane, captain ...), a cleric's standing, and experience.
-- **Talking:** Personality for persuading, intimidating and deceiving, against Will.
+- **Talking:** Personality for persuading, intimidating and deceiving, against Will. A sheet with no languages listed speaks Common (every character; any creature but a beast or the mindless).
 
 ## Make it So
 
