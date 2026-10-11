@@ -244,16 +244,31 @@ export class DccAdapter extends SystemAdapter {
     let shieldBash = false;
     const firstDie = dice[0] ?? 20;
     const weapons = actor.itemTypes?.weapon ?? actor.items.filter(i => i.type === "weapon");
+    const hands = { primary: null, offHand: null };
     for ( const w of weapons ) {
       if ( w.system.equipped === false ) continue;
       const action = await this.#weaponAction(actor, w, { pc, firstDie, luckMod, line, deeds, kind });
       if ( !action ) continue;
+      // Two-weapon fighting (Table 4-3): the system has already stepped each hand's action die down the dice chain;
+      // a hand that can't crit doesn't, and one that crits only on its die's highest face (a halfling's) does so.
+      if ( w.system.twoWeaponPrimary || w.system.twoWeaponSecondary ) {
+        const rule = String(w.system.twoWeaponCritRule ?? "");
+        if ( rule && rule === game.i18n.localize("DCC.TwoWeaponCritNone") ) action.critOn = 21;
+        else if ( rule ) action.critOn = 20;
+        hands[w.system.twoWeaponPrimary ? "primary" : "offHand"] ??= action;
+      }
       // A dwarf's shield bash: an extra attack with its own die, every round.
       if ( kind.dwarf && /shield.?bash/i.test(`${w.name} ${w.img ?? ""}`) ) {
         action.economy = "bonus";
         shieldBash = true;
       }
       actions.push(action);
+    }
+    // Fighting with both: an attack with each hand, together.
+    if ( hands.primary && hands.offHand ) {
+      const { primary, offHand } = hands;
+      actions.push({ ...primary, id: `${actor.id}.two-weapons`, name: `${primary.name} & ${offHand.name}`, itemId: undefined,
+        sequence: [primary, offHand].map(a => ({ ...a, id: `${a.id}.two-weapons` })) });
     }
     // A monster with no weapons on its sheet: its stat line's attacks.
     if ( !pc && !actions.length ) {
