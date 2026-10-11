@@ -94,7 +94,7 @@ export function spellAction({ id, name, level = 1, rows, mod = 0, faces = 20, mo
     id, name, kind, cost: 1, ...where, ...shown,
     targets: kind === "buff" && self ? "self" : undefined,
     casting: {
-      mod, faces, label: t("SpellCheck", "spell check"),
+      mod, faces, label: t("SpellCheck"),
       lostOnFail: !monster && mode === "wizard",
       disapproval: !monster && mode === "cleric" ? Math.max(1, Number(disapproval) || 1) : null
     },
@@ -124,7 +124,7 @@ function reachOf(text, kind) {
  * cleric's and the target's alignments agree (same, adjacent, opposed). The engine can't tell whose alignment is
  * whose in the middle of a heal, so the middle column stands for all. Without the table, a rough guess.
  */
-export function layOnHandsAction({ id = "lay-on-hands", name = "Lay on Hands", rows = null, mod = 0, faces = 20, disapproval = 1 } = {}) {
+export function layOnHandsAction({ id = "lay-on-hands", name = t("LayOnHands"), rows = null, mod = 0, faces = 20, disapproval = 1 } = {}) {
   let tiers = [];
   for ( const row of rows ?? [] ) {
     const t = plain(row.text).toLowerCase();
@@ -140,7 +140,7 @@ export function layOnHandsAction({ id = "lay-on-hands", name = "Lay on Hands", r
   const typical = tiers[chances.indexOf(Math.max(...chances))];
   return {
     id, name, kind: "heal", cost: 1, reach: 5, heal: [], healDice: typical?.healDice ?? 1,
-    casting: { mod, faces, label: t("SpellCheck", "spell check"), disapproval: Math.max(1, Number(disapproval) || 1) },
+    casting: { mod, faces, label: t("SpellCheck"), disapproval: Math.max(1, Number(disapproval) || 1) },
     tiers, castChance, guessed
   };
 }
@@ -149,7 +149,7 @@ export function layOnHandsAction({ id = "lay-on-hands", name = "Lay on Hands", r
  * Turn Unholy from its table: at each result, the most hit dice of unholy creature (un-dead, demons, devils) it
  * turns. Turned, they cower. Without the table, a rough guess.
  */
-export function turnUnholyAction({ id = "turn-unholy", name = "Turn Unholy", rows = null, mod = 0, faces = 20, disapproval = 1 } = {}) {
+export function turnUnholyAction({ id = "turn-unholy", name = t("TurnUnholy"), rows = null, mod = 0, faces = 20, disapproval = 1 } = {}) {
   let tiers = [];
   for ( const row of rows ?? [] ) {
     const t = plain(row.text).replace(/\s+/g, " ");
@@ -165,9 +165,9 @@ export function turnUnholyAction({ id = "turn-unholy", name = "Turn Unholy", row
   const typical = tiers[chances.indexOf(Math.max(...chances))];
   return {
     id, name, kind: "control", cost: 1, range: { increment: 30 }, auto: true, area: { targets: 3 },
-    outcome: { conditions: { incapacitated: 1, turned: 1 }, rounds: 3, label: t("Turned", "turned") },
+    outcome: { conditions: { incapacitated: 1, turned: 1 }, rounds: 3, label: t("Turned") },
     turns: typical?.turns ?? 1,
-    casting: { mod, faces, label: t("TurnUnholyCheck", "turn unholy"), disapproval: Math.max(1, Number(disapproval) || 1) },
+    casting: { mod, faces, label: t("TurnUnholyCheck"), disapproval: Math.max(1, Number(disapproval) || 1) },
     tiers, castChance, guessed
   };
 }

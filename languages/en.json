@@ -1,5 +1,7 @@
 {
   "FFDCC": {
+    "Label": "DCC",
+    "LabelXcc": "DCC / XCC",
     "CoreTooOld": "FastFighting DCC needs a newer FastFighting Core. Update FastFighting.",
     "NeedsCore": "FastFighting DCC needs the FastFighting module. Enable it in Manage Modules.",
     "Luck": "Luck",
@@ -44,7 +46,8 @@
       "Rallied2": "rallied (+2 to the next attack)",
       "Rallied3": "rallied (+2 to attacks and saves)",
       "Dazzled": "dazzled ({what})",
-      "Rallied": "rallied ({what})"
+      "Rallied": "rallied ({what})",
+      "Lent": "{n} {stat}"
     },
     "Bleed": {
       "Dies": "bleeds out and dies",
@@ -95,6 +98,40 @@
       "frightened": "frightened",
       "held": "held",
       "slowed": "slowed"
+    },
+    "Told": {
+      "asleep": "asleep",
+      "paralyzed": "paralyzed",
+      "knockedOut": "knocked out",
+      "stunned": "stunned",
+      "knockedDown": "knocked down",
+      "blinded": "blinded",
+      "obeying": "obeying a command",
+      "swayed": "under the caster's sway",
+      "terrified": "terrified",
+      "held": "held",
+      "disarmed": "disarmed",
+      "slowed": "slowed"
+    },
+    "Mods": {
+      "attack": "{n} to attacks",
+      "ac": "{n} AC",
+      "saves": "{n} to saves",
+      "damage": "{n} damage",
+      "Hampered": "hampered ({what})",
+      "Bolstered": "bolstered ({what})"
+    },
+    "Lead": {
+      "Personality": "Personality {n}",
+      "Title": "bears a title",
+      "Cleric": "speaks for a god",
+      "Level": "level {n}",
+      "Nobody": "nobody better"
+    },
+    "Coin": {
+      "gp": "gp",
+      "sp": "sp",
+      "cp": "cp"
     }
   }
 }

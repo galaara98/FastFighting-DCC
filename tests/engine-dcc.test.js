@@ -12,6 +12,13 @@ import { deriveDccTraits } from "../scripts/traits.js";
 import { rankDccLeaders } from "../scripts/leadership.js";
 import { parseFormula, STATUS, degreeDistribution } from "../scripts/core.js";
 import { replay, runBatchSync } from "../../FastFighting/scripts/engine/simulator.js";
+import { text } from "./foundry-i18n.js";
+
+/** Does a line read as this template, its {placeholders} filled with anything? */
+const reads = (line, key) => {
+  const pattern = text(key).split(/\{\w+\}/).map(bit => bit.replace(/[.*+?^${}()|[\]\\]/g, c => `\\${c}`)).join(".*");
+  return new RegExp(`^${pattern}$`).test(line ?? "");
+};
 
 let n = 0;
 const traits = (tactical = 65) => ({ tactical: { base: tactical, fudge: 0 }, brave: { base: 90, fudge: 0 }, selfish: { base: 25, fudge: 0 }, loyal: { base: 75, fudge: 0 } });
@@ -67,8 +74,8 @@ describe("dying, DCC style", () => {
     const hero = { spec: { kind: "pc", level: 1 }, status: STATUS.STANDING, maxHp: 10, hp: 0 };
     dccRules.onDropped(hero);
     expect(hero.status).toBe(STATUS.DOWN);
-    expect(dccRules.recoveryCheck(hero)).toMatch(/last chance/);
-    expect(dccRules.recoveryCheck(hero)).toMatch(/dies/);
+    expect(dccRules.recoveryCheck(hero)).toBe(text("FFDCC.Bleed.Last"));
+    expect(dccRules.recoveryCheck(hero)).toBe(text("FFDCC.Bleed.Dies"));
     expect(hero.status).toBe(STATUS.DEAD);
     const saved = { spec: { kind: "pc", level: 3 }, status: STATUS.STANDING, maxHp: 20, hp: 0 };
     dccRules.onDropped(saved);
@@ -81,10 +88,10 @@ describe("dying, DCC style", () => {
     const rolls = [];
     const rng = { die: f => (f === 20 ? 9 : 2) };
     const lucky = { spec: { luck: 12 }, status: STATUS.DEAD, hp: 0 };
-    expect(dccRules.recoverBody(lucky, rng)).toMatch(/only unconscious/);
+    expect(dccRules.recoverBody(lucky, rng)).toBe(text("FFDCC.Body.Alive", { roll: 9, luck: 12 }));
     expect(lucky).toMatchObject({ status: STATUS.STANDING, hp: 1, bodyRecovered: "agl" });
     const unlucky = { spec: { luck: 8 }, status: STATUS.DEAD, hp: 0 };
-    expect(dccRules.recoverBody(unlucky, rng)).toMatch(/truly dead/);
+    expect(dccRules.recoverBody(unlucky, rng)).toBe(text("FFDCC.Body.Dead", { roll: 9, luck: 8 }));
     expect(unlucky.status).toBe(STATUS.DEAD);
     expect(rolls).toEqual([]);
   });
@@ -97,7 +104,7 @@ describe("dying, DCC style", () => {
     let saved = 0;
     for ( let s = 1; s <= 30; s++ ) {
       const r = replay(battle([victim, priest, brute], { maxRounds: 8 }), dccRules, s);
-      if ( r.log.some(e => e.type === "recovery" && /bleeding out/.test(e.text)) ) bled += 1;
+      if ( r.log.some(e => e.type === "recovery" && ["Bleed.One", "Bleed.Many", "Bleed.Last"].some(k => reads(e.text, `FFDCC.${k}`))) ) bled += 1;
       const f = r.units.victim.final;
       if ( f.system?.bledOut ) saved += 1;
       if ( r.log.some(e => e.type === "body") ) expect(["standing", "dead"]).toContain(f.status);
@@ -118,9 +125,9 @@ describe("deeds", () => {
       defend: [{ range: [3, 3], text: "Fighting carefully, the warrior gains a +1 AC bonus for the next round." }, { range: [4, 4], text: "Something only a crowd can do." }]
     });
     const blind = read.find(d => d.id === "blind");
-    expect(blind.tiers[0]).toMatchObject({ min: 3, outcome: { mods: { attack: -2 }, rounds: 1, label: "dazzled (-2 to attacks)" } });
+    expect(blind.tiers[0]).toMatchObject({ min: 3, outcome: { mods: { attack: -2 }, rounds: 1, label: text("FFDCC.Deed.Dazzled", { what: text("FFDCC.Mods.attack", { n: "-2" }) }) } });
     expect(blind.tiers[1]).toMatchObject({ min: 5, outcome: { conditions: { blinded: 1 }, mods: { attack: -6 }, rounds: 3 } });
-    expect(read.find(d => d.id === "defend").tiers).toEqual([{ min: 3, outcome: { mods: { ac: 1 }, rounds: 1, label: "+1 AC", self: true } }]);
+    expect(read.find(d => d.id === "defend").tiers).toEqual([{ min: 3, outcome: { mods: { ac: 1 }, rounds: 1, label: text("FFDCC.Deed.Ac", { n: 1 }), self: true } }]);
     // A book's rallying row: what it lends the warrior's friends.
     const rally = deedsFrom({ rally: [{ range: [3, 3], text: "Allies within sight gain a +1 bonus to attack rolls for the next round." }] }).find(d => d.id === "rally");
     expect(rally.tiers[0]).toMatchObject({ min: 3, outcome: { mods: { attack: 1 }, allies: 10 } });
@@ -254,7 +261,7 @@ describe("who's who", () => {
   test("leaders: presence, a title, experience", () => {
     const ranked = rankDccLeaders([{ id: "a", name: "Ulfgar, the frost jarl", level: 6, personality: 0 }, { id: "b", name: "Frost Raider", level: 2, personality: 0 }]);
     expect(ranked[0].id).toBe("a");
-    expect(ranked[0].reason).toMatch(/title/);
+    expect(ranked[0].reason).toContain(text("FFDCC.Lead.Title"));
   });
 
   test("a fight runs end to end and the outcome is settled", () => {

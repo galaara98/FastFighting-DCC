@@ -75,6 +75,8 @@ npm test
 
 The tables in the tests are written for them in DCC's style; no book's text is quoted.
 
+Every word this module shows is in `languages/en.json`: the code holds keys, never the English. Translating it takes only a copy of that file (see **Translating** in the core README). `npm run test:reworded` runs the tests again with every word in the language files reworded, so they never depend on the wording.
+
 ## License
 
 MIT for this module's code. Dungeon Crawl Classics is a trademark of Goodman Games; this module isn't affiliated with or endorsed by them.

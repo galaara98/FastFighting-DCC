@@ -4,6 +4,7 @@
  * experience (level or hit dice).
  * Pure.
  */
+import { t } from "./words.js";
 const TITLE = /\b(?:king|queen|thane|jarl|chief(?:tain)?|captain|lord|lady|prince(?:ss)?|duke|baron|commander|general|high priest(?:ess)?|leader|boss|master|mistress|sergeant)\b/i;
 
 /**
@@ -16,17 +17,17 @@ export function rankDccLeaders(entries) {
     if ( !e ) continue;
     const reasons = [];
     let score = (e.personality ?? 0) + Math.floor((e.level ?? 0) / 3);
-    if ( e.personality ) reasons.push(`Personality ${e.personality >= 0 ? "+" : ""}${e.personality}`);
+    if ( e.personality ) reasons.push(t("Lead.Personality", { n: `${e.personality >= 0 ? "+" : ""}${e.personality}` }));
     if ( TITLE.test(e.name ?? "") ) {
       score += 3;
-      reasons.push("bears a title");
+      reasons.push(t("Lead.Title"));
     }
     if ( e.cleric ) {
       score += 1;
-      reasons.push("speaks for a god");
+      reasons.push(t("Lead.Cleric"));
     }
-    if ( (e.level ?? 0) >= 3 ) reasons.push(`level ${e.level}`);
-    out.push({ id: e.id, score, reason: reasons.join("; ") || "nobody better", bonus: leaderBonus(score) });
+    if ( (e.level ?? 0) >= 3 ) reasons.push(t("Lead.Level", { n: e.level }));
+    out.push({ id: e.id, score, reason: reasons.join("; ") || t("Lead.Nobody"), bonus: leaderBonus(score) });
   }
   return out.sort((a, b) => b.score - a.score);
 }

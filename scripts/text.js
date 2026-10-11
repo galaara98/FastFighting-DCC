@@ -7,7 +7,9 @@
  * What can't be read is left out, never guessed into something it isn't.
  * Pure: no Foundry globals.
  */
-import { parseFormula, part, meanPart } from "./core.js";
+import { parseFormula, part, meanPart, listJoin, listItems, localize } from "./core.js";
+// (Its texts are `t` here: this module's words are `say`.)
+import { t as say } from "./words.js";
 
 const NUMBER_WORDS = { a: 1, an: 1, one: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12 };
 /** "frt", "ref", "wil": DCC's saves. */
@@ -130,23 +132,23 @@ export const automatic = text => /\bno save\b|\bwithout (?:a )?save\b|\bautomati
 
 /**
  * The conditions DCC tables name, as the engine and the DCC rules know them. Each: what to look for, the
- * conditions, a label, and anything else the outcome needs.
+ * conditions, the word for it (FFDCC.Told), and anything else the outcome needs.
  */
 const CONDITIONS = [
   { re: /\bslay|\bdecapitat|\binstantly killed|\bdies instantly|\bkilled instantly|\bdies on the spot|\bis slain\b/, slay: true },
-  { re: /\b(?:falls?|fall|put|placed|sent) (?:into (?:a )?)?(?:\w+ )?(?:asleep|sleep|slumber)|\bsleeps?\b/, conditions: { incapacitated: 1, asleep: 1 }, label: "asleep", extra: { endsOnDamage: true } },
-  { re: /\bparaly[sz]/, conditions: { incapacitated: 1, paralyzed: 1 }, label: "paralyzed" },
-  { re: /\b(?:knocked |falls? |is )?unconscious|\bknocked out\b|\bsenseless\b/, conditions: { incapacitated: 1, unconscious: 1 }, label: "knocked out" },
-  { re: /\bstun(?:ned|s)?\b|\bbottom of the initiative|\bloses? (?:his |her |its |their |the )?next (?:action|attack|round|turn)|\bdazed\b/, conditions: { stunned: 1 }, label: "stunned" },
-  { re: /\b(?:knocked|falls?|thrown|sent|lands?|knocks? \w+|sweeps? \w+|tripped)\b(?: \w+){0,4} (?:prone|down|to the ground|off (?:his|her|its|their) feet)|\bprone\b/, conditions: { prone: 1 }, label: "knocked down" },
-  { re: /\bblind(?:ed|s)?\b/, conditions: { blinded: 1 }, label: "blinded" },
+  { re: /\b(?:falls?|fall|put|placed|sent) (?:into (?:a )?)?(?:\w+ )?(?:asleep|sleep|slumber)|\bsleeps?\b/, conditions: { incapacitated: 1, asleep: 1 }, told: "asleep", extra: { endsOnDamage: true } },
+  { re: /\bparaly[sz]/, conditions: { incapacitated: 1, paralyzed: 1 }, told: "paralyzed" },
+  { re: /\b(?:knocked |falls? |is )?unconscious|\bknocked out\b|\bsenseless\b/, conditions: { incapacitated: 1, unconscious: 1 }, told: "knockedOut" },
+  { re: /\bstun(?:ned|s)?\b|\bbottom of the initiative|\bloses? (?:his |her |its |their |the )?next (?:action|attack|round|turn)|\bdazed\b/, conditions: { stunned: 1 }, told: "stunned" },
+  { re: /\b(?:knocked|falls?|thrown|sent|lands?|knocks? \w+|sweeps? \w+|tripped)\b(?: \w+){0,4} (?:prone|down|to the ground|off (?:his|her|its|their) feet)|\bprone\b/, conditions: { prone: 1 }, told: "knockedDown" },
+  { re: /\bblind(?:ed|s)?\b/, conditions: { blinded: 1 }, told: "blinded" },
   // A one-word command costs it its turn; a charm turns it into the caster's friend.
-  { re: /\bobeys? (?:the|a|his|her|its|their) (?:\w+ )?command\b|\bmust obey\b/, conditions: { stunned: 1 }, label: "obeying a command" },
-  { re: /\bcharm(?:ed|s)?\b|\bunder (?:the caster's|his|her|your) (?:\w+ )?control\b|\bas if (?:it|he|she|they) (?:were|was) (?:his|her|the caster's) (?:friend|ally)/, conditions: { controlled: 1 }, label: "under the caster's sway" },
-  { re: /\b(?:frightened|terrified|flees?|fleeing|in fear|cowers?|cowering|panics?)\b/, conditions: { frightened: 1 }, label: "terrified" },
-  { re: /\b(?:entangled|held fast|webbed|stuck fast|immobil\w*|can(?:not|'t) move|pinned|restrained|grappled|grapple)\b/, conditions: { immobilized: 1, held: 1 }, label: "held" },
-  { re: /\bdisarm\w*|\bdrops? (?:his |her |its |their )?weapon|\bweapon (?:is )?(?:knocked|shattered|sundered|broken|flies)/, conditions: { disarmed: 1 }, label: "disarmed" },
-  { re: /\bslow(?:ed|s)?\b/, conditions: { slowed: 1 }, label: "slowed" }
+  { re: /\bobeys? (?:the|a|his|her|its|their) (?:\w+ )?command\b|\bmust obey\b/, conditions: { stunned: 1 }, told: "obeying" },
+  { re: /\bcharm(?:ed|s)?\b|\bunder (?:the caster's|his|her|your) (?:\w+ )?control\b|\bas if (?:it|he|she|they) (?:were|was) (?:his|her|the caster's) (?:friend|ally)/, conditions: { controlled: 1 }, told: "swayed" },
+  { re: /\b(?:frightened|terrified|flees?|fleeing|in fear|cowers?|cowering|panics?)\b/, conditions: { frightened: 1 }, told: "terrified" },
+  { re: /\b(?:entangled|held fast|webbed|stuck fast|immobil\w*|can(?:not|'t) move|pinned|restrained|grappled|grapple)\b/, conditions: { immobilized: 1, held: 1 }, told: "held" },
+  { re: /\bdisarm\w*|\bdrops? (?:his |her |its |their )?weapon|\bweapon (?:is )?(?:knocked|shattered|sundered|broken|flies)/, conditions: { disarmed: 1 }, told: "disarmed" },
+  { re: /\bslow(?:ed|s)?\b/, conditions: { slowed: 1 }, told: "slowed" }
 ];
 
 /**
@@ -191,7 +193,7 @@ export function outcomeIn(text, { casterLevel = 0, defaultRounds = 1 } = {}) {
       continue;
     }
     Object.assign(conditions, c.conditions);
-    labels.push(c.label);
+    labels.push(say(`Told.${c.told}`));
     extra = { ...extra, ...(c.extra ?? {}) };
   }
   // A failed save's result that only comes on a second failure, a cure, and the like are past what a fight needs.
@@ -199,24 +201,29 @@ export function outcomeIn(text, { casterLevel = 0, defaultRounds = 1 } = {}) {
   for ( const k of Object.keys(mods) ) if ( !mods[k] ) delete mods[k];
   if ( !Object.keys(conditions).length && !Object.keys(mods).length && !slay ) return null;
   const rounds = roundsIn(t, { casterLevel }) ?? defaultRounds;
-  const out = { rounds, label: labels.length ? labels.slice(0, 2).join(" and ") : describe(mods), ...extra };
+  const out = { rounds, label: labels.length ? listJoin(labels.slice(0, 2)) : describe(mods), ...extra };
   if ( Object.keys(conditions).length ) out.conditions = conditions;
   if ( Object.keys(mods).length ) out.mods = mods;
   if ( slay ) out.slay = true;
   return out;
 }
 
-/** A label for bonuses and penalties alone ("-2 to attacks", "+1 AC"). */
+/** Bonuses and penalties in words ("-2 to attacks, +1 AC"; "" for none). */
+export function modsWords(mods = {}) {
+  const signed = n => `${n > 0 ? "+" : ""}${n}`;
+  return listItems(["attack", "ac", "saves", "damage"].filter(k => mods[k]).map(k => say(`Mods.${k}`, { n: signed(mods[k]) })));
+}
+
+/** The core's word for an outcome it can't say more about ("affected"). */
+export const affected = () => localize("FASTFIGHTING.Effect.affected");
+
+/** A label for bonuses and penalties alone ("hampered (-2 to attacks)", "bolstered (+1 AC)"). */
 function describe(mods) {
-  const bits = [];
-  if ( mods.attack ) bits.push(`${mods.attack > 0 ? "+" : ""}${mods.attack} to attacks`);
-  if ( mods.ac ) bits.push(`${mods.ac > 0 ? "+" : ""}${mods.ac} AC`);
-  if ( mods.saves ) bits.push(`${mods.saves > 0 ? "+" : ""}${mods.saves} to saves`);
-  if ( mods.damage ) bits.push(`${mods.damage > 0 ? "+" : ""}${mods.damage} damage`);
-  if ( !bits.length ) return "affected";
+  const what = modsWords(mods);
+  if ( !what ) return affected();
   // As something a creature can be: "hampered (-2 to attacks)", "bolstered (+1 AC)".
   const worse = Object.values(mods).some(v => v < 0);
-  return `${worse ? "hampered" : "bolstered"} (${bits.join(", ")})`;
+  return say(worse ? "Mods.Hampered" : "Mods.Bolstered", { what });
 }
 
 /**

@@ -5,6 +5,7 @@
 import { describe, expect, test } from "vitest";
 import { plain, damageIn, damageMultiple, roundsIn, targetsIn, saveIn, outcomeIn, modsIn, tableRow, spellResult, statLine, hitDice, actionDice, critOnFor, lowestSuccess } from "../scripts/text.js";
 import { meanPart } from "../scripts/core.js";
+import { text } from "./foundry-i18n.js";
 
 const total = parts => parts.reduce((s, p) => s + meanPart(p), 0);
 
@@ -58,10 +59,10 @@ describe("reading table text", () => {
     expect(outcomeIn("The target must save or fall asleep.")).toMatchObject({ conditions: { incapacitated: 1 }, endsOnDamage: true });
     expect(outcomeIn("Its weapon is knocked from its hand.")).toMatchObject({ conditions: { disarmed: 1 } });
     expect(modsIn("They suffer a -4 penalty to their next attack roll.")).toEqual({ attack: -4 });
-    expect(outcomeIn("They suffer a -4 penalty to their next attack roll.").label).toBe("hampered (-4 to attacks)");
+    expect(outcomeIn("They suffer a -4 penalty to their next attack roll.").label).toBe(text("FFDCC.Mods.Hampered", { what: text("FFDCC.Mods.attack", { n: "-4" }) }));
     expect(modsIn("A +2 bonus to AC for the round.")).toEqual({ ac: 2 });
     expect(modsIn("-1 to all rolls")).toEqual({ attack: -1, saves: -1, checks: -1 });
-    expect(outcomeIn("If it fails its save, it must obey the command for one round.")).toMatchObject({ conditions: { stunned: 1 }, label: "obeying a command" });
+    expect(outcomeIn("If it fails its save, it must obey the command for one round.")).toMatchObject({ conditions: { stunned: 1 }, label: text("FFDCC.Told.obeying") });
     expect(outcomeIn("Fail the save and it falls under the caster's complete control, as if it were his friend.")).toMatchObject({ conditions: { controlled: 1 } });
     expect(outcomeIn("A clean hit.")).toBeNull();
     expect(outcomeIn("The foe is decapitated and dies instantly.").slay).toBe(true);

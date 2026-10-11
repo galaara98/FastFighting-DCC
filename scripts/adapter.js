@@ -50,7 +50,7 @@ export class DccAdapter extends SystemAdapter {
   #tables = new DccTables();
 
   get label() {
-    return game.modules.get("xcc")?.active ? "DCC / XCC" : "DCC";
+    return game.modules.get("xcc")?.active ? t("LabelXcc") : t("Label");
   }
 
   get rules() {
@@ -163,10 +163,10 @@ export class DccAdapter extends SystemAdapter {
           deceive: { skill: game.i18n.localize("FFDCC.Personality"), mod: Number(sys.abilities?.per?.mod) || 0 }
         },
         resist: {
-          persuade: { dc: 10 + defenses.wil, label: t("Will", "Will") },
-          intimidate: { dc: 10 + defenses.wil, label: t("Will", "Will") },
-          deceive: { dc: 10 + Math.max(defenses.wil, Number(sys.abilities?.int?.mod) || 0), label: t("Will", "Will") },
-          steal: { dc: 10 + Math.max(defenses.ref, Number(sys.abilities?.int?.mod) || 0), label: t("Reflex", "Reflex") }
+          persuade: { dc: 10 + defenses.wil, label: t("Will") },
+          intimidate: { dc: 10 + defenses.wil, label: t("Will") },
+          deceive: { dc: 10 + Math.max(defenses.wil, Number(sys.abilities?.int?.mod) || 0), label: t("Will") },
+          steal: { dc: 10 + Math.max(defenses.ref, Number(sys.abilities?.int?.mod) || 0), label: t("Reflex") }
         },
         resolve: defenses.wil - (Math.floor(level / 2) + 1),
         languages: String(sys.details?.languages ?? "").split(/[,;/]/).map(s => s.trim().toLowerCase()).filter(Boolean),
@@ -411,7 +411,7 @@ export class DccAdapter extends SystemAdapter {
     const things = actor.items.filter(i => ["weapon", "armor", "equipment", "treasure", "ammunition"].includes(i.type)).map(i => ({ id: i.id, name: i.name, value: worth(i), equipped: i.system.equipped !== false && ["weapon", "armor"].includes(i.type) }));
     return {
       money,
-      denominations: [{ label: "gp", value: 100 }, { label: "sp", value: 10 }, { label: "cp", value: 1 }],
+      denominations: [{ label: t("Coin.gp"), value: 100 }, { label: t("Coin.sp"), value: 10 }, { label: t("Coin.cp"), value: 1 }],
       stowed: things.filter(t => !t.equipped && t.value > 0).map(({ equipped, ...t }) => t),
       wielded: things.filter(t => t.equipped && t.value > 0).map(({ equipped, ...t }) => t)
     };

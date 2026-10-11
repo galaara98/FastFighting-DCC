@@ -10,7 +10,7 @@ import { t, conditionName } from "./words.js";
 
 /** Engine conditions -> the dcc system's statuses, for whatever's still on a creature when it's over. */
 const LINGERING = { stunned: "stun", paralyzed: "paralysis", asleep: "sleep", unconscious: "unconscious", blinded: "blind", frightened: "fear", held: "restrain", slowed: "slowed" };
-const abilityName = k => ({ str: t("Ability.str", "Strength"), agl: t("Ability.agl", "Agility"), sta: t("Ability.sta", "Stamina") }[k] ?? k);
+const abilityName = k => ({ str: t("Ability.str"), agl: t("Ability.agl"), sta: t("Ability.sta") }[k] ?? k);
 
 /**
  * The statuses on a dcc actor, read from its effects: the dcc system applies effects its own way and leaves
@@ -53,19 +53,19 @@ export function describeDccOutcome(spec, final) {
   // (Hit points, its fate and a change of side: the core's words.)
   const lines = commonOutcome(spec, final);
   const s = final.system ?? {};
-  if ( final.status === STATUS.DOWN ) lines.push(final.stable ? t("Out.Unconscious", "Unconscious") : (s.bleed === 1 ? t("Out.BleedOne", "Bleeding out (1 round left)") : t("Out.Bleed", "Bleeding out ({n} rounds left)", { n: s.bleed ?? 0 })));
+  if ( final.status === STATUS.DOWN ) lines.push(final.stable ? t("Out.Unconscious") : (s.bleed === 1 ? t("Out.BleedOne") : t("Out.Bleed", { n: s.bleed ?? 0 })));
   const alive = final.status !== STATUS.DEAD;
-  if ( s.bledOut && alive ) lines.push(t("Out.Saved", "Saved from bleeding out: -1 Stamina for good, and a scar"));
-  if ( s.body ) lines.push(t("Out.Body", "Rolled the body: alive at 1 HP, groggy, -1 {ability} for good", { ability: abilityName(s.body) }));
+  if ( s.bledOut && alive ) lines.push(t("Out.Saved"));
+  if ( s.body ) lines.push(t("Out.Body", { ability: abilityName(s.body) }));
   const luck = spent(spec, final, "luck");
-  if ( luck ) lines.push(t("Out.Luck", "Burns {n} Luck", { n: luck }));
+  if ( luck ) lines.push(t("Out.Luck", { n: luck }));
   const burn = spent(spec, final, "spellburn");
-  if ( burn ) lines.push(t("Out.Spellburn", "Spellburns {n} (Strength, Stamina, Agility)", { n: burn }));
+  if ( burn ) lines.push(t("Out.Spellburn", { n: burn }));
   for ( const id of s.lost ?? [] ) {
     const a = spec.actions.find(x => x.id === id);
-    if ( a ) lines.push(t("Out.Lost", "Loses {name} for the day", { name: a.name }));
+    if ( a ) lines.push(t("Out.Lost", { name: a.name }));
   }
-  if ( s.disapproval ) lines.push(t("Out.Disapproval", "Disapproval range {n}", { n: s.disapproval }));
+  if ( s.disapproval ) lines.push(t("Out.Disapproval", { n: s.disapproval }));
   for ( const k of Object.keys(final.conditions ?? {}) ) if ( LINGERING[k] && final.status !== STATUS.DEAD ) lines.push(conditionName(k));
   return lines;
 }

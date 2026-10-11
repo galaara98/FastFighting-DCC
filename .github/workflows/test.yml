@@ -32,3 +32,5 @@ jobs:
         working-directory: FastFighting-DCC
       - run: npm test
         working-directory: FastFighting-DCC
+      - run: npm run test:reworded
+        working-directory: FastFighting-DCC
