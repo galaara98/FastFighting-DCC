@@ -50,6 +50,7 @@ Enable both in a DCC world.
   A save's DC is the spell check, as in the rules. A wizard or elf loses the spell on a failure. A cleric's failures widen its disapproval, and a natural roll inside the range fails. Monsters lose nothing. Spells from a stat-block importer that name no table are found by name in the installed books.
 - **The cleric's own:** Lay on Hands (so many of the target's hit dice) and Turn Unholy (un-dead, demons and devils up to so many hit dice cower), by their tables.
 - **Luck:** a player character burns Luck on a roll that falls short, more readily the more is at stake (a save against death, a spell, a friend bleeding out). A thief rolls its luck die for each point burned. A halfling's points count double, and it can spend them on a friend's roll within 30 feet. Wizards and elves spellburn Strength, Stamina and Agility on spell checks.
+- **Fleeting Luck and Mojo:** with DCC's Fleeting Luck on in the world (each player's, for all its characters), or XCC's Mojo (each crawler's own, always on), a character spends it before its Luck on a roll that falls short, a point for +1. A character's natural 20 earns its pool a point; a natural 1 on a d14 or bigger takes every pool there is. Make it So writes what's left back (on the player, or the crawler), and Undo puts it back.
 - **Dying:** monsters and 0-level characters die at 0 hit points. Anyone else bleeds out for as many rounds as their level, and if healed in time loses a point of Stamina for good. After the fight, friends who hold the field roll the body of each fallen player character: a Luck check (a d20 at or under their Luck) finds them only unconscious, at 1 hit point, groggy, a point of Strength, Agility or Stamina gone for good.
 - **Morale:** DCC's own, for creatures (a character's is its player's, as FastFighting plays it). A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. One roll decides for the group, by whichever of it acts next: a d20 + its Will (a retainer adds its employer's Personality: the party leader's, else the best of the party's) against DC 11. Under, the whole group flees. The mindless and the fearless never break. The Statistician shows each roll.
 - **Personality:** a funnel peasant isn't a veteran. Monsters are read from what they are (beasts, the walking dead, giants, spellcasters), their Will save and their alignment.
@@ -60,7 +61,7 @@ Enable both in a DCC world.
 
 Writes the drawn fight onto the tokens, as the confirmation dialog lists:
 - hit points, death (and the combatant defeated), the fled hidden;
-- Luck and spellburn spent;
+- Luck and spellburn spent, and Fleeting Luck or Mojo as the fight left it;
 - spells lost for the day, a cleric's disapproval range;
 - the Stamina lost to bleeding out, or the ability lost and Groggy when the body was rolled;
 - statuses still on a creature (stunned, paralyzed, asleep, blinded, frightened, held, slowed, prone);

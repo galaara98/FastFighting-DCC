@@ -91,6 +91,26 @@ export function toughnessOf(actor) {
   return [{ id: "toughness", label, on: "hit", reduce, melee: true }];
 }
 
+/**
+ * A character's Fleeting Luck or Mojo: XCC's Mojo (the XCC module on: the crawler's own, a flag on it), else DCC's
+ * Fleeting Luck when the world has it on (its player's, for all its characters: a flag on the player). Null for none.
+ * @returns {{kind: "actor"|"user", id: string, key: string, points: number, label: string}|null}
+ */
+function fleetingOf(actor) {
+  if ( game.modules?.get("xcc")?.active ) {
+    return { kind: "actor", id: actor.id, key: `actor:${actor.id}`, points: Number(actor.getFlag("xcc", "mojo")) || 0,
+      label: game.i18n.has("XCC.MojoTitle") ? game.i18n.localize("XCC.MojoTitle") : game.i18n.localize("DCC.FleetingLuck") };
+  }
+  let on = false;
+  try {
+    on = !!game.settings.get("dcc", "enableFleetingLuck");
+  } catch ( err ) { /* no such setting */ }
+  if ( !on ) return null;
+  const player = game.users?.find(u => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
+  if ( !player ) return null;
+  return { kind: "user", id: player.id, key: `user:${player.id}`, points: Number(player.getFlag("dcc", "fleetingLuckValue")) || 0, label: game.i18n.localize("DCC.FleetingLuck") };
+}
+
 /** The languages it speaks: its sheet's; with none listed, Common (every character; any creature not a beast or mindless). */
 function languagesOf(actor, { pc, undead }) {
   const listed = String(actor.system.details?.languages ?? "").split(/[,;/]/).map(s => s.trim().toLowerCase()).filter(Boolean);
@@ -147,6 +167,12 @@ export class DccAdapter extends SystemAdapter {
     const { actions, shieldBash, freeAttack } = await this.#actions(actor, { pc, kind, level, dice, luckMod, line, deeds: !!deeds });
     const resources = {};
     const boosts = [];
+    // Fleeting Luck (DCC's, a player's) or Mojo (XCC's, the crawler's own): spent first, it's gone soon anyway.
+    const fleeting = pc ? fleetingOf(actor) : null;
+    if ( fleeting ) {
+      resources.fleeting = fleeting.points;
+      boosts.push({ pool: "fleeting", shared: fleeting.key, label: fleeting.label, per: 1, recovers: true });
+    }
     if ( pc ) {
       // Luck burned on a roll (a halfling's counts double and can go to a friend; a thief rolls its luck die).
       resources.luck = luck;
@@ -190,6 +216,8 @@ export class DccAdapter extends SystemAdapter {
       actionDice: dice,
       shieldBash,
       freeAttack,
+      // (Whose Fleeting Luck or Mojo it is, for Make it So.)
+      fleeting: fleeting ? { key: fleeting.key, kind: fleeting.kind, id: fleeting.id, points: fleeting.points } : undefined,
       deeds,
       // An XCC brawler's Toughness: so much off every melee blow.
       reactions: kind.brawler ? toughnessOf(actor) : undefined,

@@ -59,6 +59,10 @@ export function describeDccOutcome(spec, final) {
   if ( s.body ) lines.push(t("Out.Body", { ability: abilityName(s.body) }));
   const luck = spent(spec, final, "luck");
   if ( luck ) lines.push(t("Out.Luck", { n: luck }));
+  // Fleeting Luck (Mojo), as the fight left it.
+  if ( spec.fleeting && Number.isFinite(s.fleeting) && s.fleeting !== spec.fleeting.points ) {
+    lines.push(t("Out.Fleeting", { label: (spec.boosts ?? []).find(b => b.pool === "fleeting")?.label ?? "", from: spec.fleeting.points, to: s.fleeting }));
+  }
   const burn = spent(spec, final, "spellburn");
   if ( burn ) lines.push(t("Out.Spellburn", { n: burn }));
   for ( const id of s.lost ?? [] ) {
@@ -121,6 +125,19 @@ export async function commitDccOutcome(tokenDoc, spec, final, options = {}) {
   if ( s.bledOut && final.status !== STATUS.DEAD ) ability("sta", -1, { max: true });
   if ( s.body && final.status !== STATUS.DEAD ) ability(s.body, -1, { max: true });
   if ( Number.isFinite(s.disapproval) && s.disapproval !== sys.class?.disapproval ) set("system.class.disapproval", s.disapproval);
+  // Fleeting Luck (Mojo), as the fight left it: XCC's on the crawler, DCC's on its player (Undo puts it back).
+  if ( spec.fleeting && Number.isFinite(s.fleeting) ) {
+    if ( spec.fleeting.kind === "actor" ) set("flags.xcc.mojo", s.fleeting);
+    else {
+      const player = game.users.get(spec.fleeting.id);
+      const before = Number(player?.getFlag("dcc", "fleetingLuckValue")) || 0;
+      if ( player && before !== s.fleeting ) {
+        undo.userId = player.id;
+        undo.userUpdate = { "flags.dcc.fleetingLuckValue": before };
+        await player.setFlag("dcc", "fleetingLuckValue", s.fleeting);
+      }
+    }
+  }
 
   // Conditions first, HP last (a status change and an HP change at once can overwrite each other on unlinked tokens).
   if ( final.status === STATUS.DOWN ) {

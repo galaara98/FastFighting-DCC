@@ -26,6 +26,9 @@ import { t } from "./words.js";
 const has = (u, key) => (u?.conds?.[key] ?? 0) > 0;
 const ABILITY_LOSS = ["str", "agl", "sta"];
 
+/** What the world calls Fleeting Luck (XCC: Mojo), as the character's boost names it. */
+const labelOf = u => (u.spec.boosts ?? []).find(b => b.pool === "fleeting")?.label ?? "";
+
 /** A morale check's DC. */
 const MORALE_DC = 11;
 const signed = n => (n >= 0 ? `+${n}` : String(n));
@@ -321,9 +324,28 @@ export const dccRules = {
     return 0.5;
   },
 
-  /** What Make it So needs beyond the core's: bleeding out, the body, spells lost, disapproval. */
+  /**
+   * Fleeting Luck (Mojo): a character's natural 20 earns its pool a point; a natural 1 on a d14 or bigger takes every
+   * pool there is. (Creatures' rolls don't count: it's the players'.)
+   */
+  afterRoll(run, u, roll, ctx) {
+    const pools = run.sharedPools;
+    if ( u.spec.kind !== "pc" || !pools || !roll || !Number.isFinite(roll.natural) ) return;
+    const faces = ctx?.faces ?? 20;
+    const key = u.spec.fleeting?.key;
+    if ( faces === 20 && roll.natural === 20 && key && key in pools ) {
+      pools[key] += 1;
+      run.log?.push({ round: run.round, actor: u.spec.name, actorId: u.id, side: u.side, type: "fleeting", text: t("FleetingGain", { label: u.spec.fleeting ? labelOf(u) : "" }), gained: 1 });
+    } else if ( faces >= 14 && roll.natural === 1 && Object.values(pools).some(v => v > 0) ) {
+      for ( const k of Object.keys(pools) ) pools[k] = 0;
+      run.log?.push({ round: run.round, actor: u.spec.name, actorId: u.id, side: u.side, type: "fleeting", text: t("FleetingLost", { label: labelOf(u) }), lost: true });
+    }
+  },
+
+  /** What Make it So needs beyond the core's: bleeding out, the body, spells lost, disapproval, Fleeting Luck. */
   capture(u) {
     return {
+      fleeting: u.spec.fleeting ? u.sharedPools?.[u.spec.fleeting.key] ?? null : null,
       bleed: u.status === STATUS.DOWN && !u.stable ? (u.bleed ?? 0) : null,
       bledOut: !!u.bledOut,
       body: u.bodyRecovered ?? null,

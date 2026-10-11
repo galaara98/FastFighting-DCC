@@ -30,6 +30,8 @@
     },
     "MoraleHolds": "holds",
     "MoraleBreaks": "breaks",
+    "FleetingGain": "a natural 20: +1 {label}",
+    "FleetingLost": "a natural 1: everyone's {label} is gone",
     "Reflex": "Reflex",
     "Ac": "AC",
     "Hp": "HP",
@@ -98,7 +100,8 @@
       "Luck": "Burns {n} Luck",
       "Spellburn": "Spellburns {n} (Strength, Stamina, Agility)",
       "Lost": "Loses {name} for the day",
-      "Disapproval": "Disapproval range {n}"
+      "Disapproval": "Disapproval range {n}",
+      "Fleeting": "{label} {from} → {to}"
     },
     "Cond": {
       "stunned": "stunned",
