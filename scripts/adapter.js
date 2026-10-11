@@ -43,6 +43,8 @@ function weaponType(name) {
 
 const MODES = ["fly", "swim", "climb", "burrow"];
 const COPPER = { pp: 1000, ep: 50, gp: 100, sp: 10, cp: 1 };
+/** What a character carries that it could hand over (or ask for: its kind is the item type). */
+const GOODS = ["weapon", "armor", "equipment", "treasure", "ammunition"];
 
 export class DccAdapter extends SystemAdapter {
   static systemId = "dcc";
@@ -408,7 +410,7 @@ export class DccAdapter extends SystemAdapter {
     const c = actor.system.currency ?? {};
     const money = Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(c[k]) || 0) * v, 0);
     const worth = i => Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(i.system?.value?.[k]) || 0) * v, 0);
-    const things = actor.items.filter(i => ["weapon", "armor", "equipment", "treasure", "ammunition"].includes(i.type)).map(i => ({ id: i.id, name: i.name, value: worth(i), equipped: i.system.equipped !== false && ["weapon", "armor"].includes(i.type) }));
+    const things = actor.items.filter(i => GOODS.includes(i.type)).map(i => ({ id: i.id, name: i.name, value: worth(i), category: i.type, equipped: i.system.equipped !== false && ["weapon", "armor"].includes(i.type) }));
     return {
       money,
       denominations: [{ label: t("Coin.gp"), value: 100 }, { label: t("Coin.sp"), value: 10 }, { label: t("Coin.cp"), value: 1 }],
@@ -442,6 +444,15 @@ export class DccAdapter extends SystemAdapter {
 
   detectLeaders(specs) {
     return rankDccLeaders(specs.map(s => s.leadership).filter(Boolean));
+  }
+
+  /** The kinds of thing a character can ask for in a standoff: DCC's item types, in its own words (it has no materials or rarities). */
+  itemCatalog() {
+    return {
+      categories: GOODS.filter(k => CONFIG.Item.typeLabels?.[k]).map(key => ({ key, label: game.i18n.localize(CONFIG.Item.typeLabels[key]) })),
+      materials: [],
+      rarities: []
+    };
   }
 
   /** DCC's words for armor class and hit points: the helper's own (the system has only the long forms). */
