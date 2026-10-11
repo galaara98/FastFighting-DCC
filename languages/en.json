@@ -16,6 +16,85 @@
         "Name": "Lore-Collector advantage",
         "Hint": "How much likelier a Lore-Collector's rolls against a foe it has sized up are to succeed, through its next turn, after spending its turn on an Intelligence check (when it worked; never without it). 1.25× is a nudge, 3× a sure thing more often than not. Default 2.25×: it costs the whole turn, but deed dice and Luck already swing a fight hard. Ordinary attacks already hit often, and the dice stop a roll near 95%, so above about 1.75× little changes for them; the rest helps long-shot rolls (a hard AC, a hard talk)."
       }
+    },
+    "Will": "Will",
+    "Reflex": "Reflex",
+    "Ac": "AC",
+    "Attack": "attack",
+    "Saves": "saves",
+    "SpellCheck": "spell check",
+    "Turned": "turned",
+    "TurnUnholyCheck": "turn unholy",
+    "Lawful": "Lawful",
+    "Chaotic": "Chaotic",
+    "Neutral": "Neutral",
+    "Deed": {
+      "Trip": "Trip",
+      "KnockedDown": "knocked down",
+      "Blind": "Blinding attack",
+      "Disarm": "Disarming attack",
+      "Disarmed": "disarmed",
+      "Defend": "Defensive maneuver",
+      "Rally": "Rallying maneuver",
+      "ThrownDown": "thrown down",
+      "Dazzled2": "dazzled (-2 to attacks)",
+      "Blinded": "blinded",
+      "Ac": "+{n} AC",
+      "Rallied1": "rallied (+1 to the next attack)",
+      "Rallied2": "rallied (+2 to the next attack)",
+      "Rallied3": "rallied (+2 to attacks and saves)",
+      "Dazzled": "dazzled ({what})",
+      "Rallied": "rallied ({what})"
+    },
+    "Bleed": {
+      "Dies": "bleeds out and dies",
+      "One": "is bleeding out (1 round left)",
+      "Many": "is bleeding out ({n} rounds left)",
+      "Last": "is bleeding out: the last chance to save them"
+    },
+    "Body": {
+      "Dead": "is truly dead (Luck check: d20 {roll}, Luck {luck})",
+      "Alive": "was only unconscious (Luck check: d20 {roll}, Luck {luck}): 1 hit point, groggy"
+    },
+    "Reason": {
+      "Zero": "0-level character",
+      "Pc": "Player character",
+      "Typical": "Typical",
+      "Int": "Intelligence {n}",
+      "Beast": "Beast",
+      "BarelyThinks": "Barely thinks",
+      "Caster": "Spellcaster",
+      "LeaderMind": "A leader's mind",
+      "WillSave": "Will save",
+      "UndeadNeverFlees": "Un-dead: never flees",
+      "NeverFlees": "Mindless: never flees",
+      "BeastFlees": "Beast: flees when hurt"
+    },
+    "Ability": {
+      "str": "Strength",
+      "agl": "Agility",
+      "sta": "Stamina"
+    },
+    "Out": {
+      "Unconscious": "Unconscious",
+      "BleedOne": "Bleeding out (1 round left)",
+      "Bleed": "Bleeding out ({n} rounds left)",
+      "Saved": "Saved from bleeding out: -1 Stamina for good, and a scar",
+      "Body": "Rolled the body: alive at 1 HP, groggy, -1 {ability} for good",
+      "Luck": "Burns {n} Luck",
+      "Spellburn": "Spellburns {n} (Strength, Stamina, Agility)",
+      "Lost": "Loses {name} for the day",
+      "Disapproval": "Disapproval range {n}"
+    },
+    "Cond": {
+      "stunned": "stunned",
+      "paralyzed": "paralyzed",
+      "asleep": "asleep",
+      "unconscious": "unconscious",
+      "blinded": "blinded",
+      "frightened": "frightened",
+      "held": "held",
+      "slowed": "slowed"
     }
   }
 }

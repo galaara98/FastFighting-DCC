@@ -10,6 +10,7 @@
  */
 import { spellResult, plain } from "./text.js";
 import { meanPart } from "./core.js";
+import { t } from "./words.js";
 
 /** Chance a check (die + mod, a natural 1 fails) lands from lo to hi. */
 export function chanceBetween(mod, faces, lo, hi = Infinity) {
@@ -93,7 +94,7 @@ export function spellAction({ id, name, level = 1, rows, mod = 0, faces = 20, mo
     id, name, kind, cost: 1, ...where, ...shown,
     targets: kind === "buff" && self ? "self" : undefined,
     casting: {
-      mod, faces, label: "spell check",
+      mod, faces, label: t("SpellCheck", "spell check"),
       lostOnFail: !monster && mode === "wizard",
       disapproval: !monster && mode === "cleric" ? Math.max(1, Number(disapproval) || 1) : null
     },
@@ -139,7 +140,7 @@ export function layOnHandsAction({ id = "lay-on-hands", name = "Lay on Hands", r
   const typical = tiers[chances.indexOf(Math.max(...chances))];
   return {
     id, name, kind: "heal", cost: 1, reach: 5, heal: [], healDice: typical?.healDice ?? 1,
-    casting: { mod, faces, label: "spell check", disapproval: Math.max(1, Number(disapproval) || 1) },
+    casting: { mod, faces, label: t("SpellCheck", "spell check"), disapproval: Math.max(1, Number(disapproval) || 1) },
     tiers, castChance, guessed
   };
 }
@@ -164,9 +165,9 @@ export function turnUnholyAction({ id = "turn-unholy", name = "Turn Unholy", row
   const typical = tiers[chances.indexOf(Math.max(...chances))];
   return {
     id, name, kind: "control", cost: 1, range: { increment: 30 }, auto: true, area: { targets: 3 },
-    outcome: { conditions: { incapacitated: 1, turned: 1 }, rounds: 3, label: "turned" },
+    outcome: { conditions: { incapacitated: 1, turned: 1 }, rounds: 3, label: t("Turned", "turned") },
     turns: typical?.turns ?? 1,
-    casting: { mod, faces, label: "turn unholy", disapproval: Math.max(1, Number(disapproval) || 1) },
+    casting: { mod, faces, label: t("TurnUnholyCheck", "turn unholy"), disapproval: Math.max(1, Number(disapproval) || 1) },
     tiers, castChance, guessed
   };
 }

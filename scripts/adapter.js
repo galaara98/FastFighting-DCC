@@ -18,6 +18,7 @@ import { deriveDccTraits } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
 import { commitDccOutcome, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
 import { loreBoost } from "./lore.js";
+import { t } from "./words.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
 function flatOf(value) {
@@ -162,10 +163,10 @@ export class DccAdapter extends SystemAdapter {
           deceive: { skill: game.i18n.localize("FFDCC.Personality"), mod: Number(sys.abilities?.per?.mod) || 0 }
         },
         resist: {
-          persuade: { dc: 10 + defenses.wil, label: "Will" },
-          intimidate: { dc: 10 + defenses.wil, label: "Will" },
-          deceive: { dc: 10 + Math.max(defenses.wil, Number(sys.abilities?.int?.mod) || 0), label: "Will" },
-          steal: { dc: 10 + Math.max(defenses.ref, Number(sys.abilities?.int?.mod) || 0), label: "Reflex" }
+          persuade: { dc: 10 + defenses.wil, label: t("Will", "Will") },
+          intimidate: { dc: 10 + defenses.wil, label: t("Will", "Will") },
+          deceive: { dc: 10 + Math.max(defenses.wil, Number(sys.abilities?.int?.mod) || 0), label: t("Will", "Will") },
+          steal: { dc: 10 + Math.max(defenses.ref, Number(sys.abilities?.int?.mod) || 0), label: t("Reflex", "Reflex") }
         },
         resolve: defenses.wil - (Math.floor(level / 2) + 1),
         languages: String(sys.details?.languages ?? "").split(/[,;/]/).map(s => s.trim().toLowerCase()).filter(Boolean),

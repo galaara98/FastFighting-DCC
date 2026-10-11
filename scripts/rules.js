@@ -13,6 +13,7 @@
  * unconscious, at 1 hit point, groggy, with a permanent point of Strength, Agility or Stamina lost.
  */
 import { DOWNED_MODELS, STATUS } from "./core.js";
+import { t } from "./words.js";
 
 const has = (u, key) => (u?.conds?.[key] ?? 0) > 0;
 const ABILITY_LOSS = ["str", "agl", "sta"];
@@ -138,11 +139,11 @@ export const dccRules = {
     if ( (c.bleed ?? 0) <= 0 ) {
       c.status = STATUS.DEAD;
       c.dying = 0;
-      return "bleeds out and dies";
+      return t("Bleed.Dies", "bleeds out and dies");
     }
     c.bleed -= 1;
     c.dying = Math.max(1, (Number(c.spec.level) || 1) + 1 - c.bleed);
-    return c.bleed ? `is bleeding out (${c.bleed} round${c.bleed === 1 ? "" : "s"} left)` : "is bleeding out: the last chance to save them";
+    return c.bleed ? (c.bleed === 1 ? t("Bleed.One", "is bleeding out (1 round left)") : t("Bleed.Many", "is bleeding out ({n} rounds left)", { n: c.bleed })) : t("Bleed.Last", "is bleeding out: the last chance to save them");
   },
   /** Knocked out by someone who never kills: down, but not bleeding. */
   knockOut(u) {
@@ -152,13 +153,13 @@ export const dccRules = {
   recoverBody(u, rng) {
     const luck = u.resources?.luck ?? u.spec.luck ?? 0;
     const roll = rng.die(20);
-    if ( roll > luck ) return `is truly dead (Luck check: d20 ${roll}, Luck ${luck})`;
+    if ( roll > luck ) return t("Body.Dead", "is truly dead (Luck check: d20 {roll}, Luck {luck})", { roll, luck });
     u.status = STATUS.STANDING;
     u.hp = 1;
     u.bleed = null;
     u.dying = 0;
     u.bodyRecovered = ABILITY_LOSS[rng.die(3) - 1];
-    return `was only unconscious (Luck check: d20 ${roll}, Luck ${luck}): 1 hit point, groggy`;
+    return t("Body.Alive", "was only unconscious (Luck check: d20 {roll}, Luck {luck}): 1 hit point, groggy", { roll, luck });
   },
   persistentFlatCheck(rng) {
     return rng.d20() >= 11;

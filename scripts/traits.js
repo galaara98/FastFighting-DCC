@@ -4,6 +4,7 @@
  * (a 0-level peasant in the funnel is no hardened adventurer) and alignment.
  * Pure: takes plain values, unit-testable.
  */
+import { t } from "./words.js";
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 const BEAST = /\b(?:wolf|wolves|hound|dog|bear|boar|rat|snake|serpent|owl|toad|frog|bat|spider|stag|goat|vulture|hawk|eagle|cat|lion|tiger|ape|horse|mule|shark|crab|beetle|ant|worm|lizard|crocodile|leech|insect|swarm)\b/i;
@@ -31,7 +32,7 @@ export function deriveDccTraits(d) {
   const chaotic = a === "c";
   if ( d.pc ) {
     const zero = (d.level ?? 0) <= 0;
-    const why = zero ? "0-level character" : "Player character";
+    const why = zero ? t("Reason.Zero", "0-level character") : t("Reason.Pc", "Player character");
     return {
       traits: {
         tactical: zero ? 45 : 65,
@@ -47,30 +48,30 @@ export function deriveDccTraits(d) {
   const beast = BEAST.test(d.name ?? "");
   const mindless = !!d.undead && MINDLESS.test(what) || MINDLESS.test(d.name ?? "");
   let tactical = 40;
-  reasons.tactical = "Typical";
+  reasons.tactical = t("Reason.Typical", "Typical");
   if ( Number.isFinite(d.int) && d.int !== 10 ) {
     tactical = clamp(35 + Math.floor((d.int - 10) / 2) * 8, 5, 95);
-    reasons.tactical = `Intelligence ${d.int}`;
+    reasons.tactical = t("Reason.Int", "Intelligence {n}", { n: d.int });
   } else if ( beast ) {
     tactical = 20;
-    reasons.tactical = "Beast";
+    reasons.tactical = t("Reason.Beast", "Beast");
   } else if ( mindless ) {
     tactical = 5;
-    reasons.tactical = "Barely thinks";
+    reasons.tactical = t("Reason.BarelyThinks", "Barely thinks");
   } else if ( d.casts || CLEVER.test(d.name ?? "") ) {
     tactical = 60;
-    reasons.tactical = d.casts ? "Spellcaster" : "A leader's mind";
+    reasons.tactical = d.casts ? t("Reason.Caster", "Spellcaster") : t("Reason.LeaderMind", "A leader's mind");
   }
   const typicalWill = Math.floor((d.level ?? 1) / 2) + 1;
   let brave = clamp(50 + ((d.will ?? 0) - typicalWill) * 5, 10, 90);
-  reasons.brave = "Will save";
+  reasons.brave = t("Reason.WillSave", "Will save");
   if ( d.undead || mindless ) {
     brave = 100;
     flags.fearless = true;
-    reasons.brave = d.undead ? "Un-dead: never flees" : "Mindless: never flees";
+    reasons.brave = d.undead ? t("Reason.UndeadNeverFlees", "Un-dead: never flees") : t("Reason.NeverFlees", "Mindless: never flees");
   } else if ( beast ) {
     brave = Math.min(brave, 45);
-    reasons.brave = "Beast: flees when hurt";
+    reasons.brave = t("Reason.BeastFlees", "Beast: flees when hurt");
   }
   if ( mindless ) flags.mindless = true;
   if ( /\bpack\b/i.test(d.notes ?? "") && beast ) flags.packTactics = true;
@@ -87,5 +88,5 @@ export function deriveDccTraits(d) {
 }
 
 function alignmentName(a) {
-  return { l: "Lawful", c: "Chaotic" }[a] ?? "Neutral";
+  return { l: t("Lawful", "Lawful"), c: t("Chaotic", "Chaotic") }[a] ?? t("Neutral", "Neutral");
 }
