@@ -1,0 +1,14 @@
+{
+  "FFDCC": {
+    "CoreTooOld": "FastFighting DCC needs a newer FastFighting Core. Update FastFighting.",
+    "NeedsCore": "FastFighting DCC needs the FastFighting module. Enable it in Manage Modules.",
+    "Luck": "Luck",
+    "Spellburn": "Spellburn",
+    "Personality": "Personality",
+    "PickPockets": "Pick Pockets",
+    "LayOnHands": "Lay on Hands",
+    "TurnUnholy": "Turn Unholy",
+    "Surrendered": "Surrendered",
+    "SurrenderedHint": "Gave up the fight (FastFighting). Delete this effect once the matter is settled."
+  }
+}
