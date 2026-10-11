@@ -444,11 +444,6 @@ export class DccAdapter extends SystemAdapter {
     return rankDccLeaders(specs.map(s => s.leadership).filter(Boolean));
   }
 
-  /** DCC has no encounter budget to compare with. */
-  difficultyCrossCheck() {
-    return null;
-  }
-
   resourceLabel(key) {
     if ( key === "luck" ) return game.i18n.localize("FFDCC.Luck");
     if ( key === "spellburn" ) return game.i18n.localize("FFDCC.Spellburn");
