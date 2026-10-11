@@ -70,7 +70,8 @@
     },
     "Body": {
       "Dead": "is truly dead (Luck check: d20 {roll}, Luck {luck})",
-      "Alive": "was only unconscious (Luck check: d20 {roll}, Luck {luck}): 1 hit point, groggy"
+      "Alive": "was only unconscious (Luck check: d20 {roll}, Luck {luck}): 1 hit point, groggy",
+      "TooCute": "was too cute to die (Luck check: d20 {roll}, Luck {luck}; a point of Luck spent): 1 hit point, groggy"
     },
     "Reason": {
       "Zero": "0-level character",
@@ -146,6 +147,11 @@
       "gp": "gp",
       "sp": "sp",
       "cp": "cp"
-    }
+    },
+    "NotInTheFace": "Not in the Face",
+    "Disrespect": "Disrespect",
+    "Disrespected": "Disrespected",
+    "Grapple": "Wrestling",
+    "Acrobatics": "Acrobatics"
   }
 }

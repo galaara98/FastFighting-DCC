@@ -125,6 +125,8 @@ export async function commitDccOutcome(tokenDoc, spec, final, options = {}) {
   if ( s.bledOut && final.status !== STATUS.DEAD ) ability("sta", -1, { max: true });
   if ( s.body && final.status !== STATUS.DEAD ) ability(s.body, -1, { max: true });
   if ( Number.isFinite(s.disapproval) && s.disapproval !== sys.class?.disapproval ) set("system.class.disapproval", s.disapproval);
+  // An XCC Dungeon Hottie's Too Cute to Die, used.
+  if ( s.tooCuteUsed ) set("system.class.tooCuteUsed", true);
   // Fleeting Luck (Mojo), as the fight left it: XCC's on the crawler, DCC's on its player (Undo puts it back).
   if ( spec.fleeting && Number.isFinite(s.fleeting) ) {
     if ( spec.fleeting.kind === "actor" ) set("flags.xcc.mojo", s.fleeting);

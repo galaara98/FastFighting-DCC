@@ -46,6 +46,10 @@ export function archetype(id) {
     halfling: c === "halfling" || /halfling/.test(c),
     cleric: c === "cleric" || c === "messenger",
     brawler: c === "brawler",
+    hottie: c === "dungeon-hottie",
+    jammer: c === "jammer",
+    athlete: c === "athlete",
+    acrobat: c === "sp-acrobat" || c === "half-elf",
     dwarf: c === "dwarf" || c === "xcc-dwarf",
     elf: c === "elf",
     zero: c === "zero-level" || c === "0-level"

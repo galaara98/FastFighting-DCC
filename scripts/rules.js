@@ -283,13 +283,19 @@ export const dccRules = {
   recoverBody(u, rng) {
     const luck = u.resources?.luck ?? u.spec.luck ?? 0;
     const roll = rng.die(20);
-    if ( roll > luck ) return t("Body.Dead", { roll, luck });
+    // (An XCC Dungeon Hottie: too cute to die, for a point of Luck, once a level.)
+    const cute = roll > luck && u.spec.tooCute && !u.tooCuteUsed && luck >= 1;
+    if ( cute ) {
+      u.resources.luck = luck - 1;
+      u.tooCuteUsed = true;
+    }
+    if ( roll > luck && !cute ) return t("Body.Dead", { roll, luck });
     u.status = STATUS.STANDING;
     u.hp = 1;
     u.bleed = null;
     u.dying = 0;
     u.bodyRecovered = ABILITY_LOSS[rng.die(3) - 1];
-    return t("Body.Alive", { roll, luck });
+    return cute ? t("Body.TooCute", { roll, luck }) : t("Body.Alive", { roll, luck });
   },
   persistentFlatCheck(rng) {
     return rng.d20() >= 11;
@@ -342,8 +348,18 @@ export const dccRules = {
     }
   },
 
+  /**
+   * Getting clear of a melee with acrobatics (an XCC Acrobat's, or Half-Elf's): half its move, and a check, 15 to slip
+   * one foe, 20 for several; missed, the free attacks come.
+   */
+  disengage(u) {
+    if ( !u.spec.acrobatics ) return null;
+    return { cost: { move: Math.floor((u.spec.speeds?.walk ?? 30) / 2) }, label: t("Acrobatics"), check: { mod: u.spec.acrobatics.mod, dc: 15, dcMany: 20 } };
+  },
   /** Immune to a control effect when it's immune to every condition it lays on, or the effect only takes some. */
   isImmune(target, action) {
+    // (A Jammer's Disrespect means nothing to the mindless: slimes, golems, the walking dead that don't think.)
+    if ( action?.disrespect && target.spec.flags?.mindless ) return true;
     const immune = new Set(target.spec.iwr?.immune ?? []);
     if ( (action.traits ?? []).some(t => immune.has(t)) ) return true;
     // Turn Unholy: only the unholy, and only up to so many hit dice.
@@ -397,6 +413,7 @@ export const dccRules = {
   capture(u) {
     return {
       fleeting: u.spec.fleeting ? u.sharedPools?.[u.spec.fleeting.key] ?? null : null,
+      tooCuteUsed: !!u.tooCuteUsed,
       bleed: u.status === STATUS.DOWN && !u.stable ? (u.bleed ?? 0) : null,
       bledOut: !!u.bledOut,
       body: u.bodyRecovered ?? null,

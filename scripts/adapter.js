@@ -82,6 +82,52 @@ export function brawlerFists(actor, { armed, firstDie, crit }) {
   return [{ ...one, id: `${actor.id}.fists`, sequence: [one, { ...one, id: `${one.id}.2` }] }];
 }
 
+/** XCC's own words where its module has them, else this module's. */
+const xccWord = (key, own) => (game.i18n.has(key) ? game.i18n.localize(key) : game.i18n.localize(own));
+
+/** An XCC Dungeon Hottie's Not in the Face: a round spent defending, its bonus to AC until its next turn. */
+export function notInTheFace(actor) {
+  const ac = flatOf(actor.system.class?.notInTheFace);
+  if ( !(ac > 0) ) return [];
+  return [{ id: `${actor.id}.notInTheFace`, name: xccWord("XCC.DungeonHottie.NotInTheFace", "FFDCC.NotInTheFace"), kind: "buff", targets: "self", cost: 1,
+    outcome: { mods: { ac }, rounds: 1, label: xccWord("XCC.DungeonHottie.NotInTheFace", "FFDCC.NotInTheFace") } }];
+}
+
+/**
+ * An XCC Jammer's Disrespect: a performance check (Personality, level and Luck) its foe saves against with Will, or it
+ * suffers the Jammer's penalty (a step down the dice chain counted as -2) to attacks, checks and damage for level +
+ * Personality rounds. (Its save DC is the check: here, the check's average. The mindless pay it no heed.)
+ */
+export function disrespect(actor) {
+  const sys = actor.system;
+  const level = Number(sys.details?.level?.value) || 1;
+  const per = Number(sys.abilities?.per?.mod) || 0;
+  const bonus = per + level + (Number(sys.abilities?.lck?.mod) || 0);
+  const raw = String(sys.class?.disrespectPenalty ?? "-1d");
+  const steps = /(-?\d+)\s*d/i.exec(raw);
+  const penalty = steps ? Math.abs(Number(steps[1])) * 2 : Math.abs(flatOf(raw)) || 2;
+  const label = xccWord("XCC.Jammer.Disrespected", "FFDCC.Disrespected");
+  return [{ id: `${actor.id}.disrespect`, name: xccWord("XCC.Jammer.Disrespect", "FFDCC.Disrespect"), kind: "control", cost: 1, range: { increment: 60 },
+    disrespect: true, save: { type: "wil", dc: Math.round(10.5 + bonus) },
+    outcome: { mods: { attack: -penalty, checks: -penalty, damage: -penalty }, rounds: Math.max(1, level + per), label } }];
+}
+
+/**
+ * An XCC Athlete's wrestling: a grapple (not with a shield in hand), its training die rolled with it like a deed die
+ * (onto the roll, and the damage: a d4 and Strength), its own crit range; no crits in armor too heavy.
+ */
+export function wrestling(actor, { firstDie, crit }) {
+  const sys = actor.system;
+  if ( (actor.itemTypes?.armor ?? []).some(a => a.system.equipped && /shield/i.test(`${a.name} ${a.system.type ?? ""}`)) ) return [];
+  const str = Number(sys.abilities?.str?.mod) || 0;
+  const training = Number(/d(\d+)/.exec(String(sys.class?.trainingDie ?? ""))?.[1]) || undefined;
+  const heavy = (actor.itemTypes?.armor ?? []).some(a => a.system.equipped && Number(a.system.checkPenalty) <= -4);
+  const range = Number(sys.class?.grappleCritRange) || 20;
+  return [{ id: `${actor.id}.wrestle`, name: xccWord("XCC.Athlete.Grapple", "FFDCC.Grapple"), kind: "strike", cost: 1, bonus: str, melee: true, reach: 5,
+    damage: [parseFormula(str ? `1d4${str > 0 ? "+" : "-"}${Math.abs(str)}` : "1d4", "bludgeoning")], deedDie: training,
+    critOn: heavy ? 99 : (range < 20 ? range : undefined), crit, effects: [{ kind: "grabbed" }] }];
+}
+
 /** An XCC brawler's Toughness: so much off every melee blow (a reaction it always has). */
 export function toughnessOf(actor) {
   const value = String(actor.system.class?.toughness ?? "").trim();
@@ -221,6 +267,9 @@ export class DccAdapter extends SystemAdapter {
       deeds,
       // An XCC brawler's Toughness: so much off every melee blow.
       reactions: kind.brawler ? toughnessOf(actor) : undefined,
+      // An XCC Dungeon Hottie's Too Cute to Die (not used yet this level); an Acrobat's (or Half-Elf's) acrobatics.
+      tooCute: pc && kind.hottie && !sys.class?.tooCuteUsed ? true : undefined,
+      acrobatics: pc && kind.acrobat ? { mod: flatOf(sys.skills?.acrobatics?.value) + (Number(sys.abilities?.agl?.mod) || 0) } : undefined,
       fumble,
       iwr: { immune, resist: {}, weak: {} },
       resources,
@@ -377,6 +426,10 @@ export class DccAdapter extends SystemAdapter {
     const armed = actions.some(a => a.melee && a.kind === "strike");
     const fists = pc && kind.brawler ? brawlerFists(actor, { armed, firstDie, crit: await this.#crit(sys, null, luckMod) }) : [];
     actions.push(...fists);
+    // The other XCC classes' own: a Hottie's round defending, a Jammer's Disrespect, an Athlete's wrestling.
+    if ( pc && kind.hottie ) actions.push(...notInTheFace(actor));
+    if ( pc && kind.jammer ) actions.push(...disrespect(actor));
+    if ( pc && kind.athlete ) actions.push(...wrestling(actor, { firstDie, crit: await this.#crit(sys, null, luckMod) }));
     actions.push(...await this.#spells(actor, { pc, kind, level, dice, line }));
     if ( pc && kind.cleric ) actions.push(...await this.#clericSkills(actor, dice));
     return { actions, shieldBash, freeAttack: fists.some(a => a.economy === "bonus") };
