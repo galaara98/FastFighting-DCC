@@ -110,7 +110,8 @@ describe("dying, DCC style", () => {
 describe("deeds", () => {
   test("built-in deeds without the book, and a book's rows read when it's there", () => {
     const built = deedsFrom(null);
-    expect(built.map(d => d.id)).toEqual(["trip", "blind", "disarm", "defend"]);
+    expect(built.map(d => d.id)).toEqual(["trip", "blind", "disarm", "defend", "rally"]);
+    expect(built.find(d => d.id === "rally").tiers.every(t => t.outcome.allies > 0)).toBe(true);
     expect(built.find(d => d.id === "defend").tiers.every(t => t.outcome.self)).toBe(true);
     const read = deedsFrom({
       blind: [{ range: [3, 3], text: "Grit in the eyes: a -2 penalty on its next attack." }, { range: [5, 5], text: "It is blinded for [[/roll 1d4]] rounds and takes a -6 penalty to attack rolls." }],
@@ -120,6 +121,19 @@ describe("deeds", () => {
     expect(blind.tiers[0]).toMatchObject({ min: 3, outcome: { mods: { attack: -2 }, rounds: 1, label: "dazzled (-2 to attacks)" } });
     expect(blind.tiers[1]).toMatchObject({ min: 5, outcome: { conditions: { blinded: 1 }, mods: { attack: -6 }, rounds: 3 } });
     expect(read.find(d => d.id === "defend").tiers).toEqual([{ min: 3, outcome: { mods: { ac: 1 }, rounds: 1, label: "+1 AC", self: true } }]);
+    // A book's rallying row: what it lends the warrior's friends.
+    const rally = deedsFrom({ rally: [{ range: [3, 3], text: "Allies within sight gain a +1 bonus to attack rolls for the next round." }] }).find(d => d.id === "rally");
+    expect(rally.tiers[0]).toMatchObject({ min: 3, outcome: { mods: { attack: 1 }, allies: 10 } });
+  });
+
+  test("a rally: the warrior's friends nearby swing better", () => {
+    const rallyOnly = deedsFrom(null).filter(d => d.id === "rally");
+    const warrior = pc({ id: "warrior", level: 3, hp: { value: 40, max: 40 }, deeds: rallyOnly, actions: [sword({ bonus: 4, deedDie: 6 })] });
+    const friend = pc({ id: "friend", hp: { value: 40, max: 40 } });
+    const ogre = monster({ id: "ogre", hp: { value: 200, max: 200 }, defenses: { ac: 10, frt: 4, ref: 0, wil: 1 } });
+    const rallies = events(battle([warrior, friend, ogre], { maxRounds: 4 }), "deed").filter(e => e.actorId === "warrior" && e.success);
+    expect(rallies.length).toBeGreaterThan(0);
+    expect(rallies.every(e => e.allies.includes("friend"))).toBe(true);
   });
 
   test("a warrior's deed die rides every attack and its deeds land in the fight", () => {

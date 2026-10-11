@@ -8,7 +8,7 @@ import { DccAdapter } from "./adapter.js";
 export const MODULE_ID = "fast-fighting-dcc";
 
 /** The core API this helper is written against (older cores have no api.version: that is 1). */
-const NEEDS_API = 5;
+const NEEDS_API = 7;
 
 Hooks.once("fastFighting.init", api => {
   // module.json limits this module to dcc worlds; this guard covers anything that slips past.

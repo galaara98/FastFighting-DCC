@@ -138,6 +138,8 @@ export class DccAdapter extends SystemAdapter {
       iwr: { immune, resist: {}, weak: {} },
       resources,
       boosts: boosts.length ? boosts : null,
+      // Sizing a foe up (a Lore-Collector): what it can recall or work out, an Intelligence check against DC 10.
+      sizeUp: { mod: Number(sys.abilities?.int?.mod) || 0, dc: 10, label: game.i18n.localize("FFDCC.IntelligenceCheck") },
       luck,
       // A player character's Luck works against a monster's crits.
       critAgainst: pc ? luckMod : 0,
