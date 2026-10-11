@@ -32,7 +32,7 @@ Enable both in a DCC world.
   - rallying maneuver: friends nearby take heart (a better next swing; more, and farther, at a higher deed).
 
   The deed lands on a hit when the die shows 3 or more, and does more the higher it shows. The deeds come from the world's Mighty Deed tables, else rough built-in versions.
-- **Gaining an edge:** besides deeds, Luck (a halfling's for friends too), spellburn and blessings, a Lore-Collector sizes a foe up with an Intelligence check against DC 10; when it works, its next rolls against that foe are far likelier to land, by the **Lore-Collector advantage** setting (1.25× to 3×; default 2.25×: it costs the whole turn, but deed dice and Luck already swing a fight).
+- **Gaining an edge:** besides deeds, Luck (a halfling's for friends too), spellburn and blessings, a Lore-Collector sizes a foe up with an Intelligence check against DC 10; when it works, its next rolls against that foe are far likelier to land, by the **Lore-Collector advantage** setting (1.25× to 3×; default 2.25×: it costs the whole turn, but deed dice and Luck already swing a fight; ordinary attacks get all they can by about 1.75×, the rest helps long-shot rolls). What it learns holds for every foe of the same sort.
 - **Crits and fumbles:** a crit rolls the crit die plus Luck on the attacker's crit table for extra damage and a lasting effect (knocked down, stunned, blinded, disarmed, a penalty, sometimes death outright). A monster's crit against a player character is lessened by that character's Luck. A player character's fumble rolls the fumble die (from its armor) on the fumble table.
 - **Spells:** a spell check with the action die, its results table read into what each result does:
   - damage, including so many missiles of so much each;
