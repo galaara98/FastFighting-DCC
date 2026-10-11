@@ -17,6 +17,11 @@
  * its Will (a retainer adds its employer's Personality) against DC 11; under, the whole group flees. The mindless and
  * the fearless never break.
  *
+ * A charge: a melee attack after moving at least half its speed this turn, +2 to hit and -2 AC until its next turn.
+ * A spell duel: a caster yet to act this round may answer a foe's spell that worked (the same spell, Dispel Magic, Fire
+ * Resistance against fire, Magic Shield against Magic Missile, Invoke Patron against Invoke Patron); the two checks are
+ * compared, and answering costs it its next action.
+ *
  * Withdrawing from a melee: every foe engaged with it gets one free attack. Firing into a melee: -1 to hit, and a shot
  * that misses goes toward a random friend of the shooter's in that melee half the time (the attack again, against it).
  */
@@ -28,6 +33,18 @@ const ABILITY_LOSS = ["str", "agl", "sta"];
 
 /** What the world calls Fleeting Luck (XCC: Mojo), as the character's boost names it. */
 const labelOf = u => (u.spec.boosts ?? []).find(b => b.pool === "fleeting")?.label ?? "";
+
+/** Is this a charge: a melee attack after moving at least half its speed this turn? */
+const charging = (u, action) => !!action?.melee && !!u && (u.feetMoved ?? 0) - (u.turnFeet ?? 0) >= (u.spec?.speeds?.walk ?? 30) / 2;
+
+/** Can a spell (its name) answer another: the same spell, Dispel Magic, or the counters the rules name. */
+function counters(own, spell, fire) {
+  if ( own === spell ) return true;
+  if ( /dispel magic/.test(own) ) return true;
+  if ( /fire resistance/.test(own) && fire ) return true;
+  if ( /magic shield/.test(own) && /magic missile/.test(spell) ) return true;
+  return /invoke patron/.test(own) && /invoke patron/.test(spell);
+}
 
 /** A morale check's DC. */
 const MORALE_DC = 11;
@@ -98,6 +115,35 @@ export const dccRules = {
       .filter(o => o && o !== u && o.side === u.side && o.status === STATUS.STANDING);
     if ( !friends.length || !run.rng.chance(0.5) ) return null;
     return run.rng.pick(friends);
+  },
+  /**
+   * The start of a turn: where it set out from (for a charge), its charge's opening closed, and an action spent on a
+   * spell duel since its last turn taken from this one.
+   */
+  startTurn(run, u) {
+    u.turnFeet = u.feetMoved ?? 0;
+    u.charging = false;
+    u.turnRound = run.round;
+    u.duelCost = u.dueled ? 1 : 0;
+    u.dueled = false;
+    return null;
+  },
+  /**
+   * A spell duel: a foe of the caster's, yet to act this round, able to act, answers a spell that worked with one of
+   * its own that can counter it (and isn't lost for the day). Returns {by, counter}, or null.
+   */
+  duel(run, caster, action) {
+    const spell = String(action?.name ?? "").toLowerCase();
+    const fire = /\bfire|flam|burn|scorch|inferno/.test(spell);
+    for ( const e of run.units ) {
+      if ( e === caster || e.status !== STATUS.STANDING || !run.prep.sides[e.side]?.enemies?.has(caster.side) ) continue;
+      if ( e.turnRound === run.round || e.dueled || has(e, "incapacitated") || has(e, "stunned") || has(e, "paralyzed") ) continue;
+      const counter = (e.spec.actions ?? []).find(a => a.casting && !e.lost?.has(a.id) && counters(String(a.name ?? "").toLowerCase(), spell, fire));
+      if ( !counter ) continue;
+      e.dueled = true;
+      return { by: e, counter };
+    }
+    return null;
   },
   /**
    * DCC morale, for creatures (null for a character: its player decides, as the core plays it). Once its group has a
@@ -263,11 +309,14 @@ export const dccRules = {
     exposed({ target, flanked }) {
       return !!(target.prone || flanked || has(target, "incapacitated") || has(target, "blinded") || has(target, "stunned"));
     },
-    defense() {
-      return 0;
+    /** A charger, until its next turn: -2 AC. */
+    defense({ target }) {
+      return target?.charging ? -2 : 0;
     },
     attack({ attacker, target, action, distance, positioning, alliesAdjacent }) {
       let bonus = 0;
+      // A charge: +2.
+      if ( charging(attacker, action) ) bonus += 2;
       // Firing into a melee (the target engaged with the shooter's friends): -1.
       if ( !action?.melee && action?.range && alliesAdjacent > 0 ) bonus -= 1;
       // Attacking a prone or helpless foe in melee: +2; a stunned or blind one too.
@@ -289,7 +338,7 @@ export const dccRules = {
     },
     /** Stunned: it loses its next action; paralyzed, asleep or out cold: everything (the engine's incapacitated). */
     actionsLost(u) {
-      return has(u, "stunned") ? 1 : 0;
+      return (has(u, "stunned") ? 1 : 0) + (u.duelCost ?? 0);
     }
   },
 
@@ -329,6 +378,8 @@ export const dccRules = {
    * pool there is. (Creatures' rolls don't count: it's the players'.)
    */
   afterRoll(run, u, roll, ctx) {
+    // (A charge, made: open to blows until its next turn.)
+    if ( ctx?.kind === "attack" && charging(u, ctx.action) ) u.charging = true;
     const pools = run.sharedPools;
     if ( u.spec.kind !== "pc" || !pools || !roll || !Number.isFinite(roll.natural) ) return;
     const faces = ctx?.faces ?? 20;
