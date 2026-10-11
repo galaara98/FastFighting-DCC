@@ -12,14 +12,34 @@
  * dead character's friends may roll the body: a Luck check (a d20 at or under the character's Luck) finds them only
  * unconscious, at 1 hit point, groggy, with a permanent point of Strength, Agility or Stamina lost.
  *
+ * Morale (creatures; characters are their players'): a group checks when its first falls and when half are down; a
+ * creature alone, when it has lost half its hit points. One roll for the group, by whichever of it acts next: a d20 +
+ * its Will (a retainer adds its employer's Personality) against DC 11; under, the whole group flees. The mindless and
+ * the fearless never break.
+ *
  * Withdrawing from a melee: every foe engaged with it gets one free attack. Firing into a melee: -1 to hit, and a shot
  * that misses goes toward a random friend of the shooter's in that melee half the time (the attack again, against it).
  */
-import { DOWNED_MODELS, STATUS, bestReactionStrike } from "./core.js";
+import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike } from "./core.js";
 import { t } from "./words.js";
 
 const has = (u, key) => (u?.conds?.[key] ?? 0) > 0;
 const ABILITY_LOSS = ["str", "agl", "sta"];
+
+/** A morale check's DC. */
+const MORALE_DC = 11;
+const signed = n => (n >= 0 ? `+${n}` : String(n));
+/** The group a creature checks morale with: its side's (a hostile group), or its friend group when it takes no side. */
+const groupOf = u => `${u.homeSide ?? u.side}|${u.spec.group ?? ""}`;
+/** A retainer: a creature on the party's side. */
+const retainerOf = (run, u) => u.spec.kind !== "pc" && (u.homeSide ?? u.side) === "friendly";
+/** The employer's Personality: the party's leader's, else the best of its characters'. */
+function employerOf(run, u) {
+  const head = run.byId.get(run.prep.command?.friendly?.[0]?.id);
+  if ( head?.spec.kind === "pc" ) return Number(head.spec.personality) || 0;
+  const pcs = run.units.filter(o => o.spec.kind === "pc" && o.side === u.side && o.status === STATUS.STANDING);
+  return pcs.length ? Math.max(...pcs.map(o => Number(o.spec.personality) || 0)) : 0;
+}
 
 /** Damage-type imagery for the story. */
 const STORY_TYPES = { electricity: "electricity", holy: "vitality", unholy: "void", force: "force" };
@@ -75,6 +95,41 @@ export const dccRules = {
       .filter(o => o && o !== u && o.side === u.side && o.status === STATUS.STANDING);
     if ( !friends.length || !run.rng.chance(0.5) ) return null;
     return run.rng.pick(friends);
+  },
+  /**
+   * DCC morale, for creatures (null for a character: its player decides, as the core plays it). Once its group has a
+   * new reason (its first fallen, half of it down; alone, half its hit points gone), one roll decides for the group.
+   */
+  morale(run, u) {
+    if ( u.spec.kind === "pc" ) return null;
+    if ( u.spec.flags?.mindless || u.spec.flags?.fearless ) return MORALE.HOLD;
+    const key = groupOf(u);
+    const groups = run.dccMorale ??= new Map();
+    const g = groups.get(key) ?? { first: false, half: false, hurt: false, broke: false };
+    groups.set(key, g);
+    if ( g.broke ) return MORALE.ROUT;
+    const members = run.units.filter(o => groupOf(o) === key && !o.spec.hazard);
+    const down = members.filter(o => o.status !== STATUS.STANDING).length;
+    let trigger = null;
+    if ( members.length > 1 ) {
+      if ( !g.half && down >= members.length / 2 ) trigger = "half";
+      else if ( !g.first && down >= 1 ) trigger = "first";
+      if ( trigger === "half" ) g.half = g.first = true;
+      if ( trigger === "first" ) g.first = true;
+    } else if ( !g.hurt && u.hp <= u.maxHp / 2 ) {
+      trigger = "hurt";
+      g.hurt = true;
+    }
+    if ( !trigger ) return MORALE.HOLD;
+    const will = Number(u.spec.defenses?.wil) || 0;
+    const employer = retainerOf(run, u) ? employerOf(run, u) : 0;
+    const natural = run.rng.die(20);
+    const total = natural + will + employer;
+    const holds = total >= MORALE_DC;
+    if ( !holds ) g.broke = true;
+    const said = { text: t("Morale", { why: t(`MoraleWhy.${trigger}`), natural, mod: signed(will + employer), total, dc: MORALE_DC, result: t(holds ? "MoraleHolds" : "MoraleBreaks") }),
+      data: { trigger, natural, total, dc: MORALE_DC, holds } };
+    return { result: holds ? MORALE.HOLD : MORALE.ROUT, said };
   },
   /** A stout door: AC 15, about 15 hit points; forcing it is a Strength check against DC 15. */
   door: { ac: 15, hp: 15, threshold: 0, forceDC: 15, pickDC: 15 },

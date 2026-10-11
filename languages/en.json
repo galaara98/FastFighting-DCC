@@ -20,6 +20,14 @@
       }
     },
     "Will": "Will",
+    "Morale": "morale check ({why}): d20 {natural} {mod} = {total} vs DC {dc}: {result}",
+    "MoraleWhy": {
+      "first": "its first has fallen",
+      "half": "half of them are down",
+      "hurt": "badly hurt"
+    },
+    "MoraleHolds": "holds",
+    "MoraleBreaks": "breaks",
     "Reflex": "Reflex",
     "Ac": "AC",
     "Hp": "HP",
