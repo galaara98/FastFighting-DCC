@@ -166,6 +166,7 @@
     "Helped": "a step up the dice chain",
     "Pinned": "pinned",
     "Hidden": "hidden",
-    "BindWounds": "binding the wound"
+    "BindWounds": "binding the wound",
+    "TwoWeapons": "{main} & {off}"
   }
 }

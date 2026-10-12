@@ -496,7 +496,7 @@ export class DccAdapter extends SystemAdapter {
     // Fighting with both: an attack with each hand, together.
     if ( hands.primary && hands.offHand ) {
       const { primary, offHand } = hands;
-      actions.push({ ...primary, id: `${actor.id}.two-weapons`, name: `${primary.name} & ${offHand.name}`, itemId: undefined,
+      actions.push({ ...primary, id: `${actor.id}.two-weapons`, name: t("TwoWeapons", { main: primary.name, off: offHand.name }), itemId: undefined,
         sequence: [primary, offHand].map(a => ({ ...a, id: `${a.id}.two-weapons` })) });
     }
     // A monster with no weapons on its sheet: its stat line's attacks.
