@@ -18,6 +18,7 @@ import { deriveDccTraits, speaksCommon } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
 import { commitDccOutcome, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
 import { loreBoost } from "./lore.js";
+import { dccHints, dccTactics, plainText } from "./auto.js";
 import { t } from "./words.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 
@@ -608,6 +609,35 @@ export class DccAdapter extends SystemAdapter {
 
   #leadershipEntry(actor, id, level, kind) {
     return { id, name: actor.name, level, personality: Number(actor.system.abilities?.per?.mod) || 0, cleric: !!kind?.cleric };
+  }
+
+  /** What a character's system says for setting it up by itself (auto.js): its class sheet, alignment, stat line. */
+  #facts(actor) {
+    const sys = actor.system ?? {};
+    const pc = actor.type === "Player";
+    const line = statLine(sys.details?.notes?.value ?? "");
+    const derived = this.deriveTraits(actor, { line });
+    return {
+      cls: pc ? this.#classOf(actor) : null,
+      alignment: String(sys.details?.alignment ?? "").toLowerCase()[0] ?? null,
+      undead: !!line.undead, unholy: !!line.unholy, mindless: !!derived.flags?.mindless, beast: !!derived.flags?.beast
+    };
+  }
+
+  /** The playstyles DCC says fit it (auto.js). */
+  playstyleHints(actor) {
+    return dccHints(this.#facts(actor));
+  }
+
+  /** Its own answers to the tactics questions (auto.js): a class's style, a gnome's guarding, the un-dead never running. */
+  tacticHints(actor) {
+    return dccTactics(this.#facts(actor));
+  }
+
+  /** Its notes, occupation, title and birth augur as text. */
+  biography(actor) {
+    const d = actor.system?.details ?? {};
+    return [plainText(d.notes?.value), d.occupation?.value, d.title?.value, d.birthAugur].map(v => String(v ?? "").trim()).filter(Boolean).join(". ");
   }
 
   deriveTraits(actor, { line = null, casts = false, level = null } = {}) {

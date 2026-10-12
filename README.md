@@ -8,7 +8,7 @@ Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaar
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
-- **Requires:** FastFighting Core (API 11 or later)
+- **Requires:** FastFighting Core (API 12 or later)
 
 ## Installation
 
@@ -97,6 +97,17 @@ Tactics answers:
 - Hide's DC (the foes' sharpest eyes), and what hidden does.
 - Binding a bleeding friend's wound (only healing saves one in the rules): an action beside it, and its own Luck decides as rolling the body would (a d20 at or under its Luck), once. Made, it stops bleeding, still out, a point of Stamina gone for good, as if healed in time.
 - Subdual by any blunt blow or bare hands.
+
+## Set up by itself
+
+When FastFighting sets a character up by itself (the first time it sees it: see the core's README), DCC has its say:
+- **Class, by the class sheet** (DCC's and XCC's):
+  - a Warrior a Brawler or a Tank; a Dwarf a Tank, relentless; a Thief (and every XCC Specialist) a Thief; a Halfling a Wallflower; an Elf or Wizard Un-Mundane and a Lore-Collector; a Cleric or Messenger an Enabler; a funnel peasant Fragile;
+  - XCC: a Brawler a Brawler; a Dungeon Hottie a People-Pleaser; a Jammer an Instigator; a Gnome a Tank; an Athlete a Brawler; an Acrobat a Speed-Runner.
+  - Its fighting style follows (a Gnome protects its friends); a Cleric lays on hands readily; a funnel peasant runs when hurt.
+- **Alignment:** Lawful leans Moralist; Chaotic, Cruel and Wildcard.
+- **A monster's stat line:** the un-dead and the mindless Relentless (and they never run); demons and devils Cruel; beasts Brawlers.
+- **Keywords:** its notes, occupation, title and birth augur.
 
 ## Make it So
 
