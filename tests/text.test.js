@@ -145,3 +145,9 @@ describe("stat lines", () => {
     expect(critOnFor(19, 20)).toBe(19);
   });
 });
+
+describe("immunities in a stat line", () => {
+  test("mind-altering as mind-affecting", () => {
+    expect(statLine("SP immune to mind-altering spells; SV Fort +2, Ref +1, Will +0; AL N.").immune).toEqual(expect.arrayContaining(["frightened", "charm", "controlled"]));
+  });
+});

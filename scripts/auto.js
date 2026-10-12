@@ -14,7 +14,7 @@ const CLASSES = Object.freeze({
   elf: { unmundane: 0.4, loreCollector: 0.2 },
   wizard: { unmundane: 0.5, loreCollector: 0.3 },
   cleric: { enabler: 0.4 }, messenger: { enabler: 0.4 },
-  "zero-level": { fragile: 0.3, chicken: 0.1 }, "0-level": { fragile: 0.3, chicken: 0.1 },
+  "zero-level": { fragile: 0.3, chicken: 0.1 }, "0-level": { fragile: 0.3, chicken: 0.1 }, zero: { fragile: 0.3, chicken: 0.1 },
   // XCC's own.
   brawler: { brawler: 0.7 }, "dungeon-hottie": { peoplePleaser: 0.3 }, jammer: { instigator: 0.4 }, gnome: { tank: 0.5 },
   athlete: { brawler: 0.3, speedRunner: 0.2 }, "sp-acrobat": { speedRunner: 0.3 }
@@ -52,7 +52,7 @@ export function dccTactics({ cls = null, undead = false, mindless = false } = {}
   // (A gnome draws the foe's eye from its friends; a cleric lays on hands readily; a funnel peasant runs when hurt.)
   if ( cls === "gnome" ) out.target = "protect";
   if ( cls === "cleric" || cls === "messenger" ) out.healAggro = "aggressive";
-  if ( cls === "zero-level" || cls === "0-level" ) out.retreat = "hurt";
+  if ( ["zero-level", "0-level", "zero"].includes(cls) ) out.retreat = "hurt";
   if ( undead || mindless ) out.retreat = "never";
   return out;
 }

@@ -7,6 +7,9 @@ describe("the playstyles DCC says fit", () => {
     expect(dccHints({ cls: "warrior" })).toMatchObject({ brawler: 0.4, tank: 0.2 });
     expect(dccHints({ cls: "sp-scout" }).thief).toBe(0.5);
     expect(dccHints({ cls: "gnome" }).tank).toBe(0.5);
+    // (The core book's 0-level pregens are filed under the class "Zero".)
+    expect(dccHints({ cls: "zero" })).toEqual(dccHints({ cls: "zero-level" }));
+    expect(dccTactics({ cls: "zero" }).retreat).toBe("hurt");
     expect(dccHints({ cls: "zero-level" }).fragile).toBe(0.3);
   });
 

@@ -317,7 +317,7 @@ export function spellResult(text, { casterLevel = 0, save = "" } = {}) {
 
 const IMMUNITIES = {
   cold: ["cold"], fire: ["fire"], acid: ["acid"], electricity: ["electricity"], lightning: ["electricity"], poison: ["poison", "poisoned"], disease: ["disease"],
-  charm: ["controlled", "charm"], "mind-affecting": ["controlled", "frightened", "charm", "mental"], mental: ["controlled", "frightened", "mental"],
+  charm: ["controlled", "charm"], "mind-affecting": ["controlled", "frightened", "charm", "mental"], "mind-altering": ["controlled", "frightened", "charm", "mental"], mental: ["controlled", "frightened", "mental"],
   sleep: ["asleep", "sleep"], paralysis: ["paralyzed", "paralysis"], fear: ["frightened", "fear"], "critical hits": ["crits"], crits: ["crits"]
 };
 /** What un-dead (and the mindless) shrug off. */

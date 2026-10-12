@@ -53,6 +53,6 @@ export function archetype(id) {
     acrobat: c === "sp-acrobat" || c === "half-elf",
     dwarf: c === "dwarf" || c === "xcc-dwarf",
     elf: c === "elf",
-    zero: c === "zero-level" || c === "0-level"
+    zero: c === "zero-level" || c === "0-level" || c === "zero"
   };
 }
