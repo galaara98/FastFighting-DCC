@@ -1,8 +1,8 @@
 /**
  * What DCC says about a character, for the one time FastFighting sets it up by itself (the core's
  * foundry/auto-config.js): the playstyles that fit it and its own answers to the tactics questions, from its class (the
- * class sheet's id: DCC's and XCC's), its alignment, and a monster's stat line (un-dead, demons and devils); and its
- * notes, occupation, title and birth augur as plain text for the keywords. Pure.
+ * class sheet's id: DCC's and XCC's), its alignment, and a monster's stat line (un-dead, demons and devils); and the
+ * sheet's HTML as plain text, for its biography's keywords (the adapter's biography). Pure.
  */
 
 /** What each class leans toward, by the class sheet's id. */

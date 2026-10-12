@@ -82,10 +82,17 @@
       "BarelyThinks": "Barely thinks",
       "Caster": "Spellcaster",
       "LeaderMind": "A leader's mind",
-      "WillSave": "Will save",
       "UndeadNeverFlees": "Un-dead: never flees",
       "NeverFlees": "Mindless: never flees",
-      "BeastFlees": "Beast: flees when hurt"
+      "BeastFlees": "Beast: flees when hurt",
+      "Ability": "{name} {n}",
+      "Level": "level {n}",
+      "Will": "{name} {n} vs level",
+      "HitPoints": "{name} {n} (usual {usual})",
+      "DeedDie": "Deed die",
+      "NoParty": "not in a party",
+      "ImmuneFear": "immune to fear",
+      "Fiend": "demon or devil"
     },
     "Ability": {
       "str": "Strength",

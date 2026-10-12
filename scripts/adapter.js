@@ -185,10 +185,37 @@ function languagesOf(actor, { pc, undead }) {
   return speaksCommon({ pc, name: actor.name, undead, notes: plain(actor.system.details?.notes?.value ?? "") }) ? ["common"] : [];
 }
 
+/** DCC's abilities, by its keys. */
+const ABILITIES = ["str", "agl", "sta", "per", "int", "lck"];
+
+/** A word the system (or a module) has, in the reader's language; null when it has none. */
+const word = key => (key && game.i18n.has(key) ? game.i18n.localize(key) : null);
+
+/** A sheet text field's text (the system keeps some as {value}, older data as the text itself). */
+const textOf = v => String((v && typeof v === "object" ? v.value : v) ?? "").trim();
+
+/** The fields an active effect changes with the birth augur's Luck modifier. */
+const augurKeys = effect => (effect?.system?.changes ?? effect?.changes ?? [])
+  .filter(c => /birthAugurLuckMod/.test(String(c?.value ?? ""))).map(c => String(c.key ?? ""));
+
+/**
+ * Whether it's in one of the world's parties (DCC's Party actors, whose members are a flag on them); undefined when
+ * the world keeps none.
+ */
+function inPartyOf(actor) {
+  const parties = game.actors?.filter?.(a => a.type === "Party") ?? [];
+  if ( !parties.length ) return undefined;
+  // (A token's own copy of an actor has its actor's id.)
+  return parties.some(p => [p.getFlag?.("dcc", "partyMembers") ?? []].flat().some(m => m?.id === actor.id));
+}
+
 export class DccAdapter extends SystemAdapter {
   static systemId = "dcc";
 
   #tables = new DccTables();
+
+  /** The system's birth augur effects (the core book's), once read: each one's name, lower case, and the fields it changes. */
+  #augurs = null;
 
   get label() {
     return game.modules.get("xcc")?.active ? t("LabelXcc") : t("Label");
@@ -209,6 +236,7 @@ export class DccAdapter extends SystemAdapter {
     if ( !this.canHandle(actor) ) return null;
     const sys = actor.system;
     const pc = actor.type === "Player";
+    if ( pc ) await this.#loadAugurs();
     const line = statLine(sys.details?.notes?.value ?? "");
     const cls = pc ? this.#classOf(actor) : null;
     const kind = archetype(cls);
@@ -361,6 +389,38 @@ export class DccAdapter extends SystemAdapter {
       } catch ( err ) { /* no sheet to read */ }
     }
     return classId({ sheetClass: actor.system.details?.sheetClass, sheetName, className: actor.system.class?.className });
+  }
+
+  /** The class's name as its sheet shows it: XCC's in its own words, DCC's in the system's, else the sheet's text. */
+  #className(actor, cls) {
+    const c = actor.system.class ?? {};
+    const path = String(c.localizationPath ?? "");
+    const pascal = String(cls ?? "").replace(/(?:^|-)(\w)/g, (m, ch) => ch.toUpperCase());
+    return word(path && `${path}.ActorSheet${path.split(".").pop()}`) ?? word(cls && `DCC.${pascal}`) ?? (textOf(c.className) || null);
+  }
+
+  /** Reads the system's birth augur effects once (the core book's, where the system's settings point). */
+  async #loadAugurs() {
+    if ( this.#augurs ) return;
+    this.#augurs = [];
+    const pack = game.packs?.get(CONFIG.DCC?.birthAugurEffectsPack ?? "");
+    if ( !pack ) return;
+    try {
+      for ( const e of await pack.getDocuments() ) this.#augurs.push({ name: String(e.name ?? "").toLowerCase(), keys: augurKeys(e) });
+    } catch ( err ) { /* none to read */ }
+  }
+
+  /**
+   * Its birth augur: the sign's name, its Luck modifier at birth, and the fields its effect changes (the effect on the
+   * character, else the system's own for that sign, found by name as the system's importer finds it). Null for none.
+   */
+  #augurOf(actor) {
+    const d = actor.system.details ?? {};
+    const effect = [...(actor.effects ?? [])].find(e => augurKeys(e).length);
+    const name = String(d.birthAugur ?? "").replace(/\s*\(.*$/, "").trim() || String(effect?.name ?? "").replace(/\s*:.*$/, "").trim();
+    if ( !name ) return null;
+    const keys = effect ? augurKeys(effect) : this.#augurs?.find(a => a.name.startsWith(name.toLowerCase()))?.keys ?? [];
+    return { name, mod: Number(d.birthAugurLuckMod) || 0, keys };
   }
 
   /**
@@ -634,10 +694,22 @@ export class DccAdapter extends SystemAdapter {
     return dccTactics(this.#facts(actor));
   }
 
-  /** Its notes, occupation, title and birth augur as text. */
+  /**
+   * Its biography, for its keywords. What's said of the character itself, in full: its occupation and title (XCC's
+   * casting), the sign it was born under, a wizard's corruption; a creature's notes (its stat line and description).
+   * A player character's notes and XCC's rewards notes are its story, with others in it: a little. Never its patron,
+   * god, contacts or entourage: those are others. DCC keeps no dislikes.
+   */
   biography(actor) {
-    const d = actor.system?.details ?? {};
-    return [plainText(d.notes?.value), d.occupation?.value, d.title?.value, d.birthAugur].map(v => String(v ?? "").trim()).filter(Boolean).join(". ");
+    const sys = actor.system ?? {};
+    const d = sys.details ?? {};
+    const pc = actor.type === "Player";
+    const notes = plainText(d.notes?.value);
+    const corruption = typeof sys.class?.corruption === "string" ? plainText(sys.class.corruption) : "";
+    const about = [textOf(d.occupation), textOf(d.title), textOf(d.casting), String(d.birthAugur ?? "").replace(/\s*\(.*$/, "").trim(), corruption, pc ? "" : notes];
+    const story = [pc ? notes : "", plainText(d.xccnotes)];
+    const join = list => list.filter(Boolean).join(". ");
+    return { about: join(about), story: join(story), against: "" };
   }
 
   deriveTraits(actor, { line = null, casts = false, level = null } = {}) {
@@ -646,16 +718,38 @@ export class DccAdapter extends SystemAdapter {
     const hd = hitDice(sys.attributes?.hitDice?.value);
     const pc = actor.type === "Player";
     const intScore = Number(sys.abilities?.int?.value);
+    const alignment = String(sys.details?.alignment ?? "n").toLowerCase()[0];
+    // (It casts: spells the tables can read, or any spell it has.)
+    const spells = actor.itemTypes?.spell ?? actor.items?.filter?.(i => i.type === "spell") ?? [];
+    const cls = pc ? this.#classOf(actor) : null;
     return deriveDccTraits({
       pc,
       level: level ?? (pc ? Number(sys.details?.level?.value) || 0 : hd.level),
-      alignment: sys.details?.alignment,
+      alignment,
       will: flatOf(sys.saves?.wil?.value),
+      mods: Object.fromEntries(ABILITIES.map(k => [k, Number(sys.abilities?.[k]?.mod) || 0])),
       int: pc ? undefined : intScore,
       name: actor.name,
       notes: plain(sys.details?.notes?.value ?? ""),
       undead: !!read.undead,
-      casts
+      unholy: !!read.unholy,
+      immune: read.immune ?? [],
+      casts: casts || spells.length > 0,
+      ...(pc ? {
+        cls,
+        hp: Number(sys.attributes?.hp?.max) || 0,
+        hitDie: hd.faces,
+        augur: this.#augurOf(actor),
+        deedDie: !!deedOf(sys.details?.attackBonus),
+        inParty: inPartyOf(actor)
+      } : {}),
+      names: {
+        abilities: Object.fromEntries(ABILITIES.map(k => [k, word(CONFIG.DCC?.abilities?.[k]) ?? k])),
+        will: word(CONFIG.DCC?.saves?.wil),
+        hp: word("DCC.HitPoints"),
+        alignment: word(CONFIG.DCC?.alignments?.[alignment]),
+        cls: pc ? this.#className(actor, cls) : null
+      }
     });
   }
 

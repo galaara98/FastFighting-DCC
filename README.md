@@ -8,7 +8,7 @@ Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaar
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
-- **Requires:** FastFighting Core (API 12 or later)
+- **Requires:** FastFighting Core (API 13 or later)
 
 ## Installation
 
@@ -61,7 +61,16 @@ Enable both in a DCC world.
 - **Fleeting Luck and Mojo:** with DCC's Fleeting Luck on in the world (each player's, for all its characters), or XCC's Mojo (each crawler's own, always on), a character spends it before its Luck on a roll that falls short, a point for +1. A character's natural 20 earns its pool a point; a natural 1 on a d14 or bigger takes every pool there is. Make it So writes what's left back (on the player, or the crawler), and Undo puts it back.
 - **Dying:** monsters and 0-level characters die at 0 hit points. Anyone else bleeds out for as many rounds as their level, and if healed in time loses a point of Stamina for good. After the fight, friends who hold the field roll the body of each fallen player character: a Luck check (a d20 at or under their Luck) finds them only unconscious, at 1 hit point, groggy, a point of Strength, Agility or Stamina gone for good.
 - **Morale:** DCC's own, for creatures (a character's is its player's, as FastFighting plays it). A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. One roll decides for the group, by whichever of it acts next: a d20 + its Will (a retainer adds its employer's Personality: the party leader's, else the best of the party's) against DC 11. Under, the whole group flees. The mindless and the fearless never break. The Statistician shows each roll.
-- **Personality:** a funnel peasant isn't a veteran. Monsters are read from what they are (beasts, the walking dead, giants, spellcasters), their Will save and their alignment.
+- **Personality:** a player character starts as the usual hero (bold, loyal, unselfish, a good head) and everything on its sheet moves it a little:
+  - a 0-level funnel peasant is no hardened hero (about 45 Tactical, 50 Brave, 35 Selfish, 55 Loyal before the rest); past that, its level;
+  - its abilities: Intelligence (and Agility) for Tactical; Strength, Stamina and Luck for Brave; Personality's charm for Loyal (its force of will is in its Will save);
+  - its Will save against the usual at its level, and its hit points against the usual for its level and hit die;
+  - its class, by the class sheet (a cleric selfless, a thief or an XCC Criminal less so, a wizard a planner, a warrior or a Brawler bold, a Gnome its friends' shield); a class from another book by what it does (a deed die, spells);
+  - its alignment (Law's fellowship, Chaos's each for itself; a cleric's or Messenger's counts half again: it serves that side's god);
+  - its birth augur, by what the lucky sign governs (its effect on the sheet, or the core book's for that sign): a sign on attacks, damage, Armor Class or Fortitude for Brave; on traps, secret doors, spell checks or initiative for Tactical; on turning the unholy, a selfless calling; its Luck modifier at birth says how much, and which way;
+  - whether it's in one of the world's parties (DCC's Party sheets), when the world keeps any.
+
+  Monsters are read from what they are (beasts, the walking dead, giants, spellcasters), their Will save and their alignment, then what their stat line says (immune to fear, a demon or devil) and any ability scores they have. The mindless never change. Each trait's tooltip in the planner lists where it started and every part that moved it.
 - **Leadership:** Personality, a title (king, thane, captain ...), a cleric's standing, and experience.
 - **Talking:** Personality for persuading, intimidating and deceiving, against Will. A sheet with no languages listed speaks Common (every character; any creature but a beast or the mindless).
 
@@ -107,7 +116,7 @@ When FastFighting sets a character up by itself (the first time it sees it: see 
   - Its fighting style follows (a Gnome protects its friends); a Cleric lays on hands readily; a funnel peasant runs when hurt.
 - **Alignment:** Lawful leans Moralist; Chaotic, Cruel and Wildcard.
 - **A monster's stat line:** the un-dead and the mindless Relentless (and they never run); demons and devils Cruel; beasts Brawlers.
-- **Keywords:** its notes, occupation, title and birth augur.
+- **Keywords:** its occupation, title (XCC's casting), birth augur and a wizard's corruption, and a monster's notes, as what's said of it; a player character's notes (and XCC's rewards notes) as its story, counted a little. Never its patron, god, contacts or entourage: those are others.
 
 ## Make it So
 
