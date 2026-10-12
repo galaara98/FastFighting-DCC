@@ -8,8 +8,7 @@ Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaar
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
-- **Needs:** FastFighting Core (API 11)
-- **Requires:** FastFighting Core (API 5 or later)
+- **Requires:** FastFighting Core (API 11 or later)
 
 ## Installation
 
