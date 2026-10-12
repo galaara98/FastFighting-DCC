@@ -13,12 +13,14 @@ import { listItems } from "./core.js";
 import { t } from "./words.js";
 
 /** The kinds of deed (their names and what they leave a foe, in the reader's language: worked out when asked for). */
+// (What playstyles lean on: a spoiler trips, blinds and disarms; one who'd lead or rally rallies; a defensive maneuver
+// goes as the shield answer says, a DCC shield being in the AC already.)
 const kinds = () => ({
-  trip: { id: "trip", label: t("Deed.Trip"), melee: true, condition: { prone: 1 }, label2: t("Deed.KnockedDown") },
-  blind: { id: "blind", label: t("Deed.Blind") },
-  disarm: { id: "disarm", label: t("Deed.Disarm"), melee: true, condition: { disarmed: 1 }, label2: t("Deed.Disarmed") },
-  defend: { id: "defend", label: t("Deed.Defend"), self: true },
-  rally: { id: "rally", label: t("Deed.Rally"), allies: 10 }
+  trip: { id: "trip", label: t("Deed.Trip"), melee: true, condition: { prone: 1 }, label2: t("Deed.KnockedDown"), leans: ["hinders"] },
+  blind: { id: "blind", label: t("Deed.Blind"), leans: ["hinders"] },
+  disarm: { id: "disarm", label: t("Deed.Disarm"), melee: true, condition: { disarmed: 1 }, label2: t("Deed.Disarmed"), leans: ["hinders"] },
+  defend: { id: "defend", label: t("Deed.Defend"), self: true, guard: true },
+  rally: { id: "rally", label: t("Deed.Rally"), allies: 10, leans: ["rally"] }
 });
 
 /** Rough versions for when no book's tables are installed. */
@@ -49,7 +51,7 @@ export function deedsFrom(tables) {
     const rows = tables?.[kind];
     let tiers = rows?.length ? rows.map(r => tierFrom(base, r)).filter(Boolean) : [];
     if ( !tiers.length ) tiers = fallback[kind].map(tier => ({ ...tier, outcome: { ...tier.outcome } }));
-    out.push({ id: base.id, label: base.label, melee: base.melee, tiers: tiers.sort((a, b) => a.min - b.min) });
+    out.push({ id: base.id, label: base.label, melee: base.melee, leans: base.leans, guard: base.guard, tiers: tiers.sort((a, b) => a.min - b.min) });
   }
   return out;
 }

@@ -8,6 +8,7 @@ Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaar
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
+- **Needs:** FastFighting Core (API 11)
 - **Requires:** FastFighting Core (API 5 or later)
 
 ## Installation
@@ -64,6 +65,39 @@ Enable both in a DCC world.
 - **Personality:** a funnel peasant isn't a veteran. Monsters are read from what they are (beasts, the walking dead, giants, spellcasters), their Will save and their alignment.
 - **Leadership:** Personality, a title (king, thane, captain ...), a cleric's standing, and experience.
 - **Talking:** Personality for persuading, intimidating and deceiving, against Will. A sheet with no languages listed speaks Common (every character; any creature but a beast or the mindless).
+
+## Playstyles in DCC
+
+Every perk a playstyle (or a tactics answer) can switch on does something here. Most play as they do in any system (who a character goes for, when it loses heart, whom it listens to, how it talks). These lean on DCC's own:
+
+| Perk (playstyles) | In DCC |
+| --- | --- |
+| Hard to spot (Chicken, Fragile, Wallflower) | Foes' attention slides off it, and it would rather **Hide**: a thief's Hide in Shadows (a halfling's Sneak and Hide); anyone else's an untrained check, a d10 and Agility; against the sharpest eyes among its foes, not with a foe beside it. Hidden, it's harder to hit (-4, as against what it can't see), and its next attack catches its foe unready (a thief's backstab), until it attacks. |
+| Spoiling (Instigator most; Cruel, Wants to Lead, Wallflower, Puzzle-Maniac) | A warrior's or dwarf's **Mighty Deed**: it would rather trip, blind or disarm. Anyone else can **Grapple**: the rules' opposed attack rolls (its attack bonus and the better of Strength and Agility against the foe's), and won, the foe is pinned. |
+| Helping (Enabler, People-Pleaser, Moralist, Martyr, Redeem-Seeker, Tank) | **Help**, a step up the dice chain (+2) on a friend's next attack or check, at the foe beside the helper; a cleric's Lay on Hands; a halfling's Luck for a friend. |
+| Rallying (Wants to Lead, Martyr) | A warrior's rallying deed, more readily. |
+| In a hurry (Impatient, Speed-Runner) | It **charges** in (a melee attack it moves for: +2 to hit, -2 AC), rather than shooting; it doesn't stop to hide or slip a melee with acrobatics. |
+| Acting first (Instigator) | Its initiative. |
+| Lore-Collector | An Intelligence check against DC 10. |
+| Weak spots (Puzzle-Maniac) | A monster's stat line: "half damage from piercing and slashing weapons" (a skeleton) leaves blunt harm a weak spot; "vulnerable to fire", double damage. |
+| Thief | A thief's Pick Pockets; anyone else's an untrained check (a d10 and Agility). The same for a lock. |
+| Trap avoiders | A token the GM marks as a hazard. |
+| Finishing the fallen (Cruel) | A character bleeding out; a foe knocked out, after the fight. |
+| Sparing the fallen (Moralist, Peacekeeper, a Diplomat now and then) | **Subdual:** a blunt blow, bare hands, or a weapon the system marks as dealing subdual damage, knocks a foe out instead of killing it; and it leaves the fallen be. |
+| Mending, healing, rescue | A cleric's Lay on Hands and healing spells; **binding the wound** of a friend bleeding out. |
+| Locked doors | Strength to force it; a thief's Pick Lock (anyone else's untrained). |
+
+Tactics answers:
+
+- **Shields:** a DCC shield is already in the AC; a warrior's or dwarf's defensive Mighty Deed goes as the answer says: half again as readily; as it would anyway; never.
+- **Resources:** how freely it burns Luck (and Fleeting Luck or Mojo) and spellburns: conserving, half as readily; all out, half again.
+- **Magic and specialties** (an Un-Mundane character leans on them): spells, a cleric's Lay on Hands and Turn Unholy, and XCC classes' own (a Brawler's fists, a Hottie's Not in the Face, a Jammer's Disrespect, a Gnome's Draw Agro, an Athlete's wrestling). Its weapons, Help, Grapple and Hide are what anyone could do; a warrior's deeds go with every blow it strikes.
+
+**Homebrew** (the rules don't say; this module's reading, kept to DCC's own mechanics where it could):
+- Help: a step up the dice chain, counted as +2, as the Jammer's step down counts as -2.
+- Hide's DC (the foes' sharpest eyes), and what hidden does.
+- Binding a bleeding friend's wound (only healing saves one in the rules): an action beside it, and its own Luck decides as rolling the body would (a d20 at or under its Luck), once. Made, it stops bleeding, still out, a point of Stamina gone for good, as if healed in time.
+- Subdual by any blunt blow or bare hands.
 
 ## Make it So
 

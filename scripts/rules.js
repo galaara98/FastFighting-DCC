@@ -25,7 +25,7 @@
  * Withdrawing from a melee: every foe engaged with it gets one free attack. Firing into a melee: -1 to hit, and a shot
  * that misses goes toward a random friend of the shooter's in that melee half the time (the attack again, against it).
  */
-import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike } from "./core.js";
+import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition } from "./core.js";
 import { t } from "./words.js";
 
 const has = (u, key) => (u?.conds?.[key] ?? 0) > 0;
@@ -182,6 +182,47 @@ export const dccRules = {
       data: { trigger, natural, total, dc: MORALE_DC, holds } };
     return { result: holds ? MORALE.HOLD : MORALE.ROUT, said };
   },
+  /** Grappling is opposed attack rolls: the defender's, as a DC. */
+  defenseDc(target, against) {
+    return against === "grapple" ? 10 + (Number(target.spec.grapple) || 0) : null;
+  },
+  /** Hiding takes not having a foe beside it. */
+  usable(run, u, action) {
+    if ( !action?.hide ) return true;
+    return ![...(u.adjacent ?? [])].some(id => { const o = run.byId.get(id); return o && o.status === STATUS.STANDING && run.prep.sides[u.side]?.enemies.has(o.side); });
+  },
+  /** One in a hurry (its playstyles' rush) would rather charge in: a melee attack it has to move for (+2 to hit). */
+  optionWeight(run, u, action, t, moves) {
+    const rush = Number(behaviorOf(u).rush) || 0;
+    return rush > 0 && action.melee && moves > 0 ? 1 + rush : 1;
+  },
+  /**
+   * Subdual: a blunt blow, bare hands, or a weapon the system marks as subduing, in melee, knocks a foe out (one who
+   * spares the fallen pulls such a blow).
+   */
+  pullsBlow(u, action) {
+    return !!action?.melee && (!!action.subdual || (action.damage ?? []).some(p => p.type === "bludgeoning"));
+  },
+  /**
+   * Binding a friend's wound while it bleeds out (homebrew: only healing saves one in the rules): an action beside it,
+   * and its own Luck decides, as rolling the body would (a d20 at or under its Luck: a DC of 21 less its Luck here).
+   * Made, it stops bleeding, still out, a point of Stamina gone for good as if healed in time; missed, there's no
+   * binding it. Once for each.
+   */
+  firstAidCost: { action: 1 },
+  firstAidDC(c) {
+    return 21 - (Number(c.resources?.luck ?? c.spec.luck) || 0);
+  },
+  canFirstAid(c) {
+    return c.spec.kind === "pc" && !c.bindTried && !c.knockedOut;
+  },
+  firstAid(c, degree) {
+    c.bindTried = true;
+    if ( degree < 2 ) return;
+    c.stable = true;
+    c.bledOut = true;
+    c.bleed = null;
+  },
   /** A stout door: AC 15, about 15 hit points; forcing it is a Strength check against DC 15. */
   door: { ac: 15, hp: 15, threshold: 0, forceDC: 15, pickDC: 15 },
   doorCosts: { open: {}, force: { action: 1 }, pick: { action: 1 } },
@@ -313,9 +354,9 @@ export const dccRules = {
 
   /* Situations ------------------------------------------------------------ */
   modifiers: {
-    /** Down, helpless or flanked: open to a thief's backstab and an easy hit. */
-    exposed({ target, flanked }) {
-      return !!(target.prone || flanked || has(target, "incapacitated") || has(target, "blinded") || has(target, "stunned"));
+    /** Down, helpless or flanked, or caught by one hidden: open to a thief's backstab and an easy hit. */
+    exposed({ target, flanked, attacker }) {
+      return !!(target.prone || flanked || has(target, "incapacitated") || has(target, "blinded") || has(target, "stunned") || has(attacker, "hidden"));
     },
     /** A charger, until its next turn: -2 AC. */
     defense({ target }) {
@@ -384,7 +425,9 @@ export const dccRules = {
       blinded: { attack: -4, ac: -2 },
       frightened: { attack: -2, saves: -2 },
       disarmed: { attack: -4 },
-      slowed: { attack: -2, ac: -2 }
+      slowed: { attack: -2, ac: -2 },
+      // (Hidden: harder to hit, as what it can't see is.)
+      hidden: { ac: 4 }
     }[key] ?? null;
   },
   /** A share of a resistance's worth: DCC rarely has partial ones. */
@@ -398,6 +441,8 @@ export const dccRules = {
    * the foe it goaded comes at it (once for each time it lands).
    */
   afterRoll(run, u, roll, ctx) {
+    // (Hidden: no longer, once it attacks.)
+    if ( ctx?.kind === "attack" && has(u, "hidden") ) dropCondition(u, "hidden");
     // (A charge, made: open to blows until its next turn.)
     if ( ctx?.kind === "attack" && charging(u, ctx.action) ) u.charging = true;
     const pools = run.sharedPools;

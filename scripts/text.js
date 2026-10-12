@@ -8,6 +8,7 @@
  * Pure: no Foundry globals.
  */
 import { parseFormula, part, meanPart, listJoin, listItems, localize } from "./core.js";
+import { harmKinds } from "./moves.js";
 // (Its texts are `t` here: this module's words are `say`.)
 import { t as say } from "./words.js";
 
@@ -343,6 +344,11 @@ export function statLine(text) {
     out.immune.push(...UNDEAD);
   }
   if ( /\b(?:demon|devil)\b/.test(special) ) out.unholy = true;
+  // Half damage from some kinds of harm ("half damage from piercing and slashing weapons"); double from others.
+  out.resist = [];
+  for ( const m of special.matchAll(/\bhalf damage from\s+([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) out.resist.push(...harmKinds(m[1]));
+  out.weak = [];
+  for ( const m of special.matchAll(/\b(?:double damage from|vulnerab\w*\s+(?:to\s+)?)\s*([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) out.weak.push(...harmKinds(m[1]));
   const crit = special.match(/\bcrits? (?:on|at)\s+(?:a\s+)?(?:natural\s+)?(\d+)(?:\s*[-–+]|\s+or (?:better|higher)|\+)/);
   if ( crit ) out.critNatural = Number(crit[1]);
   const infra = special.match(/\b(?:infravision|darkvision|see in (?:the )?dark(?:ness)?)\s*(\d+)?/);

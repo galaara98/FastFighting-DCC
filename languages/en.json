@@ -154,6 +154,11 @@
     "DrawAgro": "Draw Agro",
     "Agro": "Goaded",
     "Grapple": "Wrestling",
-    "Acrobatics": "Acrobatics"
+    "Acrobatics": "Acrobatics",
+    "Help": "Help",
+    "Helped": "a step up the dice chain",
+    "Pinned": "pinned",
+    "Hidden": "hidden",
+    "BindWounds": "binding the wound"
   }
 }

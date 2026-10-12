@@ -19,6 +19,7 @@ import { rankDccLeaders } from "./leadership.js";
 import { commitDccOutcome, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
 import { loreBoost } from "./lore.js";
 import { t } from "./words.js";
+import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
 function flatOf(value) {
@@ -290,7 +291,13 @@ export class DccAdapter extends SystemAdapter {
       tooCute: pc && kind.hottie && !sys.class?.tooCuteUsed ? true : undefined,
       acrobatics: pc && kind.acrobat ? { mod: flatOf(sys.skills?.acrobatics?.value) + (Number(sys.abilities?.agl?.mod) || 0) } : undefined,
       fumble,
-      iwr: { immune, resist: {}, weak: {} },
+      // (A stat line's half and double damage; and the weak spot a Puzzle-Maniac goes for: harm it guards less well.)
+      iwr: { immune, resist: Object.fromEntries((line.resist ?? []).map(k => [k, 1])), weak: Object.fromEntries((line.weak ?? []).map(k => [k, 1])), exploit: weakSpot(Object.fromEntries((line.resist ?? []).map(k => [k, 1]))) },
+      // Grappling: its attack bonus and the better of Strength and Agility (a monster's, its best melee attack's bonus).
+      grapple: pc ? flatOf(sys.details?.attackBonus) + Math.max(Number(sys.abilities?.str?.mod) || 0, Number(sys.abilities?.agl?.mod) || 0)
+        : Math.max(0, ...actions.filter(a => a.melee && a.kind === "strike").map(a => Number(a.bonus) || 0)),
+      // Binding a friend's wound (homebrew; a player character): the friend's Luck decides (rules.firstAid).
+      firstAid: pc ? { mod: 0, skill: t("BindWounds") } : null,
       resources,
       boosts: boosts.length ? boosts : null,
       // Sizing a foe up (a Lore-Collector): what it can recall or work out, an Intelligence check against DC 10.
@@ -327,10 +334,12 @@ export class DccAdapter extends SystemAdapter {
         languages: languagesOf(actor, { pc, undead: !!line.undead }),
         mindless: !!derived.flags.mindless
       },
-      theft: kind.thief ? { skill: game.i18n.localize("FFDCC.PickPockets"), mod: flatOf(sys.skills?.pickPockets?.value) + (Number(sys.abilities?.agl?.mod) || 0) } : null,
+      // A thief's skills; anyone else's an untrained check (a d10, and Agility), as the rules have it for skills.
+      theft: kind.thief ? { skill: game.i18n.localize("FFDCC.PickPockets"), mod: flatOf(sys.skills?.pickPockets?.value) + (Number(sys.abilities?.agl?.mod) || 0) }
+        : pc ? { skill: game.i18n.localize("FFDCC.PickPockets"), mod: Number(sys.abilities?.agl?.mod) || 0, faces: 10 } : null,
       doorWork: {
         force: { mod: Number(sys.abilities?.str?.mod) || 0 },
-        pick: kind.thief ? { mod: flatOf(sys.skills?.pickLock?.value) + (Number(sys.abilities?.agl?.mod) || 0) } : null
+        pick: kind.thief ? { mod: flatOf(sys.skills?.pickLock?.value) + (Number(sys.abilities?.agl?.mod) || 0) } : pc ? { mod: Number(sys.abilities?.agl?.mod) || 0, faces: 10 } : null
       },
       valuables: this.#valuables(actor),
       leadership: this.#leadershipEntry(actor, tokenDoc.id, level, kind)
@@ -447,10 +456,23 @@ export class DccAdapter extends SystemAdapter {
     actions.push(...fists);
     // The other XCC classes' own: a Hottie's round defending, a Jammer's Disrespect, a Gnome's Draw Agro, an Athlete's
     // wrestling.
-    if ( pc && kind.hottie ) actions.push(...notInTheFace(actor));
-    if ( pc && kind.jammer ) actions.push(...disrespect(actor));
-    if ( pc && kind.gnome ) actions.push(...drawAgro(actor));
-    if ( pc && kind.athlete ) actions.push(...wrestling(actor, { firstDie, crit: await this.#crit(sys, null, luckMod) }));
+    // (A class's own: what "magic and specialties" means, with spells.)
+    const own = list => list.map(a => ({ ...a, special: true }));
+    if ( pc && kind.hottie ) actions.push(...own(notInTheFace(actor)));
+    if ( pc && kind.jammer ) actions.push(...own(disrespect(actor)));
+    if ( pc && kind.gnome ) actions.push(...own(drawAgro(actor)));
+    if ( pc && kind.athlete ) actions.push(...own(wrestling(actor, { firstDie, crit: await this.#crit(sys, null, luckMod) })));
+    if ( fists.length ) actions.splice(actions.indexOf(fists[0]), fists.length, ...own(fists));
+    // What anyone can try besides a blow (moves.js): Help, Grapple (an Athlete wrestles instead), Hide.
+    if ( pc ) {
+      const str = Number(sys.abilities?.str?.mod) || 0;
+      const agl = Number(sys.abilities?.agl?.mod) || 0;
+      actions.push(helpAction(actor.id));
+      if ( !kind.athlete ) actions.push(grappleAction(actor.id, flatOf(sys.details?.attackBonus) + Math.max(str, agl)));
+      const skill = kind.thief ? sys.skills?.hideInShadows?.value : kind.halfling ? sys.skills?.sneakAndHide?.value : null;
+      const trained = skill !== null && skill !== undefined && String(skill).trim() !== "";
+      actions.push(hideAction(actor.id, { mod: (trained ? flatOf(skill) : 0) + agl, trained, label: game.i18n.localize(kind.halfling && !kind.thief ? "DCC.SneakAndHide" : "DCC.HideInShadows") }));
+    }
     actions.push(...await this.#spells(actor, { pc, kind, level, dice, line }));
     if ( pc && kind.cleric ) actions.push(...await this.#clericSkills(actor, dice));
     return { actions, shieldBash, freeAttack: fists.some(a => a.economy === "bonus") };
@@ -494,7 +516,9 @@ export class DccAdapter extends SystemAdapter {
       critOn: critNatural ? critOnFor(critNatural, die || firstDie) : (critRange < 20 ? critRange : undefined),
       fumbleOn: Number(s.fumbleRange) > 1 ? Number(s.fumbleRange) : undefined,
       deedDie: deedDie ?? undefined,
-      crit: await this.#crit(actor.system, w, pc ? luckMod : 0)
+      crit: await this.#crit(actor.system, w, pc ? luckMod : 0),
+      // (A weapon the system marks as dealing subdual damage: a blow that knocks out.)
+      subdual: !!s.subdual || undefined
     };
     // A thief striking a foe who can't defend itself: the backstab (its bonus, and a far worse wound).
     if ( pc && kind.thief && s.melee ) {
