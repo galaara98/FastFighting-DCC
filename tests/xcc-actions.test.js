@@ -95,8 +95,11 @@ describe("XCC class actions", () => {
   test("wrestling: a grapple with its training die rolled along; not with a shield in hand", () => {
     const [w] = wrestling(actor({ trainingDie: "d5", grappleCritRange: 19 }), { firstDie: 20, crit });
     expect(w).toMatchObject({ kind: "strike", melee: true, deedDie: 5, critOn: 19, effects: [{ kind: "grabbed" }] });
-    const shield = actor({ trainingDie: "d5" }, { itemTypes: { armor: [{ name: "Shield", system: { equipped: true } }] } });
+    // (A shield is the armor with no fumble die, whatever it's called; the armor it wears doesn't stop it.)
+    const shield = actor({ trainingDie: "d5" }, { itemTypes: { armor: [{ name: "Buckler", type: "armor", system: { equipped: true, fumbleDie: "" } }] } });
     expect(wrestling(shield, { firstDie: 20, crit })).toEqual([]);
+    const worn = actor({ trainingDie: "d5" }, { itemTypes: { armor: [{ name: "Shield", type: "armor", system: { equipped: true, fumbleDie: "1d8" } }] } });
+    expect(wrestling(worn, { firstDie: 20, crit })).toHaveLength(1);
   });
 
   test("in a fight: the Athlete grabs what it wrestles; the Acrobat rolls to get clear, and only a miss draws the blows", () => {

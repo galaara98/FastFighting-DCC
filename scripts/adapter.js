@@ -47,6 +47,11 @@ const MODES = ["fly", "swim", "climb", "burrow"];
 const COPPER = { pp: 1000, ep: 50, gp: 100, sp: 10, cp: 1 };
 /** What a character carries that it could hand over (or ask for: its kind is the item type). */
 const GOODS = ["weapon", "armor", "equipment", "treasure", "ammunition"];
+/**
+ * A shield: the armor with no fumble die (the system keeps none for one; every armor worn has its own, even going
+ * unarmored). It's carried in hand, not worn.
+ */
+export const isShield = item => item?.type === "armor" && !/\d*d\d+/i.test(String(item.system?.fumbleDie ?? "1d4"));
 
 /**
  * The die it rolls for initiative, as the system has it: its own (a d20), a two-handed weapon's in hand (a d16), or a
@@ -60,6 +65,18 @@ function initiativeDie(actor) {
   if ( twoHanded ) formula = twoHanded.system.initiativeDie || "1d16";
   if ( custom ) formula = custom.system.initiativeDie || formula;
   return Number(String(formula).match(/d(\d+)/)?.[1]) || 20;
+}
+
+/**
+ * Creeping up on a foe, for its side's initiative in an ambush: a thief's Sneak Silently (a halfling's Sneak and Hide),
+ * and Agility. Anyone else isn't trained in it (an untrained check's d10 isn't an initiative roll): its initiative as
+ * ever. Undefined for none.
+ */
+export function sneakOf(actor, kind) {
+  const sys = actor.system;
+  const skill = kind?.thief ? sys.skills?.sneakSilently?.value : kind?.halfling ? sys.skills?.sneakAndHide?.value : null;
+  if ( skill === null || skill === undefined || String(skill).trim() === "" ) return undefined;
+  return flatOf(skill) + (Number(sys.abilities?.agl?.mod) || 0);
 }
 
 /**
@@ -139,7 +156,7 @@ export function drawAgro(actor) {
  */
 export function wrestling(actor, { firstDie, crit }) {
   const sys = actor.system;
-  if ( (actor.itemTypes?.armor ?? []).some(a => a.system.equipped && /shield/i.test(`${a.name} ${a.system.type ?? ""}`)) ) return [];
+  if ( (actor.itemTypes?.armor ?? []).some(a => a.system.equipped && isShield(a)) ) return [];
   const str = Number(sys.abilities?.str?.mod) || 0;
   const training = Number(/d(\d+)/.exec(String(sys.class?.trainingDie ?? ""))?.[1]) || undefined;
   const heavy = (actor.itemTypes?.armor ?? []).some(a => a.system.equipped && Number(a.system.checkPenalty) <= -4);
@@ -159,13 +176,27 @@ export function toughnessOf(actor) {
 }
 
 /**
+ * The most Fleeting Luck or Mojo counted. Its points come one at a time (a natural 20; XCC's Mojo also for a class's
+ * own feats, a few at once from a Gnome's Team Mascot die), and any natural 1 on a d14 or bigger at the table takes
+ * everyone's, so a pool past twenty was typed in, not earned. (Its player owns the flag that holds it, and can write
+ * anything there.)
+ */
+const FLEETING_MAX = 20;
+
+/** A Fleeting Luck or Mojo flag's points, as counted: a whole number, 0 to FLEETING_MAX (anything else, none). */
+export function fleetingPoints(value) {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) ? Math.max(0, Math.min(FLEETING_MAX, n)) : 0;
+}
+
+/**
  * A character's Fleeting Luck or Mojo: XCC's Mojo (the XCC module on: the crawler's own, a flag on it), else DCC's
  * Fleeting Luck when the world has it on (its player's, for all its characters: a flag on the player). Null for none.
  * @returns {{kind: "actor"|"user", id: string, key: string, points: number, label: string}|null}
  */
 function fleetingOf(actor) {
   if ( game.modules?.get("xcc")?.active ) {
-    return { kind: "actor", id: actor.id, key: `actor:${actor.id}`, points: Number(actor.getFlag("xcc", "mojo")) || 0,
+    return { kind: "actor", id: actor.id, key: `actor:${actor.id}`, points: fleetingPoints(actor.getFlag("xcc", "mojo")),
       label: game.i18n.has("XCC.MojoTitle") ? game.i18n.localize("XCC.MojoTitle") : game.i18n.localize("DCC.FleetingLuck") };
   }
   let on = false;
@@ -175,7 +206,7 @@ function fleetingOf(actor) {
   if ( !on ) return null;
   const player = game.users?.find(u => !u.isGM && actor.testUserPermission?.(u, "OWNER"));
   if ( !player ) return null;
-  return { kind: "user", id: player.id, key: `user:${player.id}`, points: Number(player.getFlag("dcc", "fleetingLuckValue")) || 0, label: game.i18n.localize("DCC.FleetingLuck") };
+  return { kind: "user", id: player.id, key: `user:${player.id}`, points: fleetingPoints(player.getFlag("dcc", "fleetingLuckValue")), label: game.i18n.localize("DCC.FleetingLuck") };
 }
 
 /** The languages it speaks: its sheet's; with none listed, Common (every character; any creature not a beast or mindless). */
@@ -210,6 +241,31 @@ function inPartyOf(actor) {
   if ( !parties.length ) return undefined;
   // (A token's own copy of an actor has its actor's id.)
   return parties.some(p => [p.getFlag?.("dcc", "partyMembers") ?? []].flat().some(m => m?.id === actor.id));
+}
+
+/**
+ * What it could be talked (or robbed) out of: coins, what it carries, and the weapons and shield in its hands. Not the
+ * armor it wears: that doesn't come off in a fight.
+ */
+export function valuablesOf(actor) {
+  const c = actor.system.currency ?? {};
+  const money = Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(c[k]) || 0) * v, 0);
+  const worth = i => Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(i.system?.value?.[k]) || 0) * v, 0);
+  const stowed = [];
+  const wielded = [];
+  for ( const i of actor.items ) {
+    if ( !GOODS.includes(i.type) ) continue;
+    const thing = { id: i.id, name: i.name, value: worth(i), category: i.type };
+    if ( !(thing.value > 0) ) continue;
+    if ( !["weapon", "armor"].includes(i.type) || i.system.equipped === false ) stowed.push(thing);
+    else if ( i.type === "weapon" || isShield(i) ) wielded.push(thing);
+  }
+  return {
+    money,
+    denominations: [{ label: t("Coin.gp"), value: 100 }, { label: t("Coin.sp"), value: 10 }, { label: t("Coin.cp"), value: 1 }],
+    stowed,
+    wielded
+  };
 }
 
 export class DccAdapter extends SystemAdapter {
@@ -308,7 +364,7 @@ export class DccAdapter extends SystemAdapter {
       hitDie: hd.faces,
       defenses,
       shield: null, // a DCC shield is in the AC
-      initiative: { mod: flatOf(sys.attributes?.init?.value), die: initiativeDie(actor) },
+      initiative: { mod: flatOf(sys.attributes?.init?.value), die: initiativeDie(actor), stealth: sneakOf(actor, kind) },
       speeds,
       actions,
       actionDice: dice,
@@ -332,8 +388,9 @@ export class DccAdapter extends SystemAdapter {
       firstAid: pc ? { mod: 0, skill: t("BindWounds") } : null,
       resources,
       boosts: boosts.length ? boosts : null,
-      // Sizing a foe up (a Lore-Collector): what it can recall or work out, an Intelligence check against DC 10.
-      sizeUp: { mod: Number(sys.abilities?.int?.mod) || 0, dc: 10, label: game.i18n.localize("FFDCC.IntelligenceCheck"), boost: loreBoost() },
+      // Sizing a foe up (a Lore-Collector): what it can recall or work out, an Intelligence check against DC 10. Not
+      // for the mindless (constructs too): nothing in there to work anything out.
+      sizeUp: derived.flags.mindless ? undefined : { mod: Number(sys.abilities?.int?.mod) || 0, dc: 10, label: game.i18n.localize("FFDCC.IntelligenceCheck"), boost: loreBoost() },
       luck,
       // A player character's Luck works against a monster's crits.
       critAgainst: pc ? luckMod : 0,
@@ -373,7 +430,7 @@ export class DccAdapter extends SystemAdapter {
         force: { mod: Number(sys.abilities?.str?.mod) || 0 },
         pick: kind.thief ? { mod: flatOf(sys.skills?.pickLock?.value) + (Number(sys.abilities?.agl?.mod) || 0) } : pc ? { mod: Number(sys.abilities?.agl?.mod) || 0, faces: 10 } : null
       },
-      valuables: this.#valuables(actor),
+      valuables: valuablesOf(actor),
       leadership: this.#leadershipEntry(actor, tokenDoc.id, level, kind)
     };
   }
@@ -656,20 +713,6 @@ export class DccAdapter extends SystemAdapter {
 
   /* -------------------------------------------- */
 
-  /** What it could be talked (or robbed) out of: coins, and what it carries. */
-  #valuables(actor) {
-    const c = actor.system.currency ?? {};
-    const money = Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(c[k]) || 0) * v, 0);
-    const worth = i => Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(i.system?.value?.[k]) || 0) * v, 0);
-    const things = actor.items.filter(i => GOODS.includes(i.type)).map(i => ({ id: i.id, name: i.name, value: worth(i), category: i.type, equipped: i.system.equipped !== false && ["weapon", "armor"].includes(i.type) }));
-    return {
-      money,
-      denominations: [{ label: t("Coin.gp"), value: 100 }, { label: t("Coin.sp"), value: 10 }, { label: t("Coin.cp"), value: 1 }],
-      stowed: things.filter(t => !t.equipped && t.value > 0).map(({ equipped, ...t }) => t),
-      wielded: things.filter(t => t.equipped && t.value > 0).map(({ equipped, ...t }) => t)
-    };
-  }
-
   #leadershipEntry(actor, id, level, kind) {
     return { id, name: actor.name, level, personality: Number(actor.system.abilities?.per?.mod) || 0, cleric: !!kind?.cleric };
   }
@@ -738,7 +781,7 @@ export class DccAdapter extends SystemAdapter {
       pack: !!(spec?.flags?.packTactics || line.pack),
       will: spec?.defenses?.wil ?? flatOf(sys.saves?.wil?.value),
       money: Number(spec?.valuables?.money) || 0,
-      gold: (spec?.valuables?.denominations ?? this.#valuables(actor).denominations).some(d => d.value === 100),
+      gold: (spec?.valuables?.denominations ?? valuablesOf(actor).denominations).some(d => d.value === 100),
       names: {
         cls: pc ? this.#className(actor, facts.cls) : null,
         alignment: word(CONFIG.DCC?.alignments?.[facts.alignment]),
