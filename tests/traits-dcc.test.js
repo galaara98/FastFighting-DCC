@@ -133,11 +133,15 @@ describe("a DCC player character's traits, from its sheet", () => {
 });
 
 describe("a DCC monster's traits", () => {
-  test("beasts, the dead and casters, as before; a beast is marked one", () => {
-    const wolf = deriveDccTraits({ pc: false, name: "Wolf", level: 2, will: 0 });
-    expect(wolf.traits.tactical).toBe(20);
-    expect(wolf.flags.beast).toBe(true);
-    expect(deriveDccTraits({ pc: false, name: "Frost Acolyte", level: 3, will: 3, casts: true }).traits.tactical).toBe(60);
+  test("constructs and casters by their stat line; never by a name (a wolf, a king, a zombie are any creature)", () => {
+    const typical = deriveDccTraits({ pc: false, level: 2, will: 0 });
+    for ( const name of ["Wolf", "Frost King", "Zombie", "Black Dragon"] ) expect(deriveDccTraits({ pc: false, name, level: 2, will: 0 })).toEqual(typical);
+    expect(typical.traits.tactical).toBe(40);
+    expect(typical.flags).toEqual({});
+    expect(deriveDccTraits({ pc: false, level: 3, will: 3, casts: true }).traits.tactical).toBe(60);
+    expect(deriveDccTraits({ pc: false, level: 3, will: 3, construct: true }).traits.tactical).toBe(5);
+    // (Pack tactics, as its stat line says.)
+    expect(deriveDccTraits({ pc: false, level: 2, will: 0, pack: true }).flags.packTactics).toBe(true);
   });
 
   test("immune to fear, a bolder one; a demon or devil, a more selfish one", () => {
@@ -156,9 +160,12 @@ describe("a DCC monster's traits", () => {
   });
 
   test("the mindless don't change, and nothing makes the un-dead flee", () => {
-    const zombie = { pc: false, name: "Zombie", level: 2, will: 0, undead: true, alignment: "c" };
-    expect(deriveDccTraits({ ...zombie, unholy: true, mods: { per: 3, lck: -3 } }).traits).toEqual(deriveDccTraits(zombie).traits);
-    expect(deriveDccTraits(zombie).traits).toEqual({ tactical: 5, brave: 100, selfish: 60, loyal: 40 });
+    const golem = { pc: false, level: 2, will: 0, construct: true, alignment: "c" };
+    expect(deriveDccTraits({ ...golem, unholy: true, mods: { per: 3, lck: -3 } }).traits).toEqual(deriveDccTraits(golem).traits);
+    expect(deriveDccTraits(golem).traits).toEqual({ tactical: 5, brave: 100, selfish: 60, loyal: 40 });
+    const zombie = deriveDccTraits({ pc: false, level: 2, will: 0, undead: true, alignment: "c" });
+    expect(zombie.traits.brave).toBe(100);
+    expect(zombie.flags).toEqual({ fearless: true });
     const vampire = deriveDccTraits({ pc: false, name: "Vampire", level: 6, will: 4, undead: true, alignment: "c", mods: { lck: -3 } });
     expect(vampire.traits.brave).toBe(100);
     expect(vampire.flags.fearless).toBe(true);

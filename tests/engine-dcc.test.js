@@ -249,12 +249,12 @@ describe("who's who", () => {
     expect(archetype("sp-halfling-rogue").halfling).toBe(true);
   });
 
-  test("personalities: funnel peasants aren't veterans; beasts, the dead, and casters", () => {
+  test("personalities: funnel peasants aren't veterans; constructs, the dead, and casters", () => {
     expect(deriveDccTraits({ pc: true, level: 0, alignment: "n" }).traits.tactical).toBeLessThan(deriveDccTraits({ pc: true, level: 3, alignment: "n" }).traits.tactical);
-    expect(deriveDccTraits({ pc: false, name: "Wolf", level: 2, will: 0 }).traits.tactical).toBe(20);
-    const zombie = deriveDccTraits({ pc: false, name: "Zombie", level: 2, will: 0, undead: true });
+    expect(deriveDccTraits({ pc: false, level: 2, will: 0, construct: true }).traits.tactical).toBe(5);
+    const zombie = deriveDccTraits({ pc: false, level: 2, will: 0, undead: true });
     expect(zombie.flags.fearless).toBe(true);
-    expect(zombie.traits.tactical).toBe(5);
+    expect(zombie.traits.brave).toBe(100);
     expect(deriveDccTraits({ pc: false, name: "Frost Acolyte", level: 3, will: 3, casts: true }).traits.tactical).toBe(60);
   });
 

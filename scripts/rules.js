@@ -197,8 +197,8 @@ export const dccRules = {
     return rush > 0 && action.melee && moves > 0 ? 1 + rush : 1;
   },
   /**
-   * Subdual: a blunt blow, bare hands, or a weapon the system marks as subduing, in melee, knocks a foe out (one who
-   * spares the fallen pulls such a blow).
+   * Subdual: bare hands (harm that says it's blunt), or a weapon the system marks as subduing, in melee, knocks a foe
+   * out (one who spares the fallen pulls such a blow). A weapon's harm is untyped: DCC's weapons don't say.
    */
   pullsBlow(u, action) {
     return !!action?.melee && (!!action.subdual || (action.damage ?? []).some(p => p.type === "bludgeoning"));

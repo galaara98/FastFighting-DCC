@@ -10,17 +10,14 @@
  * deed die, spells); its alignment (a cleric's counts half again: it serves its side's god); its birth augur, by what
  * the lucky sign governs; and whether it's in one of the world's parties.
  *
- * DCC monsters rarely carry ability scores, so a monster's mind is read from what it is (a beast, the walking dead, a
- * giant, a spellcaster), its Will save and its alignment; then what its stat line says (immune to fear, a demon or
- * devil) and whatever ability scores it does have move it from there. The mindless never change.
+ * DCC monsters rarely carry ability scores, so a monster's mind is read from what its stat line says it is (the walking
+ * dead, a construct, a spellcaster), its Will save and its alignment; then what else its stat line says (immune to fear,
+ * a demon or devil) and whatever ability scores it does have move it from there. The mindless never change. (Never its
+ * name: what it's called says nothing the system knows.)
  */
 import { clamp, listItems, traitsFromParts, signedNumber, PC_BASELINE, TRAITS } from "./core.js";
 import { archetype } from "./classes.js";
 import { t } from "./words.js";
-
-const BEAST = /\b(?:wolf|wolves|hound|dog|bear|boar|rat|snake|serpent|owl|toad|frog|bat|spider|stag|goat|vulture|hawk|eagle|cat|lion|tiger|ape|horse|mule|shark|crab|beetle|ant|worm|lizard|crocodile|leech|insect|swarm)\b/i;
-const MINDLESS = /\b(?:zombie|skeleton|ooze|jelly|slime|golem|automaton|statue|mist|plant|fungus|mold)\b/i;
-const CLEVER = /\b(?:wizard|sorcer|witch|warlock|cleric|priest|acolyte|shaman|mage|lich|dragon|demon|devil|vampire|king|queen|thane|lord|lady|captain|chief)\b/i;
 
 /** The level the usual hero plays at (most DCC play runs 1st to 5th): its level moves it from there. */
 const USUAL_LEVEL = 3;
@@ -179,14 +176,35 @@ export function pcParts(d) {
 /** A trait's reason with more after it (the parts that moved it). */
 const joinReasons = (first, more) => Object.fromEntries(TRAITS.map(k => [k, listItems([first[k], more[k]].filter(Boolean))]));
 
+/** The kinds of creature the system files as people (by the crit table it gives them): they have words. */
+const PEOPLE = ["humanoid", "giant", "dragon", "demon"];
+
 /**
- * Does a creature speak Common when its sheet lists no languages? Every character does; so does any creature that
- * isn't a beast or mindless.
+ * What kind of creature the system takes it for, by the crit table it gave it (its stat block importer picks the table
+ * by kind: CONFIG.DCC.monsterCriticalHits): "humanoid", "giant", "dragon", "demon", "undead" or "other"; null for a
+ * table none of those use.
+ * @param {string} table          its crit table ("III", "G", "M" ...)
+ * @param {object} [critHits]     CONFIG.DCC.monsterCriticalHits: {hitDice: {kind: {table, die}}}
  */
-export function speaksCommon({ pc = false, name = "", undead = false, notes = "" } = {}) {
-  if ( pc ) return true;
-  const what = `${name} ${notes}`;
-  return !BEAST.test(name) && !(undead && MINDLESS.test(what)) && !MINDLESS.test(name);
+export function monsterKind(table, critHits = {}) {
+  const id = String(table ?? "").trim();
+  if ( !id ) return null;
+  for ( const row of Object.values(critHits ?? {}) ) {
+    for ( const [kind, hit] of Object.entries(row ?? {}) ) if ( hit?.table === id ) return kind;
+  }
+  return null;
+}
+
+/**
+ * Does a creature speak Common when its sheet lists no languages? Every character does; so does any creature the
+ * system files as one of the people (a humanoid, a giant, a dragon or a demon). The un-dead and other monsters speak
+ * only what their sheet lists.
+ * @param {object} d
+ * @param {boolean} [d.pc]
+ * @param {string} [d.kind]   its monsterKind
+ */
+export function speaksCommon({ pc = false, kind = null } = {}) {
+  return pc || PEOPLE.includes(kind);
 }
 
 /**
@@ -196,14 +214,15 @@ export function speaksCommon({ pc = false, name = "", undead = false, notes = ""
  * @param {string} d.alignment   "l", "n" or "c"
  * @param {number} d.will        Will save
  * @param {Record<string, number>} [d.mods]   ability modifiers: str, agl, sta, per, int, lck
- * @param {string} [d.name]
  * @param {boolean} [d.casts]    it casts spells
- * A creature's own:
+ * A creature's own (what its stat line says):
  * @param {number} [d.int]       Intelligence score, when it has one
- * @param {string} [d.notes]     the stat line and notes
  * @param {boolean} [d.undead]
  * @param {boolean} [d.unholy]   a demon or devil
- * @param {string[]} [d.immune]  what its stat line makes it immune to ("frightened", "charm" ...)
+ * @param {boolean} [d.construct]   construct traits: no mind to speak of
+ * @param {boolean} [d.fearImmune]  immune to fear itself
+ * @param {boolean} [d.pack]     pack tactics
+ * @param {string[]} [d.immune]  what it's immune to ("frightened", "charm" ...)
  * A player character's own:
  * @param {string} [d.cls]       the class sheet's id ("warrior", "sp-scout")
  * @param {number} [d.hp]        maximum hit points   @param {number} [d.hitDie]   its hit die's faces
@@ -224,24 +243,19 @@ export function deriveDccTraits(d) {
     const built = traitsFromParts(PC_BASELINE, pcParts(d), { from: t("Reason.Pc") });
     return { traits: built.traits, flags, reasons: built.reasons };
   }
-  const what = `${d.name ?? ""} ${d.notes ?? ""}`;
-  const beast = BEAST.test(d.name ?? "");
-  // (A construct has no mind to break, as the mindless don't.)
-  const mindless = !!d.undead && MINDLESS.test(what) || MINDLESS.test(d.name ?? "") || !!d.construct;
+  // (A construct has no mind to break.)
+  const mindless = !!d.construct;
   let tactical = 40;
   reasons.tactical = t("Reason.Typical");
   if ( Number.isFinite(d.int) && d.int !== 10 ) {
     tactical = clamp(35 + Math.floor((d.int - 10) / 2) * 8, 5, 95);
     reasons.tactical = t("Reason.Int", { n: d.int });
-  } else if ( beast ) {
-    tactical = 20;
-    reasons.tactical = t("Reason.Beast");
   } else if ( mindless ) {
     tactical = 5;
     reasons.tactical = t("Reason.BarelyThinks");
-  } else if ( d.casts || CLEVER.test(d.name ?? "") ) {
+  } else if ( d.casts ) {
     tactical = 60;
-    reasons.tactical = d.casts ? t("Reason.Caster") : t("Reason.LeaderMind");
+    reasons.tactical = t("Reason.Caster");
   }
   const typicalWill = Math.floor((d.level ?? 1) / 2) + 1;
   const delta = (d.will ?? 0) - typicalWill;
@@ -251,15 +265,11 @@ export function deriveDccTraits(d) {
     brave = 100;
     flags.fearless = true;
     reasons.brave = d.undead ? t("Reason.UndeadNeverFlees") : t("Reason.NeverFlees");
-  } else if ( beast ) {
-    brave = Math.min(brave, 45);
-    reasons.brave = t("Reason.BeastFlees");
   }
   if ( mindless ) flags.mindless = true;
   // (Immune to fear itself: its group's morale can't break it, as its "never flees" says.)
   if ( d.fearImmune ) flags.fearless = true;
-  if ( beast ) flags.beast = true;
-  if ( /\bpack\b/i.test(d.notes ?? "") && beast ) flags.packTactics = true;
+  if ( d.pack ) flags.packTactics = true;
   const side = names.alignment ?? alignmentName(a);
   Object.assign(reasons, { selfish: side, loyal: side });
   const base = { tactical, brave, selfish: chaotic ? 60 : lawful ? 35 : 50, loyal: lawful ? 60 : chaotic ? 40 : 50 };

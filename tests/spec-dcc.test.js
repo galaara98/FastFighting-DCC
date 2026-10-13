@@ -2,10 +2,11 @@
  * What a dcc sheet gives the core, where fairness is at stake: Fleeting Luck and Mojo counted within reason (a player
  * owns the flag that holds them), what a character could hand over in a fight (the weapons and shield in its hands,
  * not the armor it wears), sizing a foe up (not for the mindless), and creeping up for an ambush (a thief's Sneak
- * Silently). The characters and creatures here are made up for the tests; the field paths are the dcc system's own.
+ * Silently); and what the system's data says where a name would only guess: a weapon's harm, a dwarf's shield bash, who
+ * speaks Common. The characters and creatures here are made up for the tests; the field paths are the dcc system's own.
  */
 import { beforeEach, describe, expect, test } from "vitest";
-import { DccAdapter, fleetingPoints, isShield, sneakOf, valuablesOf } from "../scripts/adapter.js";
+import { DccAdapter, fleetingPoints, isShield, isShieldBash, sneakOf, valuablesOf } from "../scripts/adapter.js";
 import { archetype } from "../scripts/classes.js";
 
 const item = (id, type, system = {}, name = id) => ({ id, name, type, system });
@@ -130,5 +131,47 @@ describe("sizing a foe up, and creeping up on one", () => {
     expect(thief.initiative).toMatchObject({ mod: 1, stealth: 4 });
     const warrior = await new DccAdapter().toCombatantSpec(token(sheet({ system: { details: { level: { value: 1 }, alignment: "l", attackBonus: "+1", sheetClass: "Warrior", notes: { value: "" } }, class: { className: "Warrior" } } })));
     expect(warrior.initiative.stealth).toBeUndefined();
+  });
+});
+
+describe("what the system's data says, not a name", () => {
+  beforeEach(() => world());
+  const npc = (notes, table = "M", items = []) => sheet({ type: "NPC", items, system: { details: { level: { value: 0 }, alignment: "n", notes: { value: notes } },
+    attributes: { hp: { value: 10, max: 10 }, hitDice: { value: "2d8" }, speed: { value: "30'" }, init: { value: "+0" }, ac: { value: 12 }, critical: { table, die: "1d6" } } } });
+
+  test("a weapon's harm is untyped, whatever it's called; one the system marks as subdual knocks out", async () => {
+    const adapter = new DccAdapter();
+    const mace = item("mace", "weapon", { equipped: true, melee: true, damage: "1d6", toHit: "+2" }, "Mace");
+    const sap = item("sap", "weapon", { equipped: true, melee: true, damage: "1d4[subdual]", toHit: "+2", subdual: true }, "Sap");
+    const armed = await adapter.toCombatantSpec(token(npc("SV Fort +1, Ref +1, Will +1; AL N.", "III", [mace, sap])));
+    const by = id => armed.actions.find(a => a.itemId === id);
+    expect(by("mace").damage.map(p => p.type)).toEqual(["untyped"]);
+    expect(by("sap")).toMatchObject({ subdual: true, damage: [{ type: "untyped" }] });
+    const beast = await adapter.toCombatantSpec(token(npc("Atk bite +3 melee (1d6), claw +2 melee (1d4); SV Fort +1, Ref +1, Will +1; AL N.")));
+    expect(beast.actions.flatMap(a => a.damage.map(p => p.type))).toEqual(["untyped", "untyped"]);
+  });
+
+  test("a dwarf's shield bash: the system's name for it, in the reader's language, or its picture", () => {
+    const words = game.i18n;
+    game.i18n = { ...words, has: k => k === "DCC.ShieldBash" || words.has(k), localize: k => (k === "DCC.ShieldBash" ? "Schildstoß" : words.localize(k)) };
+    globalThis.CONFIG.DCC.macroImages = { shieldBash: "systems/dcc/styles/images/game-icons-net/shield-bash.svg" };
+    expect(isShieldBash({ name: " schildstoß " })).toBe(true);
+    expect(isShieldBash({ name: "Shield Bash" })).toBe(false);
+    expect(isShieldBash({ name: "Bonk", img: "systems/dcc/styles/images/game-icons-net/shield-bash.svg" })).toBe(true);
+    expect(isShieldBash({ name: "Bonk", img: "icons/svg/shield.svg" })).toBe(false);
+  });
+
+  test("Common, with no languages listed: a creature the system files as one of the people (its crit table), not other monsters", async () => {
+    globalThis.CONFIG.DCC.monsterCriticalHits = { 2: { humanoid: { table: "III" }, giant: { table: "G" }, undead: { table: "U" }, other: { table: "M" } } };
+    const adapter = new DccAdapter();
+    const line = "Atk club +2 melee (1d6); SV Fort +1, Ref +1, Will +1; AL N.";
+    expect((await adapter.toCombatantSpec(token(npc(line, "III")))).social.languages).toEqual(["common"]);
+    expect((await adapter.toCombatantSpec(token(npc(line, "G")))).social.languages).toEqual(["common"]);
+    expect((await adapter.toCombatantSpec(token(npc(line, "M")))).social.languages).toEqual([]);
+    expect((await adapter.toCombatantSpec(token(npc(line, "U")))).social.languages).toEqual([]);
+    // (What its sheet lists, it speaks.)
+    const listed = npc(line, "M");
+    listed.system.details.languages = "Common, Goblin";
+    expect((await adapter.toCombatantSpec(token(listed))).social.languages).toEqual(["common", "goblin"]);
   });
 });

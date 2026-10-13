@@ -28,7 +28,7 @@ const CLASSES = Object.freeze({
 const ALIGNMENTS = Object.freeze({ l: { moralist: 0.15 }, c: { cruel: 0.15, wildcard: 0.2 } });
 
 /** The playstyles that fit: {id: -1 to 1}. */
-export function dccHints({ cls = null, alignment = null, undead = false, unholy = false, mindless = false, beast = false } = {}) {
+export function dccHints({ cls = null, alignment = null, undead = false, unholy = false, mindless = false } = {}) {
   const out = {};
   const add = map => { for ( const [k, v] of Object.entries(map ?? {}) ) out[k] = (out[k] ?? 0) + v; };
   // (Each Specialist, sp-scout and the rest, is a thief.)
@@ -37,7 +37,6 @@ export function dccHints({ cls = null, alignment = null, undead = false, unholy 
   if ( undead ) add({ relentless: 0.4 });
   if ( unholy ) add({ cruel: 0.4 });
   if ( mindless ) add({ relentless: 0.3 });
-  if ( beast ) add({ brawler: 0.3 });
   for ( const k of Object.keys(out) ) out[k] = Math.max(-1, Math.min(1, out[k]));
   return out;
 }
@@ -103,8 +102,7 @@ const UNBREAKABLE_WILL = 10;
  * A creature (its stat line and Will):
  *  - the un-dead never flee; the mindless and constructs neither, nor talk, nor bargain, nor use up anything, and they
  *    go for whoever's nearest, stay with the fight and hold the line; one immune to fear, or with a Will no morale
- *    check can break, never flees; a beast flees when hurt, talks and bargains not, and has no use for potions or
- *    scrolls; anyone else checks morale when the fight turns against it;
+ *    check can break, never flees; anyone else checks morale when the fight turns against it;
  *  - a spellcaster leads with its spells; a flier strikes and wheels away; pack tactics: it gangs up on the weakest
  *    and hunts down the rest.
  * Never its name: what it's called says nothing the system knows. What its notes say of it, a highwayman's greed for
@@ -121,7 +119,7 @@ const UNBREAKABLE_WILL = 10;
  * @param {string} [f.occupation]   its occupation, as the sheet says it
  * @param {boolean} [f.deedDie]     its attack bonus is a deed die
  * A creature's:
- * @param {boolean} [f.undead]  @param {boolean} [f.mindless]  @param {boolean} [f.construct]  @param {boolean} [f.beast]
+ * @param {boolean} [f.undead]  @param {boolean} [f.mindless]  @param {boolean} [f.construct]
  * @param {boolean} [f.fearless]   immune to fear   @param {boolean} [f.casts]   @param {boolean} [f.flies]   @param {boolean} [f.pack]
  * @param {number} [f.will]        its Will save
  * @param {object} [f.names]       the words shown: {cls, alignment, will, luck, lucky, deed, chosen, favored, trained, twoWeapons, deeds, layOnHands, scroll, poison}
@@ -205,25 +203,22 @@ function creatureTactics(f, set) {
   else if ( f.pack ) set("target", "weakest", t("Why.PackTactics"));
 
   if ( mindless ) set("talk", "never", plainly);
-  else if ( f.beast ) set("talk", "never", t("Reason.Beast"));
 
   // DCC's morale: d20 + Will against DC 11, when its first falls, when half are down, alone when half its hit points are gone.
   if ( f.undead ) set("retreat", "never", t("Reason.UndeadNeverFlees"));
   else if ( mindless ) set("retreat", "never", f.construct ? plainly : t("Reason.NeverFlees"));
   else if ( f.fearless ) set("retreat", "never", t("Reason.ImmuneFear"));
   else if ( morale && will >= UNBREAKABLE_WILL ) set("retreat", "never", morale);
-  else if ( f.beast ) set("retreat", "hurt", t("Reason.BeastFlees"));
   else if ( morale ) set("retreat", "losing", morale);
 
   if ( f.pack ) set("beyond", "hunt", t("Why.PackTactics"));
   else if ( mindless ) set("beyond", "stay", plainly);
 
-  // A thing with no mind, or a beast: nothing to offer or ask for, and no potion or scroll it would use.
-  if ( mindless || f.beast ) {
-    const why = mindless ? plainly : t("Reason.Beast");
-    set("offer", { kind: "" }, why);
-    set("expect", { kind: "" }, why);
-    set("consumables", "avoid", why);
+  // A thing with no mind: nothing to offer or ask for, and no potion or scroll it would use.
+  if ( mindless ) {
+    set("offer", { kind: "" }, plainly);
+    set("expect", { kind: "" }, plainly);
+    set("consumables", "avoid", plainly);
   }
 }
 

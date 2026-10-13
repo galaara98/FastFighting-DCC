@@ -4,7 +4,7 @@
  */
 import { describe, expect, test } from "vitest";
 import { dccRules } from "../scripts/rules.js";
-import { speaksCommon } from "../scripts/traits.js";
+import { speaksCommon, monsterKind } from "../scripts/traits.js";
 import { parseFormula } from "../scripts/core.js";
 import { replay } from "../../FastFighting/scripts/engine/simulator.js";
 import { createRun } from "../../FastFighting/scripts/engine/battle-state.js";
@@ -82,11 +82,16 @@ describe("initiative", () => {
 });
 
 describe("languages", () => {
-  test("with none listed: every character speaks Common, and any creature but a beast or the mindless", () => {
-    expect(speaksCommon({ pc: true, name: "Wolf-Hearted Gus" })).toBe(true);
-    expect(speaksCommon({ name: "Bandit" })).toBe(true);
-    expect(speaksCommon({ name: "Dire Wolf" })).toBe(false);
-    expect(speaksCommon({ name: "Zombie", undead: true })).toBe(false);
-    expect(speaksCommon({ name: "Vampire", undead: true })).toBe(true);
+  test("with none listed: every character speaks Common, and any creature the system files as one of the people", () => {
+    // (The system's importer gives a creature its crit table by kind: CONFIG.DCC.monsterCriticalHits, in part.)
+    const critHits = { 1: { humanoid: { table: "III" }, dragon: { table: "DR" }, demon: { table: "DN" }, giant: { table: "G" }, undead: { table: "U" }, other: { table: "M" } },
+      7: { humanoid: { table: "IV" }, giant: { table: "G" } } };
+    expect(monsterKind("IV", critHits)).toBe("humanoid");
+    expect(monsterKind("U", critHits)).toBe("undead");
+    expect(monsterKind("II", critHits)).toBeNull();
+    expect(monsterKind("", critHits)).toBeNull();
+    expect(speaksCommon({ pc: true })).toBe(true);
+    for ( const table of ["III", "IV", "G", "DR", "DN"] ) expect(speaksCommon({ kind: monsterKind(table, critHits) })).toBe(true);
+    for ( const table of ["U", "M", "II", ""] ) expect(speaksCommon({ kind: monsterKind(table, critHits) })).toBe(false);
   });
 });

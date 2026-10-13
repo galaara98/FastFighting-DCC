@@ -14,7 +14,7 @@ import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
 import { deedsFrom } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
-import { deriveDccTraits, speaksCommon } from "./traits.js";
+import { deriveDccTraits, speaksCommon, monsterKind } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
 import { commitDccOutcome, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
 import { loreBoost } from "./lore.js";
@@ -35,13 +35,12 @@ const deedOf = toHit => {
   return m ? Number(m[1]) : null;
 };
 
-/** Damage-type imagery from a weapon's name (DCC weapons don't say). */
-function weaponType(name) {
-  const n = String(name ?? "").toLowerCase();
-  if ( /bow|arrow|bolt|spear|lance|javelin|dart|dagger|rapier|pick|bite|fang|horn|tusk|sting|trident|pike/.test(n) ) return "piercing";
-  if ( /mace|club|hammer|staff|flail|maul|fist|punch|slam|sling|morningstar|shield|tail|stomp|rock|boulder/.test(n) ) return "bludgeoning";
-  return "slashing";
-}
+/**
+ * A weapon's damage, as its formula types it: DCC weapons don't say whether they cut, pierce or crush (and a name is no
+ * way to tell), so a weapon's harm is untyped unless its formula names a kind. A blow the system marks as subdual is a
+ * subdual blow (the action says so), not a kind of harm.
+ */
+const harmOf = formula => parseTypedFormula(formula).map(p => (p.type === "subdual" ? { ...p, type: "untyped" } : p));
 
 const MODES = ["fly", "swim", "climb", "burrow"];
 const COPPER = { pp: 1000, ep: 50, gp: 100, sp: 10, cp: 1 };
@@ -209,11 +208,14 @@ function fleetingOf(actor) {
   return { kind: "user", id: player.id, key: `user:${player.id}`, points: fleetingPoints(player.getFlag("dcc", "fleetingLuckValue")), label: game.i18n.localize("DCC.FleetingLuck") };
 }
 
-/** The languages it speaks: its sheet's; with none listed, Common (every character; any creature not a beast or mindless). */
-function languagesOf(actor, { pc, undead }) {
+/**
+ * The languages it speaks: its sheet's; with none listed, Common for every character and any creature the system files
+ * as one of the people (by its crit table: a humanoid, a giant, a dragon or a demon).
+ */
+function languagesOf(actor, { pc }) {
   const listed = String(actor.system.details?.languages ?? "").split(/[,;/]/).map(s => s.trim().toLowerCase()).filter(Boolean);
   if ( listed.length ) return listed;
-  return speaksCommon({ pc, name: actor.name, undead, notes: plain(actor.system.details?.notes?.value ?? "") }) ? ["common"] : [];
+  return speaksCommon({ pc, kind: pc ? null : monsterKind(actor.system.attributes?.critical?.table, CONFIG.DCC?.monsterCriticalHits) }) ? ["common"] : [];
 }
 
 /** DCC's abilities, by its keys. */
@@ -221,6 +223,17 @@ const ABILITIES = ["str", "agl", "sta", "per", "int", "lck"];
 
 /** A word the system (or a module) has, in the reader's language; null when it has none. */
 const word = key => (key && game.i18n.has(key) ? game.i18n.localize(key) : null);
+
+/**
+ * A dwarf's shield bash, as the system knows it: the weapon its dwarf sheet makes, with the system's name for it (in the
+ * reader's language: it's how the system itself finds it again) or its picture; or XCC's name for it.
+ */
+export function isShieldBash(w) {
+  const named = String(w.name ?? "").trim().toLowerCase();
+  if ( named && [word("DCC.ShieldBash"), word("XCC.Dwarf.ShieldBash")].some(n => n && n.trim().toLowerCase() === named) ) return true;
+  const img = CONFIG.DCC?.macroImages?.shieldBash;
+  return !!img && w.img === img;
+}
 
 /** A sheet text field's text (the system keeps some as {value}, older data as the text itself). */
 const textOf = v => String((v && typeof v === "object" ? v.value : v) ?? "").trim();
@@ -420,7 +433,7 @@ export class DccAdapter extends SystemAdapter {
           steal: { dc: 10 + Math.max(defenses.ref, Number(sys.abilities?.int?.mod) || 0), label: t("Reflex") }
         },
         resolve: defenses.wil - (Math.floor(level / 2) + 1),
-        languages: languagesOf(actor, { pc, undead: !!line.undead }),
+        languages: languagesOf(actor, { pc }),
         mindless: !!derived.flags.mindless
       },
       // A thief's skills; anyone else's an untrained check (a d10, and Agility), as the rules have it for skills.
@@ -547,7 +560,7 @@ export class DccAdapter extends SystemAdapter {
         hands[w.system.twoWeaponPrimary ? "primary" : "offHand"] ??= action;
       }
       // A dwarf's shield bash: an extra attack with its own die, every round.
-      if ( kind.dwarf && /shield.?bash/i.test(`${w.name} ${w.img ?? ""}`) ) {
+      if ( kind.dwarf && isShieldBash(w) ) {
         action.economy = "bonus";
         shieldBash = true;
       }
@@ -565,7 +578,7 @@ export class DccAdapter extends SystemAdapter {
         if ( !a.damage ) continue;
         actions.push({
           id: `${actor.id}.atk${i}`, name: a.name, kind: "strike", cost: 1, bonus: a.bonus, melee: a.melee, reach: a.melee ? 5 : undefined,
-          range: a.melee ? null : { increment: 60 }, damage: [parseFormula(a.damage, weaponType(a.name))],
+          range: a.melee ? null : { increment: 60 }, damage: harmOf(a.damage),
           critOn: critOnFor(line.critNatural, firstDie) ?? undefined, crit: await this.#crit(sys, null, 0),
           effects: this.#riders(a.rider)
         });
@@ -615,7 +628,7 @@ export class DccAdapter extends SystemAdapter {
     try {
       formula = Roll.replaceFormulaData(formula, actor.getRollData(), { missing: "0" });
     } catch ( err ) { /* left as it is */ }
-    const damage = parseTypedFormula(formula, weaponType(w.name)).map(p => ({ ...p, type: ["untyped", "subdual"].includes(p.type) ? weaponType(w.name) : p.type }));
+    const damage = harmOf(formula);
     if ( !damage.length ) return null;
     const die = actionDice(s.actionDie)[0];
     const rangeFeet = feet(s.range);
@@ -643,11 +656,12 @@ export class DccAdapter extends SystemAdapter {
     };
     // A thief striking a foe who can't defend itself: the backstab (its bonus, and a far worse wound).
     if ( pc && kind.thief && s.melee ) {
-      const extra = s.backstabDamage ? parseFormula(String(s.backstabDamage), weaponType(w.name)) : null;
+      const type = damage[0].type;
+      const extra = s.backstabDamage ? parseFormula(String(s.backstabDamage), type) : null;
       const bonus = flatOf(actor.system.class?.backstab);
       const parts = [];
       if ( extra && (extra.dice.length || extra.flat) ) parts.push(extra);
-      if ( bonus > 0 ) parts.push(part([], Math.round(bonus / 2), weaponType(w.name))); // its to-hit bonus, as the hits it makes
+      if ( bonus > 0 ) parts.push(part([], Math.round(bonus / 2), type)); // its to-hit bonus, as the hits it makes
       if ( parts.length ) action.bonusDamage = [{ id: "backstab", when: "exposed", parts }];
     }
     return action;
@@ -726,7 +740,7 @@ export class DccAdapter extends SystemAdapter {
     return {
       cls: pc ? this.#classOf(actor) : null,
       alignment: String(sys.details?.alignment ?? "").toLowerCase()[0] ?? null,
-      undead: !!line.undead, unholy: !!line.unholy, mindless: !!derived.flags?.mindless, beast: !!derived.flags?.beast
+      undead: !!line.undead, unholy: !!line.unholy, mindless: !!derived.flags?.mindless
     };
   }
 
@@ -835,12 +849,11 @@ export class DccAdapter extends SystemAdapter {
       will: flatOf(sys.saves?.wil?.value),
       mods: Object.fromEntries(ABILITIES.map(k => [k, Number(sys.abilities?.[k]?.mod) || 0])),
       int: pc ? undefined : intScore,
-      name: actor.name,
-      notes: plain(sys.details?.notes?.value ?? ""),
       undead: !!read.undead,
       unholy: !!read.unholy,
       construct: !!read.construct,
       fearImmune: !!read.fearless,
+      pack: !!read.pack,
       immune: read.immune ?? [],
       casts: casts || spells.length > 0,
       ...(pc ? {
