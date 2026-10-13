@@ -123,20 +123,21 @@ What "Let this character decide" stands for (the GM sees each answer and why, in
 
 A player character, by what its build clearly implies (the rest is its player's):
 - **Its signature attack:** two weapons set up together (two-weapon fighting); else the weapon its class sheet names (a Warrior's Lucky Weapon; XCC's deed weapon, chosen weapon or favored weapon), when it carries it; else a Brawler's bare fists; else, beside a weapon it isn't trained in, the one weapon it is (a funnel peasant's, its occupation's).
-- **Its class:** its fighting style (the front line for a Warrior, Dwarf, Cleric, Messenger, Brawler, Athlete or Half-Orc; a skirmisher for a Thief, Specialist, Halfling, Dungeon Hottie or Half-Elf; a caster for a Wizard, Elf or Blaster; a Gnome guards its friends); how strongly it reaches for its own (spells first for a Wizard or Blaster, and a Brawler's fists; a little more often for an Elf, a Cleric or Messenger, a Jammer, a Gnome or an Athlete); a Dungeon Hottie talks first, a Jammer when it could work.
+- **Its class:** its fighting style (the front line for a Warrior, Dwarf, Cleric, Messenger, Brawler, Athlete or Half-Orc; a skirmisher for a Thief, Specialist, Halfling, Dungeon Hottie or Half-Elf; a caster for a Wizard, Elf or Blaster; a Gnome guards its friends); a Blaster goes for casters (it earns its Mojo bringing down magic users); how strongly it reaches for its own (spells first for a Wizard or Blaster, and a Brawler's fists; a little more often for an Elf, a Cleric or Messenger, a Jammer, a Gnome or an Athlete); a Dungeon Hottie talks first, a Jammer when it could work; a Thief, trained to cast from scrolls and handle poison, uses consumables freely.
 - **Luck:** a Thief's, a Halfling's and a Specialist's comes back each day, so they spend it (and Fleeting Luck or Mojo) freely. Anyone else's burned Luck is gone for good: how freely is left to its nerve.
 - **A Cleric or Messenger** keeps everyone topped up with Lay on Hands, drops everything for a friend bleeding out, and heals itself first when it gets back up. A chaotic one heals those who are hurting and keeps fighting: each for itself.
 - **A deed die:** its defensive Mighty Deed as it would anyway (a DCC shield is already in the AC, so the core alone would say never).
-- **A 0-level funnel peasant** runs when it's badly hurt: it dies at 0.
+- **A Luck of 5 or less:** it gets out when hurt (a body roll under its Luck would rarely save it).
+- **A 0-level funnel peasant** runs when it's badly hurt: it dies at 0. To end an argument it offers to leave, and wants only not to be harmed.
 
-A creature, by its stat line, Will and name:
-- **The un-dead** never flee. **The mindless and constructs** don't either, and never talk, offer and want nothing, go for whoever's nearest, hold the line, and stay with the fight. One **immune to fear**, or with a Will no morale check can break (+10), never flees.
-- **A beast** flees when hurt, has no words, and offers and wants nothing. **Pack tactics:** it gangs up on the weakest, and hunts down the rest.
+A creature, by its stat line and Will:
+- **The un-dead** never flee. **The mindless and constructs** don't either, and never talk, offer and want nothing, go for whoever's nearest, hold the line, stay with the fight, and use up nothing. One **immune to fear**, or with a Will no morale check can break (+10), never flees.
+- **A beast** flees when hurt, has no words, offers and wants nothing, and has no use for potions or scrolls. **Pack tactics:** it gangs up on the weakest, and hunts down the rest.
 - **Anyone else** checks DCC's morale when the fight turns against it (its Will shown).
 - **A spellcaster** (spellcasting, a spell check, "Atk spells or ...") leads with its spells; **a flier** strikes and wheels away.
-- **Its name, as a fallback** (DCC keeps no creature types or roles; read in English): a bandit wants money (by its hit dice) and offers to let them pass; a mercenary wants money and offers to leave; a sentry or guard wants intruders gone, offers not to harm them, and runs for help; a hunter, or a hunting party, hunts down the rest; a noble or merchant buys its way out with a tenth of its purse.
+- **Not its name:** DCC keeps no creature types or roles, and a name says nothing the system knows. What its notes say of it, a highwayman's greed for one, reaches the core as its biography's keywords, and the core's offer and expectation follow from those.
 
-Left to the core: consumables and potions (DCC's fights have none), and anything the sheet doesn't speak to.
+Left to the core: anything the sheet doesn't speak to. (DCC's fights use no consumables yet: that answer is for the survey.)
 
 ## Make it So
 

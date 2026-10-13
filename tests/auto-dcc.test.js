@@ -4,7 +4,7 @@
  * creatures here are made up for the tests; the field paths are the dcc system's own.
  */
 import { beforeEach, describe, expect, test } from "vitest";
-import { dccHints, dccTactics, roleOf } from "../scripts/auto.js";
+import { dccHints, dccTactics } from "../scripts/auto.js";
 import { DccAdapter } from "../scripts/adapter.js";
 import { TACTIC_CHOICES, TACTIC_KEYS } from "../../fast-fighting/scripts/engine/tactics.js";
 import { validLet, validMotive } from "../../fast-fighting/scripts/foundry/auto-config.js";
@@ -76,7 +76,7 @@ describe("DCC's answers for a player character: what its build clearly implies",
   });
 
   test("a thief, a halfling, a Specialist: their Luck comes back, so they spend it; a wizard lives by its spells, an elf less so", () => {
-    expect(values(dccTactics({ pc: true, cls: "thief", level: 3 }))).toEqual({ style: "skirmisher", resourceUse: "nova" });
+    expect(values(dccTactics({ pc: true, cls: "thief", level: 3 }))).toEqual({ style: "skirmisher", resourceUse: "nova", consumables: "freely" });
     expect(values(dccTactics({ pc: true, cls: "halfling", level: 3 }))).toEqual({ style: "skirmisher", resourceUse: "nova" });
     expect(values(dccTactics({ pc: true, cls: "sp-scout", level: 1 }))).toEqual({ style: "skirmisher", resourceUse: "nova" });
     expect(values(dccTactics({ pc: true, cls: "wizard", level: 3 }))).toEqual({ style: "caster", specialty: "strong" });
@@ -105,14 +105,37 @@ describe("DCC's answers for a player character: what its build clearly implies",
   test("a 0-level funnel peasant: its occupation's weapon over one it isn't trained in, and it runs when hurt", () => {
     const weapons = [{ id: "z.fork", name: "Pitchfork (as spear)", trained: true }, { id: "z.sword", name: "Longsword", trained: false }];
     const h = dccTactics({ pc: true, cls: "zero", level: 0, weapons, occupation: "Corn farmer", names: { cls: "Zero-Level" } });
-    expect(values(h)).toEqual({ preferredAction: "z.fork", retreat: "hurt" });
+    expect(values(h)).toEqual({ preferredAction: "z.fork", retreat: "hurt", offer: { kind: "leave" }, expect: { kind: "noHarm" } });
     expect(h.preferredAction.why).toBe("Corn farmer");
     expect(h.retreat.why).toBe(text("FFDCC.Reason.Zero"));
+    expect(h.offer.why).toBe(text("FFDCC.Reason.Zero"));
     expectFair(h, ["z.fork", "z.sword"]);
     // (One weapon, or all trained: nothing marks one over another.)
     expect(dccTactics({ pc: true, cls: "zero", level: 0, weapons: weapons.slice(0, 1) }).preferredAction).toBeUndefined();
     // (A level-0 character of any class is still a funnel peasant.)
-    expect(values(dccTactics({ pc: true, cls: "cleric", level: 0 }))).toEqual({ retreat: "hurt" });
+    expect(values(dccTactics({ pc: true, cls: "cleric", level: 0 }))).toEqual({ retreat: "hurt", offer: { kind: "leave" }, expect: { kind: "noHarm" } });
+  });
+
+  test("XCC's Blaster goes for magic users; a thief makes the most of scrolls and poison", () => {
+    const blaster = dccTactics({ pc: true, cls: "blaster", level: 2, names: { cls: "Blaster" } });
+    expect(blaster.target).toEqual({ value: "casters", why: "Blaster" });
+    expectFair(blaster);
+    const thief = dccTactics({ pc: true, cls: "thief", level: 2, names: { cls: "Thief", scroll: "Cast spell from scroll", poison: "Handle poison" } });
+    expect(thief.consumables.value).toBe("freely");
+    expect(thief.consumables.why).toContain("Cast spell from scroll");
+    expect(thief.consumables.why).toContain("Handle poison");
+    expectFair(thief);
+    // (A Specialist's skills are its own: nothing said of scrolls.)
+    expect(dccTactics({ pc: true, cls: "sp-scout", level: 2 }).consumables).toBeUndefined();
+  });
+
+  test("a Luck too low to count on when its body is rolled: it gets out when hurt", () => {
+    const h = dccTactics({ pc: true, cls: "warrior", level: 2, luck: 5, names: { luck: "Luck" } });
+    expect(h.retreat).toEqual({ value: "hurt", why: text("FFDCC.Reason.Ability", { name: "Luck", n: 5 }) });
+    expect(dccTactics({ pc: true, cls: "warrior", level: 2, luck: 6 }).retreat).toBeUndefined();
+    expect(dccTactics({ pc: true, cls: "warrior", level: 2 }).retreat).toBeUndefined();
+    // (A funnel peasant's reason is that it's one.)
+    expect(dccTactics({ pc: true, cls: "zero", level: 0, luck: 4 }).retreat.why).toBe(text("FFDCC.Reason.Zero"));
   });
 
   test("what its build doesn't speak to is left to the core and its player", () => {
@@ -123,11 +146,11 @@ describe("DCC's answers for a player character: what its build clearly implies",
   });
 });
 
-describe("DCC's answers for a creature: its stat line, its Will, its name", () => {
+describe("DCC's answers for a creature: its stat line and its Will", () => {
   test("the walking dead never flee, talk or bargain, and go for whoever's nearest", () => {
     const zombie = dccTactics({ name: "Zombie", undead: true, mindless: true, will: 0, level: 2 });
     expect(values(zombie)).toEqual({
-      style: "frontline", target: "nearest", talk: "never", retreat: "never", beyond: "stay", offer: { kind: "" }, expect: { kind: "" }
+      style: "frontline", target: "nearest", talk: "never", retreat: "never", beyond: "stay", offer: { kind: "" }, expect: { kind: "" }, consumables: "avoid"
     });
     expect(zombie.retreat.why).toBe(text("FFDCC.Reason.UndeadNeverFlees"));
     expect(zombie.target.why).toBe(text("FFDCC.Why.Mindless"));
@@ -148,7 +171,8 @@ describe("DCC's answers for a creature: its stat line, its Will, its name", () =
 
   test("a beast flees when hurt, has no words, offers and wants nothing; pack hunters gang up on the weakest and hunt", () => {
     const bear = dccTactics({ name: "Polar Bear", beast: true, will: 2, level: 4 });
-    expect(values(bear)).toEqual({ talk: "never", retreat: "hurt", offer: { kind: "" }, expect: { kind: "" } });
+    expect(values(bear)).toEqual({ talk: "never", retreat: "hurt", offer: { kind: "" }, expect: { kind: "" }, consumables: "avoid" });
+    expect(bear.consumables.why).toBe(text("FFDCC.Reason.Beast"));
     expect(bear.retreat.why).toBe(text("FFDCC.Reason.BeastFlees"));
     const hounds = dccTactics({ name: "Black Hound", beast: true, pack: true, will: 2, level: 3 });
     expect(values(hounds)).toMatchObject({ target: "weakest", beyond: "hunt" });
@@ -164,29 +188,44 @@ describe("DCC's answers for a creature: its stat line, its Will, its name", () =
     expect(owl.style).toEqual({ value: "skirmisher", why: text("FFDCC.Why.Flies") });
   });
 
-  test("its name, where nothing else says: a highwayman, a sellsword, a sentry, a hunting party, a noble", () => {
-    expect(roleOf("Bandit captain")).toBe("bandit");
-    expect(roleOf("Giantling Guards (3)")).toBe("guard");
-    expect(roleOf("Giant Hunting Party")).toBe("hunter");
-    expect(roleOf("Wolf")).toBeNull();
-    const bandit = dccTactics({ name: "Bandit captain", will: 2, level: 3, gold: true });
-    expect(values(bandit)).toMatchObject({ offer: { kind: "passage" }, expect: { kind: "money", amount: 30, coin: 100 } });
-    expect(bandit.expect.why).toBe("Bandit captain");
-    expect(values(dccTactics({ name: "Mercenary", will: 1, level: 1, gold: true }))).toMatchObject({ offer: { kind: "leave" }, expect: { kind: "money", amount: 10 } });
-    const sentry = dccTactics({ name: "Giant Sentry", will: 2, level: 4, gold: true });
-    expect(values(sentry)).toMatchObject({ beyond: "seekHelp", offer: { kind: "noHarm" }, expect: { kind: "leave" } });
-    expect(values(dccTactics({ name: "Giant Hunting Party", will: 1, level: 3 }))).toMatchObject({ beyond: "hunt" });
-    // A noble buys its way out with a tenth of its purse; one with an empty purse, nothing.
-    expect(dccTactics({ name: "Noble", will: 2, level: 2, gold: true, money: 50000 }).offer.value).toEqual({ kind: "money", amount: 50, coin: 100 });
-    expect(dccTactics({ name: "Noble", will: 2, level: 2, gold: true, money: 0 }).offer).toBeUndefined();
-    // (No coin worth a hundred: nothing asked in money.)
-    expect(dccTactics({ name: "Bandit", will: 0, level: 1, gold: false }).expect).toBeUndefined();
-    for ( const h of [bandit, sentry] ) expectFair(h);
+  test("its name says nothing: a bandit, a sentry or a noble by its name alone is left to the core (and its notes' keywords)", () => {
+    for ( const name of ["Bandit captain", "Giant Sentry", "Giant Hunting Party", "Mercenary", "Noble"] ) {
+      expect(values(dccTactics({ name, will: 2, level: 3 }))).toEqual({ retreat: "losing" });
+    }
   });
 
   test("what its stat line doesn't speak to is left to the core", () => {
     expect(values(dccTactics({ name: "Mendax the Mad", will: 0, level: 3 }))).toEqual({ retreat: "losing" });
     expect(dccTactics({ name: "Mendax the Mad" })).toEqual({});
+  });
+});
+
+describe("every answer DCC gives", () => {
+  test("is one the core takes, with a reason, whatever the character (with the system's words or without)", () => {
+    const classes = [null, "warrior", "cleric", "thief", "wizard", "elf", "dwarf", "halfling", "zero", "messenger", "brawler", "dungeon-hottie", "jammer",
+      "gnome", "athlete", "blaster", "half-orc", "half-elf", "xcc-dwarf", "sp-acrobat", "sp-scout", "sp-criminal", "sorcerer-of-zhar"];
+    const weapons = [
+      [],
+      [{ id: "w.a", name: "Axe", trained: true, mark: "lucky" }, { id: "w.b", name: "Bow", trained: true, mark: null }],
+      [{ id: "w.a", name: "Axe", trained: true, mark: null }, { id: "w.b", name: "Bow", trained: false, mark: null }]
+    ];
+    let n = 0;
+    for ( const cls of classes ) for ( const level of [0, 1, 4] ) for ( const alignment of ["l", "n", "c"] ) for ( const luck of [undefined, 3, 12] ) {
+      for ( const [i, list] of weapons.entries() ) for ( const twoWeapons of [undefined, "w.two"] ) for ( const names of [{}, { ...NAMES, cls: "Class", luck: "Luck", scroll: "Scroll", poison: "Poison" }] ) {
+        const extra = { twoWeapons, fists: cls === "brawler" ? "w.fists" : undefined, deedDie: level > 0 && i > 0, occupation: i === 2 ? "Farmer" : "" };
+        const h = dccTactics({ pc: true, cls, level, alignment, luck, weapons: list, names, ...extra });
+        expectFair(h, ["w.a", "w.b", "w.two", "w.fists"]);
+        n += Object.keys(h).length;
+      }
+    }
+    const flags = ["undead", "mindless", "construct", "beast", "fearless", "casts", "flies", "pack"];
+    for ( let mask = 0; mask < 1 << flags.length; mask++ ) for ( const will of [undefined, -1, 3, 12] ) {
+      const f = Object.fromEntries(flags.map((k, i) => [k, !!(mask & (1 << i))]));
+      const h = dccTactics({ ...f, will, level: 3, name: "Bandit captain" });
+      expectFair(h);
+      n += Object.keys(h).length;
+    }
+    expect(n).toBeGreaterThan(1000);
   });
 });
 
@@ -225,6 +264,16 @@ describe("the dcc sheet, read for its answers", () => {
     expectFair(h, ["a1.i1", "a1.i2"]);
   });
 
+  test("its Luck, as the sheet has it", () => {
+    const luckless = sheet({ system: { abilities: { lck: { value: 4, mod: -2 } }, details: { level: { value: 2 }, alignment: "n", attackBonus: "+1", sheetClass: "Thief", notes: { value: "" } }, class: { className: "Thief" } } });
+    const h = new DccAdapter().tacticHints(luckless, spec(luckless));
+    expect(values(h)).toMatchObject({ style: "skirmisher", resourceUse: "nova", consumables: "freely", retreat: "hurt" });
+    expectFair(h);
+    // (None on the sheet: nothing said.)
+    const blank = sheet({ system: { abilities: { lck: { value: "" } }, details: { level: { value: 2 }, alignment: "n", attackBonus: "+1", sheetClass: "Warrior", notes: { value: "" } }, class: { className: "Warrior" } } });
+    expect(new DccAdapter().tacticHints(blank, spec(blank)).retreat).toBeUndefined();
+  });
+
   test("a funnel peasant's sheet: its occupation's weapon, not the sword it picked up", () => {
     const actor = sheet({
       system: { details: { level: { value: 0 }, alignment: "n", attackBonus: "+0", sheetClass: "Zero", notes: { value: "" }, occupation: { value: "Gongfarmer" } }, class: { className: "Zero-Level" } },
@@ -235,11 +284,11 @@ describe("the dcc sheet, read for its answers", () => {
     expect(h.retreat.value).toBe("hurt");
   });
 
-  test("a monster's sheet: its stat line, Will and name", () => {
+  test("a monster's sheet: its stat line and Will (not its name)", () => {
     const notes = "Giant Sentry: Init +1; Atk morningstar +5 melee (1d12+4); AC 15; HD 4d12+3; MV 40'; Act 1d24; SP immune to cold, crit on 22+; SV Fort +5, Ref +1, Will +2; AL C.";
     const actor = sheet({ type: "NPC", name: "Giant Sentry", system: { details: { level: { value: 0 }, alignment: "c", notes: { value: notes } }, attributes: { hp: { max: 28 }, hitDice: { value: "4d12+3" }, speed: { value: "40'" } } } });
     const h = new DccAdapter().tacticHints(actor, spec(actor, { level: 4 }));
-    expect(values(h)).toEqual({ retreat: "losing", beyond: "seekHelp", offer: { kind: "noHarm" }, expect: { kind: "leave" } });
+    expect(values(h)).toEqual({ retreat: "losing" });
     expectFair(h);
     const hounds = sheet({ type: "NPC", name: "Black Hound", system: { details: { level: { value: 0 }, alignment: "c", notes: { value: "Black Hounds: Atk bite +4 melee (1d8+4); SP pack tactics; SV Fort +3, Ref +2, Will +2; AL C." } } } });
     expect(values(new DccAdapter().tacticHints(hounds, spec(hounds, { flags: { beast: true, packTactics: true } })))).toMatchObject({ target: "weakest", beyond: "hunt", retreat: "hurt", talk: "never" });

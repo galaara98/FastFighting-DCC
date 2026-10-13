@@ -738,7 +738,7 @@ export class DccAdapter extends SystemAdapter {
   /**
    * Its own answers to the tactics questions, and what it offers and expects (auto.js dccTactics), from what its sheet
    * and its CombatantSpec say: its class and level, the weapons it fights with and those its class sheet marks, a
-   * deed die, its occupation; a creature's stat line, Will, flight, pack tactics, money and name.
+   * deed die, its occupation, its Luck; a creature's stat line, Will, flight and pack tactics.
    */
   tacticHints(actor, spec) {
     return dccTactics(this.#tacticFacts(actor, spec));
@@ -764,11 +764,12 @@ export class DccAdapter extends SystemAdapter {
       }));
     const spells = actor.itemTypes?.spell ?? actor.items?.filter?.(i => i.type === "spell") ?? [];
     const level = Number(spec?.level ?? (pc ? sys.details?.level?.value : hitDice(sys.attributes?.hitDice?.value).level)) || 0;
+    const luck = sys.abilities?.lck?.value;
     return {
       ...facts,
       pc,
-      name: actor.name,
       level,
+      luck: pc && luck !== undefined && luck !== null && String(luck).trim() !== "" ? Number(luck) : undefined,
       weapons,
       twoWeapons: own(`${actor.id}.two-weapons`),
       fists: own(`${actor.id}.fists`),
@@ -780,12 +781,13 @@ export class DccAdapter extends SystemAdapter {
       flies: (Number(spec?.speeds?.fly) || feet(sys.attributes?.speed?.fly) || line.fly || 0) > 0,
       pack: !!(spec?.flags?.packTactics || line.pack),
       will: spec?.defenses?.wil ?? flatOf(sys.saves?.wil?.value),
-      money: Number(spec?.valuables?.money) || 0,
-      gold: (spec?.valuables?.denominations ?? valuablesOf(actor).denominations).some(d => d.value === 100),
       names: {
         cls: pc ? this.#className(actor, facts.cls) : null,
         alignment: word(CONFIG.DCC?.alignments?.[facts.alignment]),
         will: word(CONFIG.DCC?.saves?.wil),
+        luck: word(CONFIG.DCC?.abilities?.lck),
+        scroll: word("DCC.CastSpellFromScroll"),
+        poison: word("DCC.HandlePoison"),
         lucky: word("DCC.LuckyWeapon"),
         deed: word("XCC.DungeonHottie.DeedWeapon"),
         chosen: word("XCC.Jammer.ChosenWeapon"),
