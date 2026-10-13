@@ -4,7 +4,7 @@
 > - **Programming:** I am a skilled programmer by profession, but AI was used heavily as a co-pilot.
 > - **Strings:** ALL initial strings were created by AI. An AI-made Spanish translation was used to test localization and has since been removed.
 
-Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaara98/FastFighting), the Foundry VTT module that resolves a battle by simulating it thousands of times, tells the story of one fight, and commits it with **Make it So**. It works in Xcrawl Classics worlds too (the XCC module rides on the same system).
+Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaara98/FastFighting), the Foundry VTT module that resolves a battle by simulating it thousands of times, tells the story of one fight, and commits it with **Do it For Real Now**. It works in Xcrawl Classics worlds too (the XCC module rides on the same system).
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
@@ -33,7 +33,7 @@ Enable both in a DCC world.
 - **Spell duels:** a caster yet to act this round may answer a foe's spell that worked with one of its own that can counter it (the same spell, Dispel Magic, Fire Resistance against a fire spell, Magic Shield against Magic Missile, Invoke Patron against Invoke Patron; not one lost for the day). Its spell check against the caster's: higher, the spell is undone; the same, neither stands; lower, or its own check failing, the spell goes on. Answering costs it its next action. (The book's duel tables, with momentum and phlogiston disturbance, aren't played: the checks are compared.)
 - **Two-weapon fighting:** a weapon set up as the primary hand and one as the off hand attack together, one action for both, on the dice the system steps down for each (Table 4-3), with each hand's crit rule (no crits, or only on the die's highest face: a halfling's).
 - **XCC classes:** the Messenger plays as a cleric (holy acts with disapproval, turning the unholy, healing), each Specialist (Acrobat, Commando, Scout, Criminal and the rest) as a thief (backstab, a luck die). The Brawler fights with its fists: unarmed, two attacks together on a d16 each (a crit on a natural 16; no fumble on one alone), or, armed, a free unarmed attack on a d14 once a round besides its own; its attack bonus, Strength and Luck (when it helps) on its unarmed damage die; no crits in armor too heavy (a check penalty of -4 or worse). Its Toughness takes so much off every melee blow. More of XCC's classes' own:
-  - **Dungeon Hottie:** Not in the Face (a round spent defending: its bonus to AC until its next turn), and Too Cute to Die (a failed body roll passes for a point of Luck, once a level; Make it So marks it used).
+  - **Dungeon Hottie:** Not in the Face (a round spent defending: its bonus to AC until its next turn), and Too Cute to Die (a failed body roll passes for a point of Luck, once a level; Do it For Real Now marks it used).
   - **Jammer:** Disrespect (a performance check, Personality, level and Luck, its foe saves against with Will, or takes the Jammer's penalty, a step down the dice chain counted as -2, to attacks, checks and damage for level + Personality rounds; the save's DC is the check's average; the mindless pay it no heed).
   - **Gnome:** Draw Agro (a check, Personality, level and Luck when it helps, its foe saves against with Will, within 60 feet; failed, the foe spends its next turn going for the gnome, or pays a step down the dice chain, two from 5th level, on its rolls against anyone else; the core's taunt. A point of Mojo each time it draws an attack; the mindless pay it no heed).
   - **Athlete:** wrestling (a grapple, not with a shield in hand, a shield being the armor with no fumble die: its training die rolled with it like a deed die, onto the roll and the damage, a d4 and Strength; its own crit range; a hit grabs).
@@ -58,7 +58,7 @@ Enable both in a DCC world.
   A save's DC is the spell check, as in the rules. A wizard or elf loses the spell on a failure. A cleric's failures widen its disapproval, and a natural roll inside the range fails. Monsters lose nothing. Spells from a stat-block importer that name no table are found by name in the installed books.
 - **The cleric's own:** Lay on Hands (so many of the target's hit dice) and Turn Unholy (un-dead, demons and devils up to so many hit dice cower), by their tables.
 - **Luck:** a player character burns Luck on a roll that falls short, more readily the more is at stake (a save against death, a spell, a friend bleeding out). A thief rolls its luck die for each point burned. A halfling's points count double, and it can spend them on a friend's roll within 30 feet. Wizards and elves spellburn Strength, Stamina and Agility on spell checks.
-- **Fleeting Luck and Mojo:** with DCC's Fleeting Luck on in the world (each player's, for all its characters), or XCC's Mojo (each crawler's own, always on), a character spends it before its Luck on a roll that falls short, a point for +1 (at most 20 counted: points come one at a time and a natural 1 takes them all, so more was typed in, not earned). A character's natural 20 earns its pool a point; a natural 1 on a d14 or bigger takes every pool there is. Make it So writes what's left back (on the player, or the crawler), and Undo puts it back.
+- **Fleeting Luck and Mojo:** with DCC's Fleeting Luck on in the world (each player's, for all its characters), or XCC's Mojo (each crawler's own, always on), a character spends it before its Luck on a roll that falls short, a point for +1 (at most 20 counted: points come one at a time and a natural 1 takes them all, so more was typed in, not earned). A character's natural 20 earns its pool a point; a natural 1 on a d14 or bigger takes every pool there is. Do it For Real Now writes what's left back (on the player, or the crawler), and Rewind This Encounter puts it back.
 - **Dying:** monsters and 0-level characters die at 0 hit points. Anyone else bleeds out for as many rounds as their level, and if healed in time loses a point of Stamina for good. After the fight, friends who hold the field roll the body of each fallen player character: a Luck check (a d20 at or under their Luck) finds them only unconscious, at 1 hit point, groggy, a point of Strength, Agility or Stamina gone for good.
 - **Morale:** DCC's own, for creatures (a character's is its player's, as FastFighting plays it). A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. One roll decides for the group, by whichever of it acts next: a d20 + its Will (a retainer adds its employer's Personality: the party leader's, else the best of the party's) against DC 11. Under, the whole group flees. The mindless and the fearless never break. The Statistician shows each roll.
 - **Personality:** a player character starts as the usual hero (bold, loyal, unselfish, a good head) and everything on its sheet moves it a little:
@@ -139,7 +139,7 @@ A creature, by its stat line and Will:
 
 Left to the core: anything the sheet doesn't speak to. (DCC's fights use no consumables yet: that answer is for the survey.)
 
-## Make it So
+## Do it For Real Now
 
 Writes the drawn fight onto the tokens, as the confirmation dialog lists:
 - hit points, death (and the combatant defeated), the fled hidden;
@@ -149,7 +149,7 @@ Writes the drawn fight onto the tokens, as the confirmation dialog lists:
 - statuses still on a creature (stunned, paralyzed, asleep, blinded, frightened, held, slowed, prone);
 - the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the party: Hostile).
 
-Undo puts it all back.
+Rewind This Encounter puts it all back.
 
 ## Development
 
