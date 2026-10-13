@@ -94,6 +94,15 @@
       "ImmuneFear": "immune to fear",
       "Fiend": "demon or devil"
     },
+    "Why": {
+      "Mindless": "Mindless",
+      "Construct": "Construct",
+      "Flies": "Flies",
+      "PackTactics": "Pack tactics",
+      "Morale": "Morale ({name} {n})",
+      "Trained": "Trained weapon",
+      "TwoWeapons": "Two-weapon fighting"
+    },
     "Ability": {
       "str": "Strength",
       "agl": "Agility",

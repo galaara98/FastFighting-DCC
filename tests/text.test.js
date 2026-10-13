@@ -126,6 +126,19 @@ describe("stat lines", () => {
     expect(s.infravision).toBe(60);
     expect(s.fly).toBe(40);
     expect(s.spellCheck).toBe(4);
+    expect(s.spellcasting).toBe(true);
+    expect(s.fearless).toBeUndefined();
+  });
+
+  test("how it fights: immune to fear itself, a construct, pack tactics, spells first", () => {
+    expect(statLine("SP immune to fear and cold; SV Fort +2, Ref +1, Will +0; AL N.").fearless).toBe(true);
+    // (Immune to mind-affecting magic is about spells: a boar still runs.)
+    expect(statLine("SP immune to mind-affecting magic; SV Fort +3, Ref +1, Will +1; AL N.").fearless).toBeUndefined();
+    expect(statLine("SP construct qualities; SV Fort +4, Ref +0, Will +0; AL N.").construct).toBe(true);
+    expect(statLine("SP pack tactics (-2 AC for every bite against the same foe); SV Fort +3, Ref +2, Will +2; AL C.").pack).toBe(true);
+    expect(statLine("Atk spells or mace +4 melee (1d8+2); AC 13; SV Fort +3, Ref +0, Will +3; AL C.").spellcasting).toBe(true);
+    expect(statLine("SP harmful spell 3/day; SV Fort +1, Ref +1, Will +4; AL L.").spellcasting).toBe(true);
+    expect(statLine("Atk bite +4 melee (1d8+4); SV Fort +3, Ref +2, Will +2; AL C.").spellcasting).toBeUndefined();
   });
 
   test("attacks", () => {

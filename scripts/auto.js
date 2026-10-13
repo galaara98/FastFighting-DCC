@@ -1,9 +1,13 @@
 /**
  * What DCC says about a character, for the one time FastFighting sets it up by itself (the core's
- * foundry/auto-config.js): the playstyles that fit it and its own answers to the tactics questions, from its class (the
- * class sheet's id: DCC's and XCC's), its alignment, and a monster's stat line (un-dead, demons and devils); and the
- * sheet's HTML as plain text, for its biography's keywords (the adapter's biography). Pure.
+ * foundry/auto-config.js): the playstyles that fit it and its own answers to the tactics questions ("Let this character
+ * decide"), from its class (the class sheet's id: DCC's and XCC's), its level, its weapons, its alignment, and a
+ * monster's stat line, Will and name; and the sheet's HTML as plain text, for its biography's keywords (the adapter's
+ * biography). Pure (its words through the language files).
  */
+import { listItems, signedNumber } from "./core.js";
+import { archetype } from "./classes.js";
+import { t } from "./words.js";
 
 /** What each class leans toward, by the class sheet's id. */
 const CLASSES = Object.freeze({
@@ -38,23 +42,207 @@ export function dccHints({ cls = null, alignment = null, undead = false, unholy 
   return out;
 }
 
-/** A class's fighting style. */
+/**
+ * A class's fighting style, by the class sheet's id: DCC's (a cleric in armor with its mace, a thief's backstab, a
+ * halfling's two weapons) and XCC's (a Messenger as a cleric, a Specialist as a thief, a Half-Elf's acrobatics, a Gnome
+ * drawing the foe's eye).
+ */
 const CLASS_STYLE = Object.freeze({
   warrior: "frontline", dwarf: "frontline", "xcc-dwarf": "frontline", brawler: "frontline", athlete: "frontline", cleric: "frontline",
-  thief: "skirmisher", halfling: "skirmisher", "sp-acrobat": "skirmisher", wizard: "caster", elf: "caster", gnome: "protector"
+  messenger: "frontline", "half-orc": "frontline",
+  thief: "skirmisher", halfling: "skirmisher", "sp-acrobat": "skirmisher", "dungeon-hottie": "skirmisher", "half-elf": "skirmisher",
+  wizard: "caster", elf: "caster", blaster: "caster", gnome: "protector"
 });
 
-/** DCC's own answers to the tactics questions, where it knows better than the numbers: {key: answer}. */
-export function dccTactics({ cls = null, undead = false, mindless = false } = {}) {
+/**
+ * How strongly a class reaches for its magic and its own (what the adapter marks special): a wizard (or XCC's Blaster)
+ * lives by its spells, an elf fights in armor too; a cleric's spells, Lay on Hands and Turn Unholy; a Brawler's fists,
+ * a Jammer's Disrespect, a Gnome's Draw Agro, an Athlete's wrestling.
+ */
+const CLASS_SPECIALTY = Object.freeze({
+  wizard: "strong", blaster: "strong", brawler: "strong",
+  elf: "some", cleric: "some", messenger: "some", jammer: "some", gnome: "some", athlete: "some"
+});
+
+/** Talking: XCC's Dungeon Hottie wins people over (Persuade, Allure); a Jammer is a performer. */
+const CLASS_TALK = Object.freeze({ "dungeon-hottie": "first", jammer: "opportune" });
+
+/** The weapons a class sheet marks as its own, best first: a warrior's lucky weapon, XCC's deed, chosen and favored weapons. */
+const MARKS = ["lucky", "deed", "chosen", "favored"];
+
+/**
+ * What a creature's name says it is, where nothing else does (DCC keeps no creature types or roles: its name is a
+ * fallback, read in English): a highwayman wants your money and lets you pass; a sellsword is paid to walk away; a
+ * sentry wants you gone and runs for help; a hunter, or a hunting party, hunts; a noble or merchant buys its way out.
+ */
+const ROLES = [
+  ["bandit", /\b(?:bandit|brigand|highwaym[ae]n|robber|raider|outlaw|pirate|footpad|cutthroat)s?\b/i],
+  ["guard", /\b(?:sentr(?:y|ies)|guards?|sentinels?|watchm[ae]n|lookouts?|gatekeepers?)\b/i],
+  ["mercenary", /\b(?:mercenar(?:y|ies)|sellswords?)\b/i],
+  ["hunter", /\bhunt(?:ers?|ing|ress(?:es)?)\b/i],
+  ["noble", /\b(?:kings?|queens?|princes?|princess(?:es)?|nobles?|nobleman|noblemen|lords?|lad(?:y|ies)|dukes?|duchess(?:es)?|barons?|baroness(?:es)?|merchants?)\b/i]
+];
+export const roleOf = name => ROLES.find(([, re]) => re.test(String(name ?? "")))?.[0] ?? null;
+
+/** Morale (DCC's: d20 + Will against DC 11): a Will this high never breaks. */
+const UNBREAKABLE_WILL = 10;
+/** So many gold pieces a level: what a highwayman or sellsword asks (as the core reckons a fair sum). */
+const GOLD_PER_LEVEL = 10;
+const GOLD = 100;
+
+/**
+ * DCC's own answers to the tactics questions and to what it offers and expects to end an argument, where its data
+ * says something: {key: {value, why}} (why: in the reader's language, the system's own words where it has them).
+ * Anything left out is the core's reading of its hidden scores.
+ *
+ * A player character (its build, leaving the rest to its player):
+ *  - its signature attack: its two weapons set up together (two-weapon fighting), else the weapon its sheet marks as its
+ *    own (a warrior's lucky weapon; XCC's deed, chosen or favored weapon), else a Brawler's bare fists, else, beside an
+ *    untrained one, the one weapon it's trained in (a funnel peasant's, its occupation's);
+ *  - its class: its style, how strongly it reaches for its specialties, a Gnome guarding its friends, a Hottie's or
+ *    Jammer's words; a thief's, halfling's or Specialist's Luck comes back each day, so it spends it freely;
+ *  - a cleric (or Messenger) heals: Lay on Hands readily, on the dying, on itself first when it gets back up (a
+ *    chaotic one less readily: each for itself);
+ *  - a deed die: its defensive Mighty Deed, as it would anyway (a DCC shield is already in the AC, so the core would
+ *    otherwise say never);
+ *  - a 0-level funnel peasant runs when hurt (it dies at 0).
+ * A creature (its stat line, Will and name):
+ *  - the un-dead never flee; the mindless and constructs neither, nor talk, nor bargain, and they go for whoever's
+ *    nearest, stay with the fight and hold the line; one immune to fear, or with a Will no morale check can break,
+ *    never flees; a beast flees when hurt, talks and bargains not; anyone else checks morale when the fight turns
+ *    against it;
+ *  - a spellcaster leads with its spells; a flier strikes and wheels away; pack tactics: it gangs up on the weakest
+ *    and hunts down the rest;
+ *  - its name, as a fallback (ROLES): a highwayman, a sellsword, a sentry, a hunter, a noble.
+ * @param {object} f
+ * @param {boolean} [f.pc]          a player character (default: whether it has a class)
+ * @param {string} [f.cls]          its class sheet's id
+ * @param {number} [f.level]
+ * @param {string} [f.alignment]    "l", "n" or "c"
+ * @param {{id, name, trained, mark}[]} [f.weapons]   its weapons' actions; mark: "lucky", "deed", "chosen", "favored"
+ * @param {string} [f.twoWeapons]   its two-weapon action's id, set up
+ * @param {string} [f.fists]        a Brawler's unarmed attacks' id
+ * @param {string} [f.occupation]   its occupation, as the sheet says it
+ * @param {boolean} [f.deedDie]     its attack bonus is a deed die
+ * A creature's:
+ * @param {string} [f.name]
+ * @param {boolean} [f.undead]  @param {boolean} [f.mindless]  @param {boolean} [f.construct]  @param {boolean} [f.beast]
+ * @param {boolean} [f.fearless]   immune to fear   @param {boolean} [f.casts]   @param {boolean} [f.flies]   @param {boolean} [f.pack]
+ * @param {number} [f.will]        its Will save
+ * @param {number} [f.money]       what it carries, in copper   @param {boolean} [f.gold]   the system has a coin of 100 copper
+ * @param {object} [f.names]       the words shown: {cls, alignment, will, lucky, deed, chosen, favored, trained, twoWeapons, deeds, layOnHands}
+ * @returns {Record<string, {value, why?}>}
+ */
+export function dccTactics(f = {}) {
   const out = {};
-  const style = CLASS_STYLE[cls] ?? (String(cls ?? "").startsWith("sp-") ? "skirmisher" : null);
-  if ( style ) out.style = style;
-  // (A gnome draws the foe's eye from its friends; a cleric lays on hands readily; a funnel peasant runs when hurt.)
-  if ( cls === "gnome" ) out.target = "protect";
-  if ( cls === "cleric" || cls === "messenger" ) out.healAggro = "aggressive";
-  if ( ["zero-level", "0-level", "zero"].includes(cls) ) out.retreat = "hurt";
-  if ( undead || mindless ) out.retreat = "never";
+  const set = (key, value, why) => {
+    if ( key in out || value === undefined || value === null ) return;
+    out[key] = why ? { value, why: String(why) } : { value };
+  };
+  if ( f.pc ?? !!f.cls ) characterTactics(f, set);
+  else creatureTactics(f, set);
   return out;
+}
+
+/** A player character's: what its build clearly implies. */
+function characterTactics(f, set) {
+  const names = f.names ?? {};
+  const kind = archetype(f.cls);
+  const zero = kind.zero || (Number.isFinite(f.level) && f.level <= 0);
+  const cls = names.cls || f.cls || "";
+
+  // Its signature attack.
+  const weapons = f.weapons ?? [];
+  const marked = MARKS.map(m => [m, weapons.find(w => w.mark === m)]).find(([, w]) => w);
+  const trained = weapons.filter(w => w.trained);
+  if ( f.twoWeapons ) set("preferredAction", f.twoWeapons, names.twoWeapons || t("Why.TwoWeapons"));
+  else if ( marked ) set("preferredAction", marked[1].id, names[marked[0]] || cls);
+  else if ( f.fists && !zero ) set("preferredAction", f.fists, cls);
+  else if ( trained.length === 1 && weapons.some(w => !w.trained) ) {
+    set("preferredAction", trained[0].id, zero ? (f.occupation || t("Reason.Zero")) : (names.trained || t("Why.Trained")));
+  }
+
+  // A funnel peasant has no class yet, and dies at 0.
+  if ( zero ) {
+    set("retreat", "hurt", t("Reason.Zero"));
+    return;
+  }
+  const id = String(f.cls ?? "");
+  const style = CLASS_STYLE[id] ?? (kind.thief ? "skirmisher" : null);
+  if ( style ) set("style", style, cls);
+  if ( kind.gnome ) set("target", "protect", cls);
+  // (A thief's Luck, a halfling's and a Specialist's come back each day; anyone else's burned Luck is gone for good.)
+  if ( kind.thief || kind.halfling ) set("resourceUse", "nova", cls);
+  set("specialty", CLASS_SPECIALTY[id], cls);
+  set("talk", CLASS_TALK[id], cls);
+  if ( kind.cleric ) {
+    const chaotic = f.alignment === "c";
+    const why = chaotic ? listItems([cls, names.alignment || t("Chaotic")]) : cls;
+    const hands = names.layOnHands || t("LayOnHands");
+    set("healAggro", chaotic ? "balanced" : "aggressive", why);
+    set("allyDying", chaotic ? "fight" : "rescue", chaotic ? why : hands);
+    set("selfRevived", "healSelf", hands);
+  }
+  // (Its defensive deed goes as the shield answer says: never, unless the system speaks up.)
+  if ( f.deedDie ) set("shield", "spare", names.deeds || t("Reason.DeedDie"));
+}
+
+/** A creature's: its stat line, its Will, and (failing all else) its name. */
+function creatureTactics(f, set) {
+  const names = f.names ?? {};
+  const mindless = !!(f.mindless || f.construct);
+  const plainly = f.construct ? t("Why.Construct") : t("Why.Mindless");
+  const role = roleOf(f.name);
+  const will = Number(f.will);
+  const morale = Number.isFinite(will) ? t("Why.Morale", { name: names.will || t("Will"), n: signedNumber(will) }) : null;
+
+  if ( f.casts ) {
+    set("style", "caster", t("Reason.Caster"));
+    set("specialty", "strong", t("Reason.Caster"));
+  } else if ( f.flies ) set("style", "skirmisher", t("Why.Flies"));
+  else if ( mindless ) set("style", "frontline", plainly);
+
+  if ( mindless ) set("target", "nearest", plainly);
+  else if ( f.pack ) set("target", "weakest", t("Why.PackTactics"));
+
+  if ( mindless ) set("talk", "never", plainly);
+  else if ( f.beast ) set("talk", "never", t("Reason.Beast"));
+
+  // DCC's morale: d20 + Will against DC 11, when its first falls, when half are down, alone when half its hit points are gone.
+  if ( f.undead ) set("retreat", "never", t("Reason.UndeadNeverFlees"));
+  else if ( mindless ) set("retreat", "never", f.construct ? plainly : t("Reason.NeverFlees"));
+  else if ( f.fearless ) set("retreat", "never", t("Reason.ImmuneFear"));
+  else if ( morale && will >= UNBREAKABLE_WILL ) set("retreat", "never", morale);
+  else if ( f.beast ) set("retreat", "hurt", t("Reason.BeastFlees"));
+  else if ( morale ) set("retreat", "losing", morale);
+
+  if ( f.pack ) set("beyond", "hunt", t("Why.PackTactics"));
+  else if ( role === "hunter" ) set("beyond", "hunt", f.name);
+  else if ( role === "guard" ) set("beyond", "seekHelp", f.name);
+  else if ( mindless ) set("beyond", "stay", plainly);
+
+  // To end an argument.
+  const none = { kind: "" };
+  const gold = n => ({ kind: "money", amount: n, coin: GOLD });
+  const level = Math.max(1, Number(f.level) || 1);
+  if ( mindless || f.beast ) {
+    const why = mindless ? plainly : t("Reason.Beast");
+    set("offer", none, why);
+    set("expect", none, why);
+  } else if ( role === "bandit" ) {
+    set("offer", { kind: "passage" }, f.name);
+    if ( f.gold ) set("expect", gold(GOLD_PER_LEVEL * level), f.name);
+  } else if ( role === "mercenary" ) {
+    set("offer", { kind: "leave" }, f.name);
+    if ( f.gold ) set("expect", gold(GOLD_PER_LEVEL * level), f.name);
+  } else if ( role === "guard" ) {
+    set("offer", { kind: "noHarm" }, f.name);
+    set("expect", { kind: "leave" }, f.name);
+  } else if ( role === "noble" && f.gold ) {
+    // (A tenth of what it carries, in gold.)
+    const tenth = Math.floor((Number(f.money) || 0) / GOLD / 10);
+    if ( tenth >= 1 ) set("offer", gold(tenth), f.name);
+  }
 }
 
 /** Text from the sheet's HTML. */

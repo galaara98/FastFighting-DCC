@@ -194,6 +194,9 @@ const word = key => (key && game.i18n.has(key) ? game.i18n.localize(key) : null)
 /** A sheet text field's text (the system keeps some as {value}, older data as the text itself). */
 const textOf = v => String((v && typeof v === "object" ? v.value : v) ?? "").trim();
 
+/** A weapon's name as a class sheet matches it to the one it names (XCC's way: letters only, no parentheses). */
+const weaponKey = name => String(name ?? "").toLowerCase().replace(/\(.*?\)/g, "").replace(/[^\p{L}]/gu, "");
+
 /** The fields an active effect changes with the birth augur's Luck modifier. */
 const augurKeys = effect => (effect?.system?.changes ?? effect?.changes ?? [])
   .filter(c => /birthAugurLuckMod/.test(String(c?.value ?? ""))).map(c => String(c.key ?? ""));
@@ -689,9 +692,67 @@ export class DccAdapter extends SystemAdapter {
     return dccHints(this.#facts(actor));
   }
 
-  /** Its own answers to the tactics questions (auto.js): a class's style, a gnome's guarding, the un-dead never running. */
-  tacticHints(actor) {
-    return dccTactics(this.#facts(actor));
+  /**
+   * Its own answers to the tactics questions, and what it offers and expects (auto.js dccTactics), from what its sheet
+   * and its CombatantSpec say: its class and level, the weapons it fights with and those its class sheet marks, a
+   * deed die, its occupation; a creature's stat line, Will, flight, pack tactics, money and name.
+   */
+  tacticHints(actor, spec) {
+    return dccTactics(this.#tacticFacts(actor, spec));
+  }
+
+  /** What dccTactics reads (see there). */
+  #tacticFacts(actor, spec = null) {
+    const sys = actor.system ?? {};
+    const pc = actor.type === "Player";
+    const facts = this.#facts(actor);
+    const line = statLine(sys.details?.notes?.value ?? "");
+    const actions = spec?.actions ?? [];
+    const own = id => (actions.some(a => a.id === id) ? id : null);
+    const c = sys.class ?? {};
+    // The weapons its class sheet marks as its own: a warrior's lucky weapon; XCC's deed weapon (a Hottie's One Move),
+    // a Jammer's chosen weapon, a Messenger's favored weapon.
+    const marks = { lucky: weaponKey(c.luckyWeapon), deed: c.oneMove === "deed" ? weaponKey(c.deedWeapon) : "", chosen: weaponKey(c.chosenWeapon), favored: weaponKey(c.favoredWeapon) };
+    const weapons = (actor.itemTypes?.weapon ?? actor.items?.filter?.(i => i.type === "weapon") ?? [])
+      .filter(w => w.system?.equipped !== false && own(`${actor.id}.${w.id}`))
+      .map(w => ({
+        id: `${actor.id}.${w.id}`, name: w.name, trained: w.system?.trained !== false,
+        mark: Object.keys(marks).find(k => marks[k] && marks[k] === weaponKey(w.name)) ?? null
+      }));
+    const spells = actor.itemTypes?.spell ?? actor.items?.filter?.(i => i.type === "spell") ?? [];
+    const level = Number(spec?.level ?? (pc ? sys.details?.level?.value : hitDice(sys.attributes?.hitDice?.value).level)) || 0;
+    return {
+      ...facts,
+      pc,
+      name: actor.name,
+      level,
+      weapons,
+      twoWeapons: own(`${actor.id}.two-weapons`),
+      fists: own(`${actor.id}.fists`),
+      occupation: textOf(sys.details?.occupation),
+      deedDie: pc && !!deedOf(sys.details?.attackBonus),
+      construct: !!line.construct,
+      fearless: !!line.fearless,
+      casts: actions.some(a => a.casting || a.spell) || spells.length > 0 || !!line.spellcasting,
+      flies: (Number(spec?.speeds?.fly) || feet(sys.attributes?.speed?.fly) || line.fly || 0) > 0,
+      pack: !!(spec?.flags?.packTactics || line.pack),
+      will: spec?.defenses?.wil ?? flatOf(sys.saves?.wil?.value),
+      money: Number(spec?.valuables?.money) || 0,
+      gold: (spec?.valuables?.denominations ?? this.#valuables(actor).denominations).some(d => d.value === 100),
+      names: {
+        cls: pc ? this.#className(actor, facts.cls) : null,
+        alignment: word(CONFIG.DCC?.alignments?.[facts.alignment]),
+        will: word(CONFIG.DCC?.saves?.wil),
+        lucky: word("DCC.LuckyWeapon"),
+        deed: word("XCC.DungeonHottie.DeedWeapon"),
+        chosen: word("XCC.Jammer.ChosenWeapon"),
+        favored: word("XCC.Messenger.FavoredWeapon"),
+        trained: word("DCC.WeaponPropertiesTrained"),
+        twoWeapons: word("DCC.TwoWeaponFighting"),
+        deeds: word("DCC.MightyDeedsOfArms"),
+        layOnHands: (facts.cls === "messenger" ? word("XCC.Messenger.LayOnHands") : null) ?? word("DCC.LayOnHands")
+      }
+    };
   }
 
   /**

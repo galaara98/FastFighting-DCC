@@ -327,7 +327,9 @@ const UNDEAD = ["asleep", "sleep", "controlled", "charm", "paralyzed", "paralysi
  * The specials in a DCC stat line ("Init +2; Atk claw +3 melee (1d4); AC 13; HD 2d8; MV 30' or fly 40'; Act 1d20;
  * SP infravision 60', immune to cold, crit on 19-20, un-dead traits; SV Fort +2, Ref +1, Will +0; AL C."), as far as
  * a fight cares: {immune, critNatural, infravision, fly, swim, climb, spellCheck, undead, attacks: [{name, bonus,
- * melee, damage, rider}]}.
+ * melee, damage, rider}]}; and what it says of how the creature fights: fearless (immune to fear itself, not just to
+ * mind-affecting magic), construct (construct traits), spellcasting (it casts: spellcasting, a spell check, harmful
+ * spells, "Atk spells or ..."), pack (pack tactics).
  */
 export function statLine(text) {
   const t = plain(text);
@@ -337,8 +339,13 @@ export function statLine(text) {
   for ( const m of special.matchAll(/\bimmun\w*\s+(?:to\s+)?([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) {
     for ( const word of m[1].split(/,|\band\b|\bor\b/).map(w => w.trim().replace(/\s*(?:effects?|spells?|damage|attacks?)$/, "")) ) {
       for ( const [k, v] of Object.entries(IMMUNITIES) ) if ( word === k || word.startsWith(k) ) out.immune.push(...v);
+      if ( word.startsWith("fear") ) out.fearless = true;
     }
   }
+  if ( /\bconstruct (?:traits|qualities|characteristics)\b/.test(special) ) out.construct = true;
+  if ( /\bpack tactics\b/.test(special) ) out.pack = true;
+  const atkText = lower.match(/\batk\b\s*([^;]*)/)?.[1] ?? "";
+  if ( /\bspellcasting\b|\bspell ?check\b|\bharmful spells?\b|\b(?:druidical|media) magic\b/.test(special) || /^\s*spells?\s+or\b/.test(atkText) ) out.spellcasting = true;
   if ( /\bun-?dead\b|\bundead traits\b/.test(special) ) {
     out.undead = true;
     out.immune.push(...UNDEAD);
