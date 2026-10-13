@@ -62,7 +62,7 @@ function employerOf(run, u) {
 }
 
 /** Damage-type imagery for the story. */
-const STORY_TYPES = { electricity: "electricity", holy: "vitality", unholy: "void", force: "force" };
+const STORY_TYPES = { electricity: "electricity", holy: "radiant", unholy: "unholy", force: "force" };
 
 export const dccRules = {
   id: "dcc",

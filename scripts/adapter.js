@@ -673,7 +673,8 @@ export class DccAdapter extends SystemAdapter {
       const parts = [];
       if ( extra && (extra.dice.length || extra.flat) ) parts.push(extra);
       if ( bonus > 0 ) parts.push(part([], Math.round(bonus / 2), type)); // its to-hit bonus, as the hits it makes
-      if ( parts.length ) action.bonusDamage = [{ id: "backstab", when: "exposed", parts }];
+      // (Harm with no look of its own: told as how it came, not as more of the blow.)
+      if ( parts.length ) action.bonusDamage = [{ id: "backstab", when: "exposed", parts: parts.map(p => ({ ...p, category: "precision" })) }];
     }
     return action;
   }
