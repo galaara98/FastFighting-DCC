@@ -226,7 +226,8 @@ export function deriveDccTraits(d) {
   }
   const what = `${d.name ?? ""} ${d.notes ?? ""}`;
   const beast = BEAST.test(d.name ?? "");
-  const mindless = !!d.undead && MINDLESS.test(what) || MINDLESS.test(d.name ?? "");
+  // (A construct has no mind to break, as the mindless don't.)
+  const mindless = !!d.undead && MINDLESS.test(what) || MINDLESS.test(d.name ?? "") || !!d.construct;
   let tactical = 40;
   reasons.tactical = t("Reason.Typical");
   if ( Number.isFinite(d.int) && d.int !== 10 ) {
@@ -255,6 +256,8 @@ export function deriveDccTraits(d) {
     reasons.brave = t("Reason.BeastFlees");
   }
   if ( mindless ) flags.mindless = true;
+  // (Immune to fear itself: its group's morale can't break it, as its "never flees" says.)
+  if ( d.fearImmune ) flags.fearless = true;
   if ( beast ) flags.beast = true;
   if ( /\bpack\b/i.test(d.notes ?? "") && beast ) flags.packTactics = true;
   const side = names.alignment ?? alignmentName(a);

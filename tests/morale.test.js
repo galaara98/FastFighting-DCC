@@ -65,3 +65,14 @@ describe("DCC morale", () => {
     expect(said.data).toMatchObject({ natural: 8, total: 11, holds: true });
   });
 });
+
+describe("those that never flee, by their stat line", () => {
+  test("a construct and one immune to fear itself hold, as their tactics say", async () => {
+    const { deriveDccTraits } = await import("../scripts/traits.js");
+    const golem = deriveDccTraits({ pc: false, level: 4, alignment: "n", will: 0, name: "Iron Sentinel", construct: true });
+    expect(golem.flags.mindless).toBe(true);
+    const unshaken = deriveDccTraits({ pc: false, level: 4, alignment: "n", will: 0, name: "Knight", fearImmune: true, immune: ["frightened", "fear"] });
+    expect(unshaken.flags.fearless).toBe(true);
+    expect(deriveDccTraits({ pc: false, level: 4, alignment: "n", will: 0, name: "Knight" }).flags.fearless).toBeUndefined();
+  });
+});

@@ -794,6 +794,8 @@ export class DccAdapter extends SystemAdapter {
       notes: plain(sys.details?.notes?.value ?? ""),
       undead: !!read.undead,
       unholy: !!read.unholy,
+      construct: !!read.construct,
+      fearImmune: !!read.fearless,
       immune: read.immune ?? [],
       casts: casts || spells.length > 0,
       ...(pc ? {
