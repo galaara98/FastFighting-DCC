@@ -5,6 +5,7 @@
 import { describe, expect, test } from "vitest";
 import { dccRules } from "../scripts/rules.js";
 import { speaksCommon, monsterKind } from "../scripts/traits.js";
+import { wordList } from "../scripts/words.js";
 import { parseFormula } from "../scripts/core.js";
 import { replay } from "../../FastFighting/scripts/engine/simulator.js";
 import { createRun } from "../../FastFighting/scripts/engine/battle-state.js";
@@ -82,7 +83,7 @@ describe("initiative", () => {
 });
 
 describe("languages", () => {
-  test("with none listed: every character speaks Common, and any creature the system files as one of the people", () => {
+  test("with none listed: every character speaks Common, any creature the system files as one of the people, and others by name", () => {
     // (The system's importer gives a creature its crit table by kind: CONFIG.DCC.monsterCriticalHits, in part.)
     const critHits = { 1: { humanoid: { table: "III" }, dragon: { table: "DR" }, demon: { table: "DN" }, giant: { table: "G" }, undead: { table: "U" }, other: { table: "M" } },
       7: { humanoid: { table: "IV" }, giant: { table: "G" } } };
@@ -92,6 +93,14 @@ describe("languages", () => {
     expect(monsterKind("", critHits)).toBeNull();
     expect(speaksCommon({ pc: true })).toBe(true);
     for ( const table of ["III", "IV", "G", "DR", "DN"] ) expect(speaksCommon({ kind: monsterKind(table, critHits) })).toBe(true);
-    for ( const table of ["U", "M", "II", ""] ) expect(speaksCommon({ kind: monsterKind(table, critHits) })).toBe(false);
+    for ( const table of ["U", "M"] ) expect(speaksCommon({ kind: monsterKind(table, critHits) })).toBe(false);
+    // Where the crit table says nothing of words: the un-dead and other monsters whose name says they speak (not a beast);
+    // a table the system doesn't file, any but a beast; never the mindless.
+    const talker = wordList("SpeaksCommon")[0];
+    expect(speaksCommon({ kind: "other", name: `Old ${talker}` })).toBe(true);
+    expect(speaksCommon({ kind: "other", name: `Old ${talker}`, beast: true })).toBe(false);
+    expect(speaksCommon({ kind: null, name: "Grimhold" })).toBe(true);
+    expect(speaksCommon({ kind: null, name: "Grimhold", beast: true })).toBe(false);
+    expect(speaksCommon({ kind: "humanoid", mindless: true })).toBe(false);
   });
 });

@@ -9,6 +9,7 @@ import { DccAdapter } from "../scripts/adapter.js";
 import { TACTIC_CHOICES, TACTIC_KEYS } from "../../fast-fighting/scripts/engine/tactics.js";
 import { validLet, validMotive } from "../../fast-fighting/scripts/foundry/auto-config.js";
 import { text } from "./foundry-i18n.js";
+import { wordList } from "../scripts/words.js";
 
 /** The answers, without their reasons. */
 const values = hints => Object.fromEntries(Object.entries(hints).map(([k, v]) => [k, v.value]));
@@ -169,9 +170,12 @@ describe("DCC's answers for a creature: its stat line and its Will", () => {
     expectFair(thane);
   });
 
-  test("pack hunters gang up on the weakest and hunt; a bear by its name is any creature, checking morale", () => {
-    expect(values(dccTactics({ name: "Polar Bear", will: 2, level: 4 }))).toEqual({ retreat: "losing" });
-    const hounds = dccTactics({ name: "Black Hound", pack: true, will: 2, level: 3 });
+  test("a beast flees when hurt, has no words, offers and wants nothing; pack hunters gang up on the weakest and hunt", () => {
+    const bear = dccTactics({ name: "Polar Bear", beast: true, will: 2, level: 4 });
+    expect(values(bear)).toEqual({ talk: "never", retreat: "hurt", offer: { kind: "" }, expect: { kind: "" }, consumables: "avoid" });
+    expect(bear.consumables.why).toBe(text("FFDCC.Reason.Beast"));
+    expect(bear.retreat.why).toBe(text("FFDCC.Reason.BeastFlees"));
+    const hounds = dccTactics({ name: "Black Hound", beast: true, pack: true, will: 2, level: 3 });
     expect(values(hounds)).toMatchObject({ target: "weakest", beyond: "hunt" });
     expect(hounds.beyond.why).toBe(text("FFDCC.Why.PackTactics"));
     expectFair(hounds);
@@ -181,7 +185,7 @@ describe("DCC's answers for a creature: its stat line and its Will", () => {
     const acolyte = dccTactics({ name: "Giant Acolyte", casts: true, will: 3, level: 3 });
     expect(values(acolyte)).toMatchObject({ style: "caster", specialty: "strong" });
     expect(acolyte.style.why).toBe(text("FFDCC.Reason.Caster"));
-    const owl = dccTactics({ name: "Owl", flies: true, will: 0, level: 1 });
+    const owl = dccTactics({ name: "Owl", beast: true, flies: true, will: 0, level: 1 });
     expect(owl.style).toEqual({ value: "skirmisher", why: text("FFDCC.Why.Flies") });
   });
 
@@ -215,7 +219,7 @@ describe("every answer DCC gives", () => {
         n += Object.keys(h).length;
       }
     }
-    const flags = ["undead", "mindless", "construct", "fearless", "casts", "flies", "pack"];
+    const flags = ["undead", "mindless", "construct", "beast", "fearless", "casts", "flies", "pack"];
     for ( let mask = 0; mask < 1 << flags.length; mask++ ) for ( const will of [undefined, -1, 3, 12] ) {
       const f = Object.fromEntries(flags.map((k, i) => [k, !!(mask & (1 << i))]));
       const h = dccTactics({ ...f, will, level: 3, name: "Bandit captain" });
@@ -287,7 +291,8 @@ describe("the dcc sheet, read for its answers", () => {
     const h = new DccAdapter().tacticHints(actor, spec(actor, { level: 4 }));
     expect(values(h)).toEqual({ retreat: "losing" });
     expectFair(h);
-    const hounds = sheet({ type: "NPC", name: "Black Hound", system: { details: { level: { value: 0 }, alignment: "c", notes: { value: "Black Hounds: Atk bite +4 melee (1d8+4); SP pack tactics; SV Fort +3, Ref +2, Will +2; AL C." } } } });
-    expect(values(new DccAdapter().tacticHints(hounds, spec(hounds)))).toEqual({ target: "weakest", beyond: "hunt", retreat: "losing" });
+    // (A beast by its name, where its stat line says nothing: the language file's words.)
+    const hounds = sheet({ type: "NPC", name: `Black ${wordList("Beast")[0]}`, system: { details: { level: { value: 0 }, alignment: "c", notes: { value: "Black Hounds: Atk bite +4 melee (1d8+4); SP pack tactics; SV Fort +3, Ref +2, Will +2; AL C." } } } });
+    expect(values(new DccAdapter().tacticHints(hounds, spec(hounds, { flags: { beast: true, packTactics: true } })))).toMatchObject({ target: "weakest", beyond: "hunt", retreat: "hurt", talk: "never" });
   });
 });

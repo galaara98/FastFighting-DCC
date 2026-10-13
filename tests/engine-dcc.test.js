@@ -10,6 +10,7 @@ import { tableRow } from "../scripts/text.js";
 import { classId, sheetClassId, archetype } from "../scripts/classes.js";
 import { deriveDccTraits } from "../scripts/traits.js";
 import { rankDccLeaders } from "../scripts/leadership.js";
+import { wordList } from "../scripts/words.js";
 import { parseFormula, STATUS, degreeDistribution } from "../scripts/core.js";
 import { replay, runBatchSync } from "../../FastFighting/scripts/engine/simulator.js";
 import { text } from "./foundry-i18n.js";
@@ -258,10 +259,13 @@ describe("who's who", () => {
     expect(deriveDccTraits({ pc: false, name: "Frost Acolyte", level: 3, will: 3, casts: true }).traits.tactical).toBe(60);
   });
 
-  test("leaders: presence, a title, experience", () => {
-    const ranked = rankDccLeaders([{ id: "a", name: "Ulfgar, the frost jarl", level: 6, personality: 0 }, { id: "b", name: "Frost Raider", level: 2, personality: 0 }]);
+  test("leaders: presence, a title (in its name, by the language file's words), experience", () => {
+    const title = wordList("Title")[0];
+    const ranked = rankDccLeaders([{ id: "a", name: `Ulfgar, the frost ${title}`, level: 6, personality: 0 }, { id: "b", name: "Frost Raider", level: 2, personality: 0 }]);
     expect(ranked[0].id).toBe("a");
     expect(ranked[0].reason).toContain(text("FFDCC.Lead.Title"));
+    // (A whole word, not part of one.)
+    expect(rankDccLeaders([{ id: "c", name: `Frost ${title}ling`, level: 0 }])[0].reason).not.toContain(text("FFDCC.Lead.Title"));
   });
 
   test("a fight runs end to end and the outcome is settled", () => {

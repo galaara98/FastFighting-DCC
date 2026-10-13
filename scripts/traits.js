@@ -11,13 +11,14 @@
  * the lucky sign governs; and whether it's in one of the world's parties.
  *
  * DCC monsters rarely carry ability scores, so a monster's mind is read from what its stat line says it is (the walking
- * dead, a construct, a spellcaster), its Will save and its alignment; then what else its stat line says (immune to fear,
- * a demon or devil) and whatever ability scores it does have move it from there. The mindless never change. (Never its
- * name: what it's called says nothing the system knows.)
+ * dead, a construct, a spellcaster) and the kind the system files it as (its crit table), and only where those say
+ * nothing from its name (the language file's word lists: a beast, the mindless, a cunning or commanding mind); its Will
+ * save and its alignment; then what else its stat line says (immune to fear, a demon or devil) and whatever ability
+ * scores it does have move it from there. The mindless never change.
  */
 import { clamp, listItems, traitsFromParts, signedNumber, PC_BASELINE, TRAITS } from "./core.js";
 import { archetype } from "./classes.js";
-import { t } from "./words.js";
+import { t, saysWord } from "./words.js";
 
 /** The level the usual hero plays at (most DCC play runs 1st to 5th): its level moves it from there. */
 const USUAL_LEVEL = 3;
@@ -196,15 +197,22 @@ export function monsterKind(table, critHits = {}) {
 }
 
 /**
- * Does a creature speak Common when its sheet lists no languages? Every character does; so does any creature the
- * system files as one of the people (a humanoid, a giant, a dragon or a demon). The un-dead and other monsters speak
- * only what their sheet lists.
+ * Does a creature speak Common when its sheet lists no languages? Every character does; the mindless don't; any
+ * creature the system files as one of the people (a humanoid, a giant, a dragon or a demon) does. Of the un-dead and
+ * other monsters, only those whose name says they speak (FFDCC.Words.SpeaksCommon: a centaur, a ghoul), beasts not;
+ * one with a crit table the system doesn't file, unless it's a beast.
  * @param {object} d
  * @param {boolean} [d.pc]
- * @param {string} [d.kind]   its monsterKind
+ * @param {string} [d.kind]       its monsterKind
+ * @param {string} [d.name]
+ * @param {boolean} [d.mindless]  @param {boolean} [d.beast]   as deriveDccTraits found it
  */
-export function speaksCommon({ pc = false, kind = null } = {}) {
-  return pc || PEOPLE.includes(kind);
+export function speaksCommon({ pc = false, kind = null, name = "", mindless = false, beast = false } = {}) {
+  if ( pc ) return true;
+  if ( mindless ) return false;
+  if ( PEOPLE.includes(kind) ) return true;
+  if ( kind ) return !beast && saysWord("SpeaksCommon", name);
+  return !beast;
 }
 
 /**
@@ -215,8 +223,10 @@ export function speaksCommon({ pc = false, kind = null } = {}) {
  * @param {number} d.will        Will save
  * @param {Record<string, number>} [d.mods]   ability modifiers: str, agl, sta, per, int, lck
  * @param {boolean} [d.casts]    it casts spells
- * A creature's own (what its stat line says):
+ * A creature's own (what its stat line says, its kind by its crit table; its name and notes where they say nothing):
  * @param {number} [d.int]       Intelligence score, when it has one
+ * @param {string} [d.kind]      its monsterKind
+ * @param {string} [d.name]      @param {string} [d.notes]   its stat line and notes, as plain text
  * @param {boolean} [d.undead]
  * @param {boolean} [d.unholy]   a demon or devil
  * @param {boolean} [d.construct]   construct traits: no mind to speak of
@@ -243,19 +253,25 @@ export function deriveDccTraits(d) {
     const built = traitsFromParts(PC_BASELINE, pcParts(d), { from: t("Reason.Pc") });
     return { traits: built.traits, flags, reasons: built.reasons };
   }
-  // (A construct has no mind to break.)
-  const mindless = !!d.construct;
+  // What it is: its stat line first (construct traits: no mind to break), then, where that says nothing, its name (the
+  // language file's words: FFDCC.Words.Mindless, Beast, Clever; an un-dead's notes too, for the mindless). A creature
+  // the system files as one of the people (its crit table) is no beast, whatever it's called.
+  const mindless = !!d.construct || saysWord("Mindless", d.name) || (!!d.undead && saysWord("Mindless", d.notes));
+  const beast = !PEOPLE.includes(d.kind) && saysWord("Beast", d.name);
   let tactical = 40;
   reasons.tactical = t("Reason.Typical");
   if ( Number.isFinite(d.int) && d.int !== 10 ) {
     tactical = clamp(35 + Math.floor((d.int - 10) / 2) * 8, 5, 95);
     reasons.tactical = t("Reason.Int", { n: d.int });
+  } else if ( beast ) {
+    tactical = 20;
+    reasons.tactical = t("Reason.Beast");
   } else if ( mindless ) {
     tactical = 5;
     reasons.tactical = t("Reason.BarelyThinks");
-  } else if ( d.casts ) {
+  } else if ( d.casts || saysWord("Clever", d.name) ) {
     tactical = 60;
-    reasons.tactical = t("Reason.Caster");
+    reasons.tactical = d.casts ? t("Reason.Caster") : t("Reason.LeaderMind");
   }
   const typicalWill = Math.floor((d.level ?? 1) / 2) + 1;
   const delta = (d.will ?? 0) - typicalWill;
@@ -265,10 +281,14 @@ export function deriveDccTraits(d) {
     brave = 100;
     flags.fearless = true;
     reasons.brave = d.undead ? t("Reason.UndeadNeverFlees") : t("Reason.NeverFlees");
+  } else if ( beast ) {
+    brave = Math.min(brave, 45);
+    reasons.brave = t("Reason.BeastFlees");
   }
   if ( mindless ) flags.mindless = true;
   // (Immune to fear itself: its group's morale can't break it, as its "never flees" says.)
   if ( d.fearImmune ) flags.fearless = true;
+  if ( beast ) flags.beast = true;
   if ( d.pack ) flags.packTactics = true;
   const side = names.alignment ?? alignmentName(a);
   Object.assign(reasons, { selfish: side, loyal: side });

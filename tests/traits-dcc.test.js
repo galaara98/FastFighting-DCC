@@ -5,6 +5,7 @@
 import { describe, test, expect, beforeEach } from "vitest";
 import { deriveDccTraits, augurLean, usualWill, usualHp } from "../scripts/traits.js";
 import { DccAdapter } from "../scripts/adapter.js";
+import { wordList } from "../scripts/words.js";
 import { PC_BASELINE } from "../../FastFighting/scripts/constants.js";
 
 const ZERO_MODS = { str: 0, agl: 0, sta: 0, per: 0, int: 0, lck: 0 };
@@ -133,15 +134,28 @@ describe("a DCC player character's traits, from its sheet", () => {
 });
 
 describe("a DCC monster's traits", () => {
-  test("constructs and casters by their stat line; never by a name (a wolf, a king, a zombie are any creature)", () => {
-    const typical = deriveDccTraits({ pc: false, level: 2, will: 0 });
-    for ( const name of ["Wolf", "Frost King", "Zombie", "Black Dragon"] ) expect(deriveDccTraits({ pc: false, name, level: 2, will: 0 })).toEqual(typical);
+  test("constructs and casters by their stat line; where it says nothing, a beast, the mindless or a sharp mind by name", () => {
+    const typical = deriveDccTraits({ pc: false, name: "Hoogabungaroo", level: 2, will: 0 });
     expect(typical.traits.tactical).toBe(40);
     expect(typical.flags).toEqual({});
     expect(deriveDccTraits({ pc: false, level: 3, will: 3, casts: true }).traits.tactical).toBe(60);
     expect(deriveDccTraits({ pc: false, level: 3, will: 3, construct: true }).traits.tactical).toBe(5);
     // (Pack tactics, as its stat line says.)
     expect(deriveDccTraits({ pc: false, level: 2, will: 0, pack: true }).flags.packTactics).toBe(true);
+    // Its name, by the language file's words (FFDCC.Words): a beast, the mindless (an un-dead's notes too), a sharp mind.
+    const [beast, mindless, clever] = ["Beast", "Mindless", "Clever"].map(k => wordList(k)[0]);
+    const wolf = deriveDccTraits({ pc: false, name: `Dire ${beast}`, level: 2, will: 0 });
+    expect(wolf.traits.tactical).toBe(20);
+    expect(wolf.flags.beast).toBe(true);
+    expect(deriveDccTraits({ pc: false, name: `Dire ${beast}`, kind: "other", level: 2, will: 0 }).flags.beast).toBe(true);
+    expect(deriveDccTraits({ pc: false, name: `Rotting ${mindless}`, level: 2, will: 0 }).flags).toEqual({ mindless: true, fearless: true });
+    expect(deriveDccTraits({ pc: false, name: "Rotter", notes: `a shambling ${mindless}`, undead: true, level: 2, will: 0 }).flags.mindless).toBe(true);
+    expect(deriveDccTraits({ pc: false, name: "Rotter", notes: `a shambling ${mindless}`, level: 2, will: 0 }).flags.mindless).toBeUndefined();
+    expect(deriveDccTraits({ pc: false, name: `Frost ${clever}`, level: 2, will: 0 }).traits.tactical).toBe(60);
+    // (Whole words only, in any case; and the system's kind wins: one it files as one of the people is no beast.)
+    expect(deriveDccTraits({ pc: false, name: `${beast}x`, level: 2, will: 0 }).flags.beast).toBeUndefined();
+    expect(deriveDccTraits({ pc: false, name: beast.toUpperCase(), level: 2, will: 0 }).flags.beast).toBe(true);
+    expect(deriveDccTraits({ pc: false, name: `${beast}-man`, kind: "humanoid", level: 2, will: 0 }).flags.beast).toBeUndefined();
   });
 
   test("immune to fear, a bolder one; a demon or devil, a more selfish one", () => {

@@ -1,11 +1,10 @@
 /**
  * DCC leadership: who leads a side, and what that's worth. DCC has no social skills: a leader is someone with
- * presence (Personality), standing (a title such as king, thane or captain, or a cleric of the side's faith) and
- * experience (level or hit dice).
+ * presence (Personality), standing (a title in its name, as the language file's words have them, FFDCC.Words.Title: the
+ * system keeps no rank; or a cleric of the side's faith) and experience (level or hit dice).
  * Pure.
  */
-import { t } from "./words.js";
-const TITLE = /\b(?:king|queen|thane|jarl|chief(?:tain)?|captain|lord|lady|prince(?:ss)?|duke|baron|commander|general|high priest(?:ess)?|leader|boss|master|mistress|sergeant)\b/i;
+import { t, saysWord } from "./words.js";
 
 /**
  * @param {object[]} entries  [{id, name, level, personality (modifier), cleric}]
@@ -18,7 +17,7 @@ export function rankDccLeaders(entries) {
     const reasons = [];
     let score = (e.personality ?? 0) + Math.floor((e.level ?? 0) / 3);
     if ( e.personality ) reasons.push(t("Lead.Personality", { n: `${e.personality >= 0 ? "+" : ""}${e.personality}` }));
-    if ( TITLE.test(e.name ?? "") ) {
+    if ( saysWord("Title", e.name) ) {
       score += 3;
       reasons.push(t("Lead.Title"));
     }

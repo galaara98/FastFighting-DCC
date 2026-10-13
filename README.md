@@ -25,7 +25,7 @@ Enable both in a DCC world.
 **Works from the free system alone,** and reads more when a book is installed. Without the DCC or XCC core book, crits add the crit die as extra damage, Mighty Deeds and the cleric's Lay on Hands and Turn Unholy use rough built-in versions (marked as guesses), and spells it can't read are left out. With a book installed, it reads that book's tables at run time, wherever the dcc system's own settings point. Nothing from a book is copied into this module.
 
 - **Class:** the character sheet chosen for the actor or its token, which is how DCC and XCC pick a class. A sheet that has been opened records the class itself. For one that hasn't (an imported pregen), the class is read from the sheet chosen, then from the class name. Everything else comes from the character's own numbers (a deed die, spells and how they're cast), so classes from other books still work.
-- **Attacks:** each weapon's to-hit, damage (untyped: DCC's weapons don't say whether they cut, pierce or crush, and a name is no way to tell), range, action die, crit range, crit die and crit table, and fumble range. A monster's stat line fills in anything its sheet leaves out (attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check).
+- **Attacks:** each weapon's to-hit, damage (the kind its formula names; DCC's weapons don't say whether they cut, pierce or crush, so failing that the kind its name says, by the language file's words, else none), range, action die, crit range, crit die and crit table, and fumble range. A monster's stat line fills in anything its sheet leaves out (attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check).
 - **Action dice:** one action for each (a giant's d24 then d16, a high-level character's second die). Crit ranges scale to the die.
 - **Initiative:** the system's own die: a d20, a d16 with a two-handed weapon in hand, or a weapon's own. Springing an ambush (the core's stealth surprise), a thief rolls its Sneak Silently and Agility instead, a halfling its Sneak and Hide; anyone else, its initiative as ever.
 - **Withdrawing and shooting into a melee:** a creature that withdraws from a melee gives every foe engaged with it a free attack. A shot into a melee is at -1; when it misses, half the time it goes toward a random friend of the shooter's in that melee, and the attack is made again against it.
@@ -70,9 +70,9 @@ Enable both in a DCC world.
   - its birth augur, by what the lucky sign governs (its effect on the sheet, or the core book's for that sign): a sign on attacks, damage, Armor Class or Fortitude for Brave; on traps, secret doors, spell checks or initiative for Tactical; on turning the unholy, a selfless calling; its Luck modifier at birth says how much, and which way;
   - whether it's in one of the world's parties (DCC's Party sheets), when the world keeps any.
 
-  Monsters are read from what their stat line says they are (the walking dead, constructs, spellcasters), their Will save and their alignment, then what their stat line says (immune to fear, a demon or devil) and any ability scores they have. The mindless (constructs) never change. Never a monster's name: what it's called says nothing the system knows. Each trait's tooltip in the planner lists where it started and every part that moved it.
-- **Leadership:** Personality, a title (king, thane, captain ...), a cleric's standing, and experience.
-- **Talking:** Personality for persuading, intimidating and deceiving, against Will. A sheet with no languages listed speaks Common (every character; any creature the system files as one of the people, by the crit table it gave it: a humanoid's, a giant's, a dragon's or a demon's. The un-dead and other monsters speak only what their sheet lists). What it could hand over to end an argument: its coins, what it carries, and the weapons and shield in its hands; never the armor it wears.
+  Monsters are read from what their stat line says they are (the walking dead, constructs, spellcasters) and the kind the system files them as (the crit table it gave them), and only where those say nothing from their name (the language file's word lists: a beast, the mindless, a cunning or commanding mind; a creature the system files as one of the people is no beast whatever it's called); their Will save and their alignment, then what their stat line says (immune to fear, a demon or devil) and any ability scores they have. The mindless never change. Each trait's tooltip in the planner lists where it started and every part that moved it.
+- **Leadership:** Personality, a title in its name (the language file's words: king, thane, captain ...), a cleric's standing, and experience.
+- **Talking:** Personality for persuading, intimidating and deceiving, against Will. A sheet with no languages listed speaks Common (every character; any creature the system files as one of the people, by the crit table it gave it: a humanoid's, a giant's, a dragon's or a demon's. Of the un-dead and other monsters, those whose name says they speak, by the language file's words: a centaur, a ghoul, not a beast; with a crit table the system doesn't file, any but a beast or the mindless). What it could hand over to end an argument: its coins, what it carries, and the weapons and shield in its hands; never the armor it wears.
 
 ## Playstyles in DCC
 
@@ -87,11 +87,11 @@ Every perk a playstyle (or a tactics answer) can switch on does something here. 
 | In a hurry (Impatient, Speed-Runner) | It **charges** in (a melee attack it moves for: +2 to hit, -2 AC), rather than shooting; it doesn't stop to hide or slip a melee with acrobatics. |
 | Acting first (Instigator) | Its initiative. |
 | Lore-Collector | An Intelligence check against DC 10. |
-| Weak spots (Puzzle-Maniac) | A monster's stat line: "half damage from piercing and slashing weapons" (a skeleton) leaves blunt harm a weak spot; "vulnerable to fire", double damage. Weapons' harm is untyped, so only harm that says what it is (a Brawler's fists, a spell's fire) meets these. |
+| Weak spots (Puzzle-Maniac) | A monster's stat line: "half damage from piercing and slashing weapons" (a skeleton) leaves blunt harm a weak spot; "vulnerable to fire", double damage. |
 | Thief | A thief's Pick Pockets; anyone else's an untrained check (a d10 and Agility). The same for a lock. |
 | Trap avoiders | A token the GM marks as a hazard. |
 | Finishing the fallen (Cruel) | A character bleeding out; a foe knocked out, after the fight. |
-| Sparing the fallen (Moralist, Peacekeeper, a Diplomat now and then) | **Subdual:** bare hands, or a weapon the system marks as dealing subdual damage, knocks a foe out instead of killing it; and it leaves the fallen be. |
+| Sparing the fallen (Moralist, Peacekeeper, a Diplomat now and then) | **Subdual:** a blunt blow, bare hands, or a weapon the system marks as dealing subdual damage, knocks a foe out instead of killing it; and it leaves the fallen be. |
 | Mending, healing, rescue | A cleric's Lay on Hands and healing spells; **binding the wound** of a friend bleeding out. |
 | Locked doors | Strength to force it; a thief's Pick Lock (anyone else's untrained). |
 
@@ -105,7 +105,7 @@ Tactics answers:
 - Help: a step up the dice chain, counted as +2, as the Jammer's step down counts as -2.
 - Hide's DC (the foes' sharpest eyes), and what hidden does.
 - Binding a bleeding friend's wound (only healing saves one in the rules): an action beside it, and its own Luck decides as rolling the body would (a d20 at or under its Luck), once. Made, it stops bleeding, still out, a point of Stamina gone for good, as if healed in time.
-- Subdual by bare hands.
+- Subdual by any blunt blow or bare hands.
 
 ## Set up by itself
 
@@ -114,7 +114,7 @@ When FastFighting sets a character up by itself (the first time it sees it: see 
   - a Warrior a Brawler or a Tank; a Dwarf a Tank, relentless; a Thief (and every XCC Specialist) a Thief; a Halfling a Wallflower; an Elf or Wizard Un-Mundane and a Lore-Collector; a Cleric or Messenger an Enabler; a funnel peasant Fragile;
   - XCC: a Brawler a Brawler; a Dungeon Hottie a People-Pleaser; a Jammer an Instigator; a Gnome a Tank; an Athlete a Brawler; an Acrobat a Speed-Runner.
 - **Alignment:** Lawful leans Moralist; Chaotic, Cruel and Wildcard.
-- **A monster's stat line:** the un-dead and constructs Relentless; demons and devils Cruel.
+- **A monster's stat line:** the un-dead and the mindless Relentless; demons and devils Cruel; beasts Brawlers.
 - **Keywords:** its occupation, title (XCC's casting), birth augur and a wizard's corruption, and a monster's notes, as what's said of it; a player character's notes (and XCC's rewards notes) as its story, counted a little. Never its patron, god, contacts or entourage: those are others.
 
 ### Let this character decide
@@ -131,11 +131,11 @@ A player character, by what its build clearly implies (the rest is its player's)
 - **A 0-level funnel peasant** runs when it's badly hurt: it dies at 0. To end an argument it offers to leave, and wants only not to be harmed.
 
 A creature, by its stat line and Will:
-- **The un-dead** never flee. **Constructs** (construct traits) don't either, and never talk, offer and want nothing, go for whoever's nearest, hold the line, stay with the fight, and use up nothing. One **immune to fear**, or with a Will no morale check can break (+10), never flees.
-- **Pack tactics:** it gangs up on the weakest, and hunts down the rest.
+- **The un-dead** never flee. **The mindless and constructs** don't either, and never talk, offer and want nothing, go for whoever's nearest, hold the line, stay with the fight, and use up nothing. One **immune to fear**, or with a Will no morale check can break (+10), never flees.
+- **A beast** flees when hurt, has no words, offers and wants nothing, and has no use for potions or scrolls. **Pack tactics:** it gangs up on the weakest, and hunts down the rest.
 - **Anyone else** checks DCC's morale when the fight turns against it (its Will shown).
 - **A spellcaster** (spellcasting, a spell check, "Atk spells or ...") leads with its spells; **a flier** strikes and wheels away.
-- **Not its name:** DCC keeps no creature types or roles, and a name says nothing the system knows (a wolf by its name is any creature: it checks morale, and has no words unless its sheet lists some). What its notes say of it, a highwayman's greed for one, reaches the core as its biography's keywords, and the core's offer and expectation follow from those.
+- **Its name**, only where its stat line and crit table say nothing (the language file's word lists): a beast or the mindless, as above. Never a role by its name: what its notes say of it, a highwayman's greed for one, reaches the core as its biography's keywords, and the core's offer and expectation follow from those.
 
 Left to the core: anything the sheet doesn't speak to. (DCC's fights use no consumables yet: that answer is for the survey.)
 

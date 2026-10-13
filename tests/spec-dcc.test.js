@@ -2,12 +2,23 @@
  * What a dcc sheet gives the core, where fairness is at stake: Fleeting Luck and Mojo counted within reason (a player
  * owns the flag that holds them), what a character could hand over in a fight (the weapons and shield in its hands,
  * not the armor it wears), sizing a foe up (not for the mindless), and creeping up for an ambush (a thief's Sneak
- * Silently); and what the system's data says where a name would only guess: a weapon's harm, a dwarf's shield bash, who
+ * Silently); and what the system's data says, its name only where that says nothing: a weapon's harm, a shield bash, who
  * speaks Common. The characters and creatures here are made up for the tests; the field paths are the dcc system's own.
  */
 import { beforeEach, describe, expect, test } from "vitest";
 import { DccAdapter, fleetingPoints, isShield, isShieldBash, sneakOf, valuablesOf } from "../scripts/adapter.js";
 import { archetype } from "../scripts/classes.js";
+import { wordList } from "../scripts/words.js";
+import { dccRules } from "../scripts/rules.js";
+import { readFileSync } from "fs";
+
+/** A reader in another language, with Foundry's English to fall back on (game.i18n._fallback): the module's en.json. */
+function withEnglish() {
+  game.i18n._fallback = JSON.parse(readFileSync(new URL("../languages/en.json", import.meta.url), "utf8"));
+  globalThis.foundry = { utils: { getProperty: (o, key) => key.split(".").reduce((x, k) => x?.[k], o) } };
+}
+/** A word of a list that a stat line can carry (plain letters): English's, at least. */
+const plainWord = key => wordList(key).find(w => /^[a-z]+$/.test(w));
 
 const item = (id, type, system = {}, name = id) => ({ id, name, type, system });
 const gp = n => ({ value: { gp: String(n) } });
@@ -134,21 +145,33 @@ describe("sizing a foe up, and creeping up on one", () => {
   });
 });
 
-describe("what the system's data says, not a name", () => {
-  beforeEach(() => world());
+describe("what the system's data says, and a name where it says nothing", () => {
+  beforeEach(() => {
+    world();
+    withEnglish();
+  });
   const npc = (notes, table = "M", items = []) => sheet({ type: "NPC", items, system: { details: { level: { value: 0 }, alignment: "n", notes: { value: notes } },
     attributes: { hp: { value: 10, max: 10 }, hitDice: { value: "2d8" }, speed: { value: "30'" }, init: { value: "+0" }, ac: { value: 12 }, critical: { table, die: "1d6" } } } });
 
-  test("a weapon's harm is untyped, whatever it's called; one the system marks as subdual knocks out", async () => {
+  test("a weapon's harm: what its formula names, else what its name says (the language file's words), else untyped", async () => {
     const adapter = new DccAdapter();
-    const mace = item("mace", "weapon", { equipped: true, melee: true, damage: "1d6", toHit: "+2" }, "Mace");
-    const sap = item("sap", "weapon", { equipped: true, melee: true, damage: "1d4[subdual]", toHit: "+2", subdual: true }, "Sap");
-    const armed = await adapter.toCombatantSpec(token(npc("SV Fort +1, Ref +1, Will +1; AL N.", "III", [mace, sap])));
+    const [blunt, sharp] = ["bludgeoning", "slashing"].map(k => wordList(`Damage.${k}`)[0]);
+    const weapon = (id, name, damage, extra = {}) => item(id, "weapon", { equipped: true, melee: true, damage, toHit: "+2", ...extra }, name);
+    const armed = await adapter.toCombatantSpec(token(npc("SV Fort +1, Ref +1, Will +1; AL N.", "III", [
+      weapon("blunt", `Great ${blunt}`, "1d6"), weapon("sharp", sharp, "1d8"), weapon("odd", "Thingamajig", "1d4"),
+      // (Its formula's own kind wins over its name; one the system marks as subdual knocks out, and its harm is its name's.)
+      weapon("fiery", sharp, "1d6[fire]"), weapon("sap", blunt, "1d4[subdual]", { subdual: true })
+    ])));
     const by = id => armed.actions.find(a => a.itemId === id);
-    expect(by("mace").damage.map(p => p.type)).toEqual(["untyped"]);
-    expect(by("sap")).toMatchObject({ subdual: true, damage: [{ type: "untyped" }] });
-    const beast = await adapter.toCombatantSpec(token(npc("Atk bite +3 melee (1d6), claw +2 melee (1d4); SV Fort +1, Ref +1, Will +1; AL N.")));
-    expect(beast.actions.flatMap(a => a.damage.map(p => p.type))).toEqual(["untyped", "untyped"]);
+    expect(by("blunt").damage.map(p => p.type)).toEqual(["bludgeoning"]);
+    expect(by("sharp").damage.map(p => p.type)).toEqual(["slashing"]);
+    expect(by("odd").damage.map(p => p.type)).toEqual(["untyped"]);
+    expect(by("fiery").damage.map(p => p.type)).toEqual(["fire"]);
+    expect(by("sap")).toMatchObject({ subdual: true, damage: [{ type: "bludgeoning" }] });
+    expect(dccRules.pullsBlow({}, by("blunt"))).toBe(true);
+    expect(dccRules.pullsBlow({}, by("sharp"))).toBe(false);
+    const beast = await adapter.toCombatantSpec(token(npc(`Atk ${plainWord("Damage.piercing")} +3 melee (1d6), wiggle +2 melee (1d4); SV Fort +1, Ref +1, Will +1; AL N.`)));
+    expect(beast.actions.flatMap(a => a.damage.map(p => p.type))).toEqual(["piercing", "untyped"]);
   });
 
   test("a dwarf's shield bash: the system's name for it, in the reader's language, or its picture", () => {
@@ -156,6 +179,10 @@ describe("what the system's data says, not a name", () => {
     game.i18n = { ...words, has: k => k === "DCC.ShieldBash" || words.has(k), localize: k => (k === "DCC.ShieldBash" ? "Schildstoß" : words.localize(k)) };
     globalThis.CONFIG.DCC.macroImages = { shieldBash: "systems/dcc/styles/images/game-icons-net/shield-bash.svg" };
     expect(isShieldBash({ name: " schildstoß " })).toBe(true);
+    // (An untranslated book's: the system's English for it.)
+    game.i18n._fallback = { DCC: { ShieldBash: "Shield Bash" } };
+    expect(isShieldBash({ name: "Shield Bash" })).toBe(true);
+    game.i18n._fallback = {};
     expect(isShieldBash({ name: "Shield Bash" })).toBe(false);
     expect(isShieldBash({ name: "Bonk", img: "systems/dcc/styles/images/game-icons-net/shield-bash.svg" })).toBe(true);
     expect(isShieldBash({ name: "Bonk", img: "icons/svg/shield.svg" })).toBe(false);
@@ -173,5 +200,27 @@ describe("what the system's data says, not a name", () => {
     const listed = npc(line, "M");
     listed.system.details.languages = "Common, Goblin";
     expect((await adapter.toCombatantSpec(token(listed))).social.languages).toEqual(["common", "goblin"]);
+    // Where the crit table says nothing of words, its name: one the language file says speaks, not a beast; with a
+    // table the system doesn't file, any but a beast; never the mindless, whatever its table.
+    const named = (name, table) => Object.assign(npc(line, table), { name });
+    const speaks = async (name, table) => (await adapter.toCombatantSpec(token(named(name, table)))).social.languages.length > 0;
+    const [talker, beast, mindless] = ["SpeaksCommon", "Beast", "Mindless"].map(k => wordList(k)[0]);
+    expect(await speaks(`Old ${talker}`, "M")).toBe(true);
+    expect(await speaks(`${talker} ${beast}`, "M")).toBe(false);
+    expect(await speaks("Grimhold", "II")).toBe(true);
+    expect(await speaks(`Dire ${beast}`, "II")).toBe(false);
+    expect(await speaks(`${mindless} soldier`, "III")).toBe(false);
+  });
+
+  test("a beast or the mindless by name, where the stat line and crit table say nothing; one of the people is no beast", async () => {
+    globalThis.CONFIG.DCC.monsterCriticalHits = { 2: { humanoid: { table: "III" }, other: { table: "M" } } };
+    const adapter = new DccAdapter();
+    const line = "Atk bite +2 melee (1d6); SV Fort +1, Ref +1, Will +1; AL N.";
+    const flags = async (name, table) => (await adapter.toCombatantSpec(token(Object.assign(npc(line, table), { name })))).flags;
+    const [beast, mindless] = ["Beast", "Mindless"].map(k => wordList(k)[0]);
+    expect(await flags(`Dire ${beast}`, "M")).toMatchObject({ beast: true });
+    expect((await flags(`${beast}-man`, "III")).beast).toBeUndefined();
+    expect(await flags(`Rotting ${mindless}`, "III")).toMatchObject({ mindless: true, fearless: true });
+    expect(await flags("Hoogabungaroo", "M")).toEqual({});
   });
 });

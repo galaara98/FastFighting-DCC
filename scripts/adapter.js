@@ -19,7 +19,7 @@ import { rankDccLeaders } from "./leadership.js";
 import { commitDccOutcome, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
 import { loreBoost } from "./lore.js";
 import { dccHints, dccTactics, plainText } from "./auto.js";
-import { t } from "./words.js";
+import { t, saysWord, englishWords } from "./words.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
@@ -35,12 +35,18 @@ const deedOf = toHit => {
   return m ? Number(m[1]) : null;
 };
 
+/** The kinds of harm a weapon's name can say it does, the first that fits first. */
+const HARMS = ["piercing", "bludgeoning", "slashing"];
+
 /**
- * A weapon's damage, as its formula types it: DCC weapons don't say whether they cut, pierce or crush (and a name is no
- * way to tell), so a weapon's harm is untyped unless its formula names a kind. A blow the system marks as subdual is a
- * subdual blow (the action says so), not a kind of harm.
+ * A weapon's damage: the kind its formula names; where it names none (DCC's weapons don't say whether they cut, pierce
+ * or crush), the kind its name says (the language file's words, FFDCC.Words.Damage), else untyped. A blow the system
+ * marks as subdual is a subdual blow (the action says so), not a kind of harm.
  */
-const harmOf = formula => parseTypedFormula(formula).map(p => (p.type === "subdual" ? { ...p, type: "untyped" } : p));
+function harmOf(formula, name) {
+  const named = HARMS.find(k => saysWord(`Damage.${k}`, name)) ?? "untyped";
+  return parseTypedFormula(formula).map(p => (["untyped", "subdual"].includes(p.type) ? { ...p, type: named } : p));
+}
 
 const MODES = ["fly", "swim", "climb", "burrow"];
 const COPPER = { pp: 1000, ep: 50, gp: 100, sp: 10, cp: 1 };
@@ -208,14 +214,17 @@ function fleetingOf(actor) {
   return { kind: "user", id: player.id, key: `user:${player.id}`, points: fleetingPoints(player.getFlag("dcc", "fleetingLuckValue")), label: game.i18n.localize("DCC.FleetingLuck") };
 }
 
+/** What kind of creature the system files it as, by its crit table (traits.js monsterKind); null for a character. */
+const kindOf = actor => (actor.type === "Player" ? null : monsterKind(actor.system.attributes?.critical?.table, CONFIG.DCC?.monsterCriticalHits));
+
 /**
  * The languages it speaks: its sheet's; with none listed, Common for every character and any creature the system files
- * as one of the people (by its crit table: a humanoid, a giant, a dragon or a demon).
+ * as one of the people (by its crit table), else as its name says (traits.js speaksCommon).
  */
-function languagesOf(actor, { pc }) {
+function languagesOf(actor, { pc, flags = {} }) {
   const listed = String(actor.system.details?.languages ?? "").split(/[,;/]/).map(s => s.trim().toLowerCase()).filter(Boolean);
   if ( listed.length ) return listed;
-  return speaksCommon({ pc, kind: pc ? null : monsterKind(actor.system.attributes?.critical?.table, CONFIG.DCC?.monsterCriticalHits) }) ? ["common"] : [];
+  return speaksCommon({ pc, kind: kindOf(actor), name: actor.name, mindless: !!flags.mindless, beast: !!flags.beast }) ? ["common"] : [];
 }
 
 /** DCC's abilities, by its keys. */
@@ -226,11 +235,13 @@ const word = key => (key && game.i18n.has(key) ? game.i18n.localize(key) : null)
 
 /**
  * A dwarf's shield bash, as the system knows it: the weapon its dwarf sheet makes, with the system's name for it (in the
- * reader's language: it's how the system itself finds it again) or its picture; or XCC's name for it.
+ * reader's language: it's how the system itself finds it again; or in English, as an untranslated book names it) or its
+ * picture; or XCC's name for it.
  */
 export function isShieldBash(w) {
   const named = String(w.name ?? "").trim().toLowerCase();
-  if ( named && [word("DCC.ShieldBash"), word("XCC.Dwarf.ShieldBash")].some(n => n && n.trim().toLowerCase() === named) ) return true;
+  const keys = ["DCC.ShieldBash", "XCC.Dwarf.ShieldBash"];
+  if ( named && keys.flatMap(k => [word(k), englishWords(k)]).some(n => n && n.trim().toLowerCase() === named) ) return true;
   const img = CONFIG.DCC?.macroImages?.shieldBash;
   return !!img && w.img === img;
 }
@@ -433,7 +444,7 @@ export class DccAdapter extends SystemAdapter {
           steal: { dc: 10 + Math.max(defenses.ref, Number(sys.abilities?.int?.mod) || 0), label: t("Reflex") }
         },
         resolve: defenses.wil - (Math.floor(level / 2) + 1),
-        languages: languagesOf(actor, { pc }),
+        languages: languagesOf(actor, { pc, flags: derived.flags }),
         mindless: !!derived.flags.mindless
       },
       // A thief's skills; anyone else's an untrained check (a d10, and Agility), as the rules have it for skills.
@@ -578,7 +589,7 @@ export class DccAdapter extends SystemAdapter {
         if ( !a.damage ) continue;
         actions.push({
           id: `${actor.id}.atk${i}`, name: a.name, kind: "strike", cost: 1, bonus: a.bonus, melee: a.melee, reach: a.melee ? 5 : undefined,
-          range: a.melee ? null : { increment: 60 }, damage: harmOf(a.damage),
+          range: a.melee ? null : { increment: 60 }, damage: harmOf(a.damage, a.name),
           critOn: critOnFor(line.critNatural, firstDie) ?? undefined, crit: await this.#crit(sys, null, 0),
           effects: this.#riders(a.rider)
         });
@@ -628,7 +639,7 @@ export class DccAdapter extends SystemAdapter {
     try {
       formula = Roll.replaceFormulaData(formula, actor.getRollData(), { missing: "0" });
     } catch ( err ) { /* left as it is */ }
-    const damage = harmOf(formula);
+    const damage = harmOf(formula, w.name);
     if ( !damage.length ) return null;
     const die = actionDice(s.actionDie)[0];
     const rangeFeet = feet(s.range);
@@ -740,7 +751,7 @@ export class DccAdapter extends SystemAdapter {
     return {
       cls: pc ? this.#classOf(actor) : null,
       alignment: String(sys.details?.alignment ?? "").toLowerCase()[0] ?? null,
-      undead: !!line.undead, unholy: !!line.unholy, mindless: !!derived.flags?.mindless
+      undead: !!line.undead, unholy: !!line.unholy, mindless: !!derived.flags?.mindless, beast: !!derived.flags?.beast
     };
   }
 
@@ -849,6 +860,9 @@ export class DccAdapter extends SystemAdapter {
       will: flatOf(sys.saves?.wil?.value),
       mods: Object.fromEntries(ABILITIES.map(k => [k, Number(sys.abilities?.[k]?.mod) || 0])),
       int: pc ? undefined : intScore,
+      kind: kindOf(actor),
+      name: actor.name,
+      notes: plain(sys.details?.notes?.value ?? ""),
       undead: !!read.undead,
       unholy: !!read.unholy,
       construct: !!read.construct,
