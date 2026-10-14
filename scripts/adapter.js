@@ -428,8 +428,8 @@ export class DccAdapter extends SystemAdapter {
       perception: Math.max(Number(sys.abilities?.int?.mod) || 0, Number(sys.abilities?.per?.mod) || 0),
       // (An employer's Personality steadies its retainers.)
       personality: Number(sys.abilities?.per?.mod) || 0,
-      darkvision: !!this.#infravision(kind, line),
-      senses: this.#infravision(kind, line) ? [{ type: "infravision", range: this.#infravision(kind, line), dark: true }] : [],
+      // (Infravision sees in the dark: the core's lowlight.)
+      senses: this.#infravision(kind, line) ? { lowlight: this.#infravision(kind, line) } : {},
       creatureTraits: [line.undead ? "undead" : pc ? "humanoid" : ""].filter(Boolean),
       social: {
         pitches: {
