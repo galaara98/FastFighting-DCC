@@ -283,6 +283,9 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
     for ( const k of changes.conditions.cleared ) if ( LINGERING[k] ) await setStatus(actor, LINGERING[k], false, undo);
   }
   if ( changes.died ) {
+    // (Dead: no longer dying, nor merely out.)
+    await setStatus(actor, "dying", false, undo);
+    await setStatus(actor, "unconscious", false, undo);
     await setStatus(actor, "dead", true, undo, { overlay: true });
     const combatant = game.combat?.getCombatantsByToken?.(tokenDoc)?.[0];
     if ( combatant && !combatant.defeated ) {
