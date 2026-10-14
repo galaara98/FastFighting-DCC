@@ -654,6 +654,8 @@ export class DccAdapter extends SystemAdapter {
       cost: 1,
       bonus: flatOf(toHit),
       melee: !ranged,
+      // (Thrown, the weapon flies itself; a bow, a crossbow, a sling sends a shot: the story tells which.)
+      thrown: ranged && !!s.thrown,
       reach: ranged ? undefined : 5,
       range: ranged || s.thrown ? { increment: rangeFeet ?? 30 } : null,
       damage,
