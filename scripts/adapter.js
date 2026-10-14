@@ -16,7 +16,8 @@ import { deedsFrom } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
 import { deriveDccTraits, speaksCommon, monsterKind } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
-import { commitDccOutcome, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
+import { commitDccOutcome, commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
+import { readDccTurn } from "./read-turn.js";
 import { loreBoost } from "./lore.js";
 import { dccHints, dccTactics, plainText } from "./auto.js";
 import { t, saysWord, englishWords } from "./words.js";
@@ -177,7 +178,7 @@ export function toughnessOf(actor) {
   const reduce = /d\d+/.test(value) ? parseFormula(value, "untyped") : (flatOf(value) > 0 ? part([], flatOf(value), "untyped") : null);
   if ( !reduce ) return undefined;
   const label = game.i18n.has("XCC.Brawler.Toughness") ? game.i18n.localize("XCC.Brawler.Toughness") : game.i18n.localize("FFDCC.Toughness");
-  return [{ id: "toughness", label, on: "hit", reduce, melee: true }];
+  return [{ id: "toughness", label, on: "hit", reduce, melee: true, passive: true }];
 }
 
 /**
@@ -917,6 +918,25 @@ export class DccAdapter extends SystemAdapter {
 
   async commitOutcome(tokenDoc, spec, final, options) {
     return commitDccOutcome(tokenDoc, spec, final, options);
+  }
+
+  get supportsLive() {
+    return true;
+  }
+
+  /** A live battle: one turn's changes (commit.js commitDccChanges). */
+  async commitChanges(tokenDoc, spec, changes, final, options) {
+    return commitDccChanges(tokenDoc, spec, changes, final, options);
+  }
+
+  /** With the dcc system's Death Clock on, it counts a dying character's rounds itself. */
+  liveOwnership() {
+    return { recovery: deathClockOn() };
+  }
+
+  /** A player's turn, read from the dcc system's cards (read-turn.js). */
+  readTurn(messages, context) {
+    return readDccTurn(messages, context);
   }
 
   describeOutcome(spec, final) {
