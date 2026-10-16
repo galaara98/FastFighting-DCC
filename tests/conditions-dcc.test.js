@@ -81,7 +81,7 @@ describe.each([["the dcc system's palette", DCC_PALETTE, DCC_CARRIED], ["XCC's p
   test("the sheet carries exactly those it writes and reads back; they come first among the choices, none counted", () => {
     const adapter = new DccAdapter();
     const choices = adapter.conditionChoices();
-    // (The Battle Interface takes each key's first.)
+    // (The Battle Vantage takes each key's first.)
     const first = choices.filter((c, i) => choices.findIndex(o => o.key === c.key) === i);
     expect(first.filter(c => adapter.sheetCarries(c.key)).map(c => c.key).sort()).toEqual([...carried].sort());
     expect(first.slice(0, carried.length).map(c => c.key).sort()).toEqual([...carried].sort());
