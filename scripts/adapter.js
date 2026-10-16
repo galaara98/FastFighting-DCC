@@ -1,5 +1,6 @@
 /**
- * Dungeon Crawl Classics adapter: reads dcc actors (Player and NPC) into CombatantSpecs and commits outcomes back.
+ * Dungeon Crawl Classics adapter: reads dcc actors (Player and NPC) into CombatantSpecs and writes a live battle's
+ * turns back onto them.
  * Written against the dcc system 0.70 on Foundry v14, and the XCC module that rides on it.
  *
  * It works from the free system alone: weapons, action dice, deed dice, saves, Luck, hit dice, and a monster's stat
@@ -16,7 +17,7 @@ import { deedsFrom } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
 import { deriveDccTraits, speaksCommon, monsterKind } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
-import { commitDccOutcome, commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
+import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
 import { readDccTurn } from "./read-turn.js";
 import { loreBoost } from "./lore.js";
 import { dccHints, dccTactics, plainText } from "./auto.js";
@@ -395,7 +396,7 @@ export class DccAdapter extends SystemAdapter {
       actionDice: dice,
       shieldBash,
       freeAttack,
-      // (Whose Fleeting Luck or Mojo it is, for Make it So.)
+      // (Whose Fleeting Luck or Mojo it is, so a live battle writes it back to the right one.)
       fleeting: fleeting ? { key: fleeting.key, kind: fleeting.kind, id: fleeting.id, points: fleeting.points } : undefined,
       deeds,
       // An XCC brawler's Toughness: so much off every melee blow.
@@ -914,10 +915,6 @@ export class DccAdapter extends SystemAdapter {
     if ( key === "luck" ) return game.i18n.localize("FFDCC.Luck");
     if ( key === "spellburn" ) return game.i18n.localize("FFDCC.Spellburn");
     return null;
-  }
-
-  async commitOutcome(tokenDoc, spec, final, options) {
-    return commitDccOutcome(tokenDoc, spec, final, options);
   }
 
   get supportsLive() {

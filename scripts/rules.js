@@ -465,7 +465,10 @@ export const dccRules = {
     }
   },
 
-  /** What Make it So needs beyond the core's: bleeding out, the body, spells lost, disapproval, Fleeting Luck. */
+  /**
+   * What a turn's write-back (commit.js) and the planner's summary need beyond the core's: bleeding out, the body,
+   * spells lost, disapproval, Fleeting Luck.
+   */
   capture(u) {
     return {
       fleeting: u.spec.fleeting ? u.sharedPools?.[u.spec.fleeting.key] ?? null : null,

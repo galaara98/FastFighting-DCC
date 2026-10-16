@@ -1,6 +1,6 @@
 /**
  * FastFighting DCC: teaches FastFighting Core how Dungeon Crawl Classics (and Xcrawl Classics, which rides on the
- * same system) works. Registers the dcc adapter (actor data, rules, personality defaults, leadership, Make it So)
+ * same system) works. Registers the dcc adapter (actor data, rules, personality defaults, leadership, live battles)
  * through the core's public API.
  */
 import { DccAdapter } from "./adapter.js";
@@ -9,7 +9,7 @@ import { registerLoreBoost } from "./lore.js";
 export const MODULE_ID = "fast-fighting-dcc";
 
 /** The core API this helper is written against (older cores have no api.version: that is 1). */
-const NEEDS_API = 14;
+const NEEDS_API = 15;
 
 /**
  * The last translation module we knew of for this game system, by language: in a language other than English, this

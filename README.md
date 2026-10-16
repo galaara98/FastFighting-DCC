@@ -4,7 +4,7 @@
 > - **Programming:** I am a skilled programmer by profession, but AI was used heavily as a co-pilot.
 > - **Strings:** ALL initial strings were created by AI. An AI-made Spanish translation was used to test localization and has since been removed.
 
-Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaara98/FastFighting), the Foundry VTT module that resolves a battle by simulating it thousands of times, tells the story of one fight, and commits it with **Do it For Real Now**. It works in Xcrawl Classics worlds too (the XCC module rides on the same system).
+Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaara98/FastFighting), the Foundry VTT module that resolves a battle by simulating it thousands of times, tells the story of one fight, and plays it for real on the Combat Tracker, a turn at a time, with **Do it For Real Now**. It works in Xcrawl Classics worlds too (the XCC module rides on the same system).
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
@@ -141,15 +141,15 @@ Left to the core: anything the sheet doesn't speak to. (DCC's fights use no cons
 
 ## Do it For Real Now
 
-Writes the drawn fight onto the tokens, as the confirmation dialog lists:
+In a live battle, each turn's changes go onto the tokens as the turn is played:
 - hit points, death (and the combatant defeated), the fled hidden;
 - Luck and spellburn spent, and Fleeting Luck or Mojo as the fight left it;
 - spells lost for the day, a cleric's disapproval range;
-- the Stamina lost to bleeding out, or the ability lost and Groggy when the body was rolled;
+- the Stamina lost to bleeding out, or, when the body was rolled after the fight and found alive, the ability lost, Groggy, and no longer dead;
 - statuses still on a creature (stunned, paralyzed, asleep, blinded, frightened, held, slowed, prone);
 - the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the party: Hostile).
 
-Rewind This Encounter puts it all back.
+Rewind Turn takes one turn back; Rewind This Encounter, all of it.
 
 ## Development
 
