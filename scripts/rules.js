@@ -34,6 +34,7 @@ import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCond
 import { t } from "./words.js";
 import { leftBehind } from "./commit.js";
 import { tiedStopsSpells } from "./tied.js";
+import { holdsWeapon } from "./deeds.js";
 
 const has = (u, key) => (u?.conds?.[key] ?? 0) > 0;
 const ABILITY_LOSS = ["str", "agl", "sta"];
@@ -446,7 +447,10 @@ export const dccRules = {
     if ( !u.spec.acrobatics ) return null;
     return { cost: { move: Math.floor((u.spec.speeds?.walk ?? 30) / 2) }, label: t("Acrobatics"), check: { mod: u.spec.acrobatics.mod, dc: 15, dcMany: 20 } };
   },
-  /** Immune to a control effect when it's immune to every condition it lays on, or the effect only takes some. */
+  /**
+   * Immune to a control effect when it's immune to every condition it lays on, or the effect only takes some; disarmed,
+   * when it has no weapon in hand (only natural attacks).
+   */
   isImmune(target, action) {
     // (A Jammer's Disrespect, or a Gnome's Draw Agro, means nothing to the mindless: slimes, golems, the walking dead
     // that don't think.)
@@ -458,7 +462,9 @@ export const dccRules = {
     const outcomes = [...(action.onSave ?? []), ...(action.onHit ?? []), action.outcome].filter(o => o && !o.self);
     const keys = [...new Set(outcomes.flatMap(o => Object.keys(o.conditions ?? {})))];
     const alias = { incapacitated: ["asleep", "paralyzed", "unconscious"], controlled: ["charm"], frightened: ["fear"] };
-    const covered = k => immune.has(k) || (alias[k] ?? []).some(a => outcomes.some(o => o.conditions?.[a]) && immune.has(a));
+    // (Nothing in hand to knock away: claws, fangs and horns can't be disarmed, by a deed or a crit.)
+    const covered = k => immune.has(k) || (k === "disarmed" && !holdsWeapon(target.spec.actions))
+      || (alias[k] ?? []).some(a => outcomes.some(o => o.conditions?.[a]) && immune.has(a));
     return keys.length > 0 && keys.every(covered);
   },
   /** What a condition costs a creature each round (for behavior's estimates). */

@@ -13,7 +13,7 @@ import { dccRules } from "./rules.js";
 import { plain, statLine, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn } from "./text.js";
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
-import { deedsFrom } from "./deeds.js";
+import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
 import { deriveDccTraits, speaksCommon, monsterKind } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
@@ -52,6 +52,19 @@ function harmOf(formula, name) {
 
 const MODES = ["fly", "swim", "climb", "burrow"];
 const COPPER = { pp: 1000, ep: 50, gp: 100, sp: 10, cp: 1 };
+/** What an item is worth, in copper (its value in each coin). */
+const worthOf = i => Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(i?.system?.value?.[k]) || 0) * v, 0);
+
+/**
+ * A natural attack (a bite, claws, a slam): what its name says, by the language file's words (FFDCC.Words.Natural;
+ * DCC's weapons say nothing else of it), when nothing could be paid for it (a punch dagger, a sword called Sting, are
+ * bought). It's no weapon in hand: nothing to knock away, and no hand needed free, unless it's a hand itself (claws, a
+ * fist: FFDCC.Words.NaturalHand). {natural: true, hands}, or {} for a weapon.
+ */
+export function naturalOf(name, worth = 0) {
+  if ( worth > 0 || !saysWord("Natural", name) ) return {};
+  return { natural: true, hands: saysWord("NaturalHand", name) ? 1 : 0 };
+}
 /** What a character carries that it could hand over (or ask for: its kind is the item type). */
 const GOODS = ["weapon", "armor", "equipment", "treasure", "ammunition"];
 /**
@@ -99,9 +112,10 @@ export function brawlerFists(actor, { armed, firstDie, crit }) {
   const damage = [parseFormula(mod ? `${die}${mod > 0 ? "+" : "-"}${Math.abs(mod)}` : die, "bludgeoning")];
   const heavy = (actor.itemTypes?.armor ?? []).some(a => a.system.equipped && Number(a.system.checkPenalty) <= -4);
   const name = game.i18n.has("XCC.Brawler.UnarmedAttack") ? game.i18n.localize("XCC.Brawler.UnarmedAttack") : game.i18n.localize("FFDCC.Unarmed");
+  // (Its fists: nothing to knock away, but its hands to punch with.)
   const fist = (id, faces, extra = {}) => ({
     id: `${actor.id}.${id}`, name, kind: "strike", cost: 1, bonus: mod, melee: true, reach: 5, damage,
-    die: faces !== firstDie ? faces : undefined, critOn: heavy ? 99 : undefined, crit, ...extra
+    die: faces !== firstDie ? faces : undefined, critOn: heavy ? 99 : undefined, crit, natural: true, hands: 1, ...extra
   });
   if ( armed ) return [fist("fist-free", 14, { economy: "bonus" })];
   const one = fist("fist", 16, { fumbleOn: 0 });
@@ -170,7 +184,9 @@ export function wrestling(actor, { firstDie, crit }) {
   const range = Number(sys.class?.grappleCritRange) || 20;
   return [{ id: `${actor.id}.wrestle`, name: xccWord("XCC.Athlete.Grapple", "FFDCC.Grapple"), kind: "strike", cost: 1, bonus: str, melee: true, reach: 5,
     damage: [parseFormula(str ? `1d4${str > 0 ? "+" : "-"}${Math.abs(str)}` : "1d4", "bludgeoning")], deedDie: training,
-    critOn: heavy ? 99 : (range < 20 ? range : undefined), crit, effects: [{ kind: "grabbed" }] }];
+    critOn: heavy ? 99 : (range < 20 ? range : undefined), crit, effects: [{ kind: "grabbed" }],
+    // (Bare hands: nothing to knock away, but both to wrestle with.)
+    natural: true, hands: 2 }];
 }
 
 /** An XCC brawler's Toughness: so much off every melee blow (a reaction it always has). */
@@ -276,12 +292,11 @@ function inPartyOf(actor) {
 export function valuablesOf(actor) {
   const c = actor.system.currency ?? {};
   const money = Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(c[k]) || 0) * v, 0);
-  const worth = i => Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(i.system?.value?.[k]) || 0) * v, 0);
   const stowed = [];
   const wielded = [];
   for ( const i of actor.items ) {
     if ( !GOODS.includes(i.type) ) continue;
-    const thing = { id: i.id, name: i.name, value: worth(i), category: i.type };
+    const thing = { id: i.id, name: i.name, value: worthOf(i), category: i.type };
     if ( !(thing.value > 0) ) continue;
     if ( !["weapon", "armor"].includes(i.type) || i.system.equipped === false ) stowed.push(thing);
     else if ( i.type === "weapon" || isShield(i) ) wielded.push(thing);
@@ -439,7 +454,8 @@ export class DccAdapter extends SystemAdapter {
       personality: Number(sys.abilities?.per?.mod) || 0,
       // (Infravision sees in the dark: the core's lowlight.)
       senses: this.#infravision(kind, line) ? { lowlight: this.#infravision(kind, line) } : {},
-      creatureTraits: [line.undead ? "undead" : pc ? "humanoid" : ""].filter(Boolean),
+      // (Armed: a weapon in hand, something a disarming deed can knock away; not one that has only claws and fangs.)
+      creatureTraits: [line.undead ? "undead" : pc ? "humanoid" : "", holdsWeapon(actions) ? ARMED : ""].filter(Boolean),
       social: {
         pitches: {
           persuade: { skill: game.i18n.localize("FFDCC.Personality"), mod: Number(sys.abilities?.per?.mod) || 0 },
@@ -585,7 +601,7 @@ export class DccAdapter extends SystemAdapter {
           id: `${actor.id}.atk${i}`, name: a.name, kind: "strike", cost: 1, bonus: a.bonus, melee: a.melee, reach: a.melee ? 5 : undefined,
           range: a.melee ? null : { increment: 60 }, damage: harmOf(a.damage, a.name),
           critOn: critOnFor(line.critNatural, firstDie) ?? undefined, crit: await this.#crit(sys, null, 0),
-          effects: this.#riders(a.rider)
+          effects: this.#riders(a.rider), ...naturalOf(a.name)
         });
       }
     }
@@ -659,7 +675,9 @@ export class DccAdapter extends SystemAdapter {
       deedDie: deedDie ?? undefined,
       crit: await this.#crit(actor.system, w, pc ? luckMod : 0),
       // (A weapon the system marks as dealing subdual damage: a blow that knocks out.)
-      subdual: !!s.subdual || undefined
+      subdual: !!s.subdual || undefined,
+      // (A bite, claws, a slam: no weapon in hand.)
+      ...naturalOf(w.name, worthOf(w))
     };
     // A thief striking a foe who can't defend itself: the backstab (its bonus, and a far worse wound).
     if ( pc && kind.thief && s.melee ) {

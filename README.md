@@ -26,6 +26,7 @@ Enable both in a DCC world.
 
 - **Class:** the character sheet chosen for the actor or its token, which is how DCC and XCC pick a class. A sheet that has been opened records the class itself. For one that hasn't (an imported pregen), the class is read from the sheet chosen, then from the class name. Everything else comes from the character's own numbers (a deed die, spells and how they're cast), so classes from other books still work.
 - **Attacks:** each weapon's to-hit, damage (the kind its formula names; DCC's weapons don't say whether they cut, pierce or crush, so failing that the kind its name says, by the language file's words, else none), range, action die, crit range, crit die and crit table, and fumble range. A monster's stat line fills in anything its sheet leaves out (attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check).
+- **Natural attacks:** a bite, claws, a slam, a Brawler's fists (DCC doesn't mark them, so by the name, the language file's words; never one that was bought). They need no hand free (claws and fists need their own), and there's nothing in hand to knock away: a disarming deed only goes for a foe with a weapon, and a deed or a crit that would disarm a creature that has none does nothing. (What the book's disarm rows do to claws and teeth instead isn't played.)
 - **Action dice:** one action for each (a giant's d24 then d16, a high-level character's second die). Crit ranges scale to the die.
 - **Initiative:** the system's own die: a d20, a d16 with a two-handed weapon in hand, or a weapon's own. Springing an ambush (the core's stealth surprise), a thief rolls its Sneak Silently and Agility instead, a halfling its Sneak and Hide; anyone else, its initiative as ever.
 - **Withdrawing and shooting into a melee:** a creature that withdraws from a melee gives every foe engaged with it a free attack. A shot into a melee is at -1; when it misses, half the time it goes toward a random friend of the shooter's in that melee, and the attack is made again against it.
@@ -44,7 +45,7 @@ Enable both in a DCC world.
 - **Deed dice and Mighty Deeds:** warriors and dwarves (anyone whose attack bonus is a die) roll it with every attack, adding it to the roll and the damage. Before the roll they declare the deed that would help most:
   - trip;
   - blinding attack;
-  - disarm;
+  - disarm (a foe with a weapon in hand);
   - pushback (in melee): the foe is shoved back 5 feet, or 10 when the die shows 5 or more;
   - defensive maneuver;
   - rallying maneuver: friends nearby take heart (a better next swing; more, and farther, at a higher deed).
