@@ -10,7 +10,7 @@ import { registerTiedStopsSpells } from "./tied.js";
 export const MODULE_ID = "fast-fighting-dcc";
 
 /** The core API this helper is written against (older cores have no api.version: that is 1). */
-const NEEDS_API = 15;
+const NEEDS_API = 16;
 
 /**
  * The last translation module we knew of for this game system, by language: in a language other than English, this
