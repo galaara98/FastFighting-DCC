@@ -127,3 +127,25 @@ describe("nothing in hand to knock away", () => {
     expect(declared(beast("orc", [blow("axe", { bonus: 5 })], [ARMED]))).toBe("disarm");
   });
 });
+
+describe("a condition does in the rolls what it's weighed as", () => {
+  const strike = (extra = {}) => ({ id: "s", kind: "strike", melee: true, reach: 5, damage: [parseFormula("1d8")], ...extra });
+  const attack = (conds, action = strike()) => dccRules.modifiers.attack({ attacker: { conds }, target: { conds: {} }, action, distance: 5, positioning: false, alliesAdjacent: 0 }).bonus;
+
+  test("disarmed, its weapon's blows are -4; its claws and fangs aren't", () => {
+    expect(attack({ disarmed: 1 })).toBe(dccRules.conditionMods("disarmed").attack);
+    expect(attack({ disarmed: 1 }, strike({ natural: true, hands: 1 }))).toBe(0);
+  });
+
+  test("blinded, frightened, slowed and hidden: to its attacks, its AC and its saves, as their bonuses and penalties say", () => {
+    for ( const key of ["blinded", "frightened", "slowed", "hidden"] ) {
+      const m = dccRules.conditionMods(key);
+      expect([key, attack({ [key]: 1 })]).toEqual([key, m.attack ?? 0]);
+      expect([key, dccRules.modifiers.defense({ target: { conds: { [key]: 1 } } })]).toEqual([key, m.ac ?? 0]);
+      expect([key, dccRules.modifiers.save({ unit: { conds: { [key]: 1 } }, type: "wil" }).bonus]).toEqual([key, m.saves ?? 0]);
+    }
+    // (None, or gone: nothing.)
+    expect(attack({ blinded: 0 })).toBe(0);
+    expect(dccRules.modifiers.defense({ target: { conds: {} } })).toBe(0);
+  });
+});

@@ -98,6 +98,20 @@ function lastBurst(c, overflow, rng) {
   if ( burst <= (Number(overflow) || 0) ) c.regenStopped = true;
 }
 
+/**
+ * What a creature's conditions add to one kind of its rolls ("attack", "ac", "saves"): DCC's as bonuses and penalties
+ * (dccRules.conditionMods), as they're weighed; prone apart (modifiers.attack has it), and a disarmed creature's claws
+ * and fangs unhampered.
+ */
+function conditionsOn(u, kind, action = null) {
+  let n = 0;
+  for ( const [key, v] of Object.entries(u?.conds ?? {}) ) {
+    if ( !(v === true || Number(v) > 0) || key === "prone" || (key === "disarmed" && action?.natural) ) continue;
+    n += Number(dccRules.conditionMods(key)?.[kind]) || 0;
+  }
+  return n;
+}
+
 /** Damage-type imagery for the story. */
 const STORY_TYPES = { electricity: "electricity", holy: "radiant", unholy: "unholy", force: "force" };
 
@@ -462,12 +476,13 @@ export const dccRules = {
     exposed({ target, flanked, attacker }) {
       return !!(target.prone || flanked || has(target, "incapacitated") || has(target, "blinded") || has(target, "stunned") || has(attacker, "hidden"));
     },
-    /** A charger, until its next turn: -2 AC. */
+    /** A charger, until its next turn: -2 AC; and what its conditions do to its AC (blinded, slowed, hidden). */
     defense({ target }) {
-      return target?.charging ? -2 : 0;
+      return (target?.charging ? -2 : 0) + conditionsOn(target, "ac");
     },
     attack({ attacker, target, action, distance, positioning, alliesAdjacent, cover }) {
-      let bonus = 0;
+      // (What its conditions do to its blows: blinded, frightened, slowed, disarmed.)
+      let bonus = conditionsOn(attacker, "attack", action);
       // A charge: +2.
       if ( charging(attacker, action) ) bonus += 2;
       // A foe behind cover (any of it hidden by the walls, the core's cover): -2, melee or missile.
@@ -482,8 +497,9 @@ export const dccRules = {
       if ( ranged && positioning && action.range.increment && distance > action.range.increment ) bonus -= distance > 2 * action.range.increment ? 4 : 2;
       return { bonus, advantage: 0 };
     },
-    save() {
-      return { bonus: 0, advantage: 0 };
+    /** What its conditions do to its saves (frightened). */
+    save({ unit } = {}) {
+      return { bonus: conditionsOn(unit, "saves"), advantage: 0 };
     },
     check() {
       return { bonus: 0, advantage: 0 };
