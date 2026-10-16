@@ -27,6 +27,13 @@ export function plain(text) {
     .replace(/\s+/g, " ").trim();
 }
 
+/** The documents a text links to, by uuid ("@UUID[Compendium.x.y.JournalEntry.z]{Troll}"; the older "@Compendium[x.y.z]"). */
+export function linksIn(text) {
+  const out = [];
+  for ( const m of String(text ?? "").matchAll(/@(UUID|Compendium)\[([^\]]+)\]/g) ) out.push(m[1] === "UUID" ? m[2] : `Compendium.${m[2]}`);
+  return [...new Set(out)];
+}
+
 /** Sentences, lower case, for reading one claim at a time. */
 const sentences = text => plain(text).toLowerCase().split(/(?<=[.!?;])\s+/).filter(Boolean);
 
@@ -312,6 +319,80 @@ export function spellResult(text, { casterLevel = 0, save = "" } = {}) {
 }
 
 /* -------------------------------------------- */
+/*  Mending                                     */
+/* -------------------------------------------- */
+
+/** "Per round": "per round", "/round", "each round", "at the end of each round", "every turn". */
+const EACH_ROUND = "\\s*(?:\\/\\s*|per\\s+|each\\s+|every\\s+|a\\s+|at the (?:end|start|beginning) of (?:each|every|the)\\s+)(?:round|turn)";
+const HP = "\\s*(?:hp|hit points?|points?(?: of damage)?)?";
+/**
+ * What stops a regeneration: the kinds of harm a phrase names, before "from which it does not regenerate" or "stops its
+ * regeneration" (before: true), or after "does not regenerate from", "except", "prevented by".
+ */
+const STOPS = [
+  { re: /\b(?:does not|doesn't|cannot|can't|won't|will not|never)\s+regenerate\s+(?:damage\s+|hit points\s+)?(?:from|dealt by|caused by|done by|inflicted by)\s+([a-z ,'-]+)/g },
+  { re: /([a-z ,'-]+?)\s*,?\s*(?:from|against)\s+which\s+it\s+(?:does not|doesn't|cannot|can't|won't|will not|never)\s+regenerate/g, before: true },
+  { re: /([a-z ,'-]+?)\s+(?:damage\s+)?(?:stops?|prevents?|halts?|suppress(?:es)?|negates?|blocks?)\s+(?:its\s+|the\s+|this\s+)?regenerat/g, before: true },
+  { re: /\bregenerat\w*\b[^.;]*?\b(?:except|but not|save for|other than|not)\s+(?:against\s+|from\s+|by\s+)?([a-z ,'-]+)/g },
+  { re: /\bregenerat\w*\b[^.;]*?\b(?:stopped|prevented|halted|suppressed|negated|blocked)\s+(?:only\s+)?by\s+([a-z ,'-]+)/g }
+];
+/** Words that go with a list of kinds of harm ("fire or acid damage"). */
+const KIND_JOINERS = new Set(["and", "or", "damage", "attacks", "magical", "by"]);
+/** Is this part of a phrase only kinds of harm ("acid or cold")? */
+const onlyKinds = part => {
+  const words = part.split(/[^a-z]+/).filter(Boolean);
+  return words.length > 0 && words.every(w => TYPES[w] || KIND_JOINERS.has(w));
+};
+/**
+ * The kinds of harm a phrase names, as far as it speaks of them: the part beside the words that say they stop it (the
+ * last part before them, the first after), and those next to it that are only kinds of harm ("fire, acid or cold";
+ * not the "immune to cold" in "immune to cold, fire stops its regeneration").
+ */
+function kindsNamed(phrase, before) {
+  const parts = phrase.split(",");
+  if ( before ) parts.reverse();
+  const near = [parts[0]];
+  for ( const p of parts.slice(1) ) {
+    if ( !onlyKinds(p) ) break;
+    near.push(p);
+  }
+  return near.join(" ").split(/[^a-z]+/).map(w => TYPES[w]).filter(Boolean);
+}
+
+/**
+ * What a creature's words say it mends of itself each round: regeneration ("regenerates 1d6 hp per round",
+ * "regenerating 1d8 points of damage at the end of each round, including the round it is killed"; what it doesn't
+ * regenerate from, fire or acid, stops it) and plain healing ("heal 2 hp per round", "heal 1 hp/round"). Regeneration
+ * that goes on the round it's killed is a last burst (burst: rules.js onDropped). Its name with no amount
+ * ("regeneration", a troll's stat line: the book says how much) is only named.
+ * @returns {{regen: {amount, dice, stoppedBy, burst}|null, fastHealing: number|null, named: boolean}}
+ */
+export function mendingIn(text) {
+  const t = plain(text).toLowerCase();
+  const out = { regen: null, fastHealing: null, named: false };
+  if ( !/\bregenerat|\bheals?\b|\bregains?\b/.test(t) ) return out;
+  const each = new RegExp(`\\bregenerat\\w*\\s*\\(?\\s*(?:at (?:a|the) rate of\\s+)?${DICE}${HP}${EACH_ROUND}`).exec(t);
+  const heals = new RegExp(`\\b(?:heals?|regains?)\\s+(?:(?:damage\\s+)?at (?:a|the) rate of\\s+)?${DICE}${HP}${EACH_ROUND}`).exec(t);
+  if ( heals ) {
+    const p = dicePart(heals[1]);
+    if ( p ) out.fastHealing = Math.max(1, Math.round(meanPart(p)));
+  }
+  if ( each ) {
+    const dice = dicePart(each[1]);
+    if ( dice ) {
+      const stoppedBy = new Set();
+      for ( const { re, before } of STOPS ) for ( const m of t.matchAll(re) ) for ( const k of kindsNamed(m[1], before) ) stoppedBy.add(k);
+      // (It regenerates even the round it's killed: a last burst that may lift it again.)
+      const burst = /\bregenerat[^.;]*\b(?:including|even)\b[^.;]*\b(?:killed|slain|dies|death|dead)\b/.test(t);
+      out.regen = { amount: Math.max(1, Math.round(meanPart(dice))), dice, stoppedBy: [...stoppedBy], burst };
+    }
+  }
+  // ("Regeneration of heads": not of its hit points.)
+  out.named = !out.regen && /\bregenerat(?:ion|es|ing)\b(?!\s+(?:of|its)\s+(?!hit|hp|damage|wounds))/.test(t);
+  return out;
+}
+
+/* -------------------------------------------- */
 /*  Stat lines                                  */
 /* -------------------------------------------- */
 
@@ -327,9 +408,9 @@ const UNDEAD = ["asleep", "sleep", "controlled", "charm", "paralyzed", "paralysi
  * The specials in a DCC stat line ("Init +2; Atk claw +3 melee (1d4); AC 13; HD 2d8; MV 30' or fly 40'; Act 1d20;
  * SP infravision 60', immune to cold, crit on 19-20, un-dead traits; SV Fort +2, Ref +1, Will +0; AL C."), as far as
  * a fight cares: {immune, critNatural, infravision, fly, swim, climb, spellCheck, undead, attacks: [{name, bonus,
- * melee, damage, rider}]}; and what it says of how the creature fights: fearless (immune to fear itself, not just to
- * mind-affecting magic), construct (construct traits), spellcasting (it casts: spellcasting, a spell check, harmful
- * spells, "Atk spells or ..."), pack (pack tactics).
+ * melee, damage, rider}], regen, fastHealing, regenNamed (mendingIn)}; and what it says of how the creature fights:
+ * fearless (immune to fear itself, not just to mind-affecting magic), construct (construct traits), spellcasting (it
+ * casts: spellcasting, a spell check, harmful spells, "Atk spells or ..."), pack (pack tactics).
  */
 export function statLine(text) {
   const t = plain(text);
@@ -367,6 +448,12 @@ export function statLine(text) {
   }
   const check = special.match(/\bspell ?check\s*([+-]\s*\d+)/);
   if ( check ) out.spellCheck = Number(check[1].replace(/\s+/g, ""));
+  // Mending of its own: regeneration ("regenerates 1d6 hp per round"), healing each round ("heal 2 hp per round"), or
+  // its regeneration only named.
+  const mending = mendingIn(t);
+  out.regen = mending.regen;
+  out.fastHealing = mending.fastHealing;
+  out.regenNamed = mending.named;
   // Attacks: "claw +3 melee (1d4)" and "bite +5 melee (dmg 1d8 plus poison)", joined by "or".
   const atk = t.match(/\bAtk\b\s*([^;]*)/i)?.[1] ?? "";
   for ( const m of atk.matchAll(/([a-z][a-z' -]*?)\s+([+-]\s*\d+)\s+(melee|missile fire|missile|ranged)\s*(?:\(([^)]*)\))?/gi) ) {

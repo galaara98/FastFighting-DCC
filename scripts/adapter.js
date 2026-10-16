@@ -10,7 +10,7 @@
  */
 import { SystemAdapter, parseFormula, parseTypedFormula, part, hasWords } from "./core.js";
 import { dccRules } from "./rules.js";
-import { plain, statLine, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn } from "./text.js";
+import { plain, statLine, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn } from "./text.js";
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
 import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
@@ -395,6 +395,7 @@ export class DccAdapter extends SystemAdapter {
     const grapple = pc ? flatOf(sys.details?.attackBonus) + Math.max(Number(sys.abilities?.str?.mod) || 0, Number(sys.abilities?.agl?.mod) || 0)
       : Math.max(0, ...actions.filter(a => a.melee && a.kind === "strike").map(a => Number(a.bonus) || 0)) + hd.level;
     const fumble = pc ? await this.#fumble(sys, luckMod) : null;
+    const mending = pc ? null : await this.#mending(sys, line);
     return {
       id: tokenDoc.id,
       tokenId: tokenDoc.id,
@@ -427,6 +428,9 @@ export class DccAdapter extends SystemAdapter {
       // (A stat line's half and double damage; and the weak spot a Puzzle-Maniac goes for: harm it guards less well.)
       iwr: { immune, resist: Object.fromEntries((line.resist ?? []).map(k => [k, 1])), weak: Object.fromEntries((line.weak ?? []).map(k => [k, 1])), exploit: weakSpot(Object.fromEntries((line.resist ?? []).map(k => [k, 1]))) },
       grapple,
+      // Mending of its own, from its stat line (or its entry in a book): regeneration, healing each round (#mending).
+      regen: mending?.regen ?? undefined,
+      fastHealing: mending?.fastHealing ?? undefined,
       // Breaking free (of a grip, bonds, a web): the grapple roll again, on its first action die, against the hold's DC
       // (rules.js). Its own grip is broken against 10 + its grapple, as a Grapple at it is (rules.defenseDc).
       escapeWork: { mod: grapple, faces: dice[0] !== 20 ? dice[0] : undefined },
@@ -542,6 +546,31 @@ export class DccAdapter extends SystemAdapter {
     if ( !config ) return value;
     if ( config === "1d20" && value && value !== config ) return value;
     return config;
+  }
+
+  /**
+   * A creature's mending of its own, as the core plays it: regeneration (spec.regen: so much each round, stopped for a
+   * turn by what it can't regenerate from; at 0 it's dead, as any DCC monster, unless it regenerates even the round
+   * it's killed: then a last burst, rules.js onDropped) and healing each round (spec.fastHealing). From its stat line;
+   * a stat line that only names its regeneration (a troll's) leaves how much to its entry in a book, which it links to,
+   * when that's installed. Null for none.
+   */
+  async #mending(sys, line) {
+    let { regen, fastHealing } = line;
+    if ( !regen && line.regenNamed ) {
+      for ( const uuid of linksIn(sys.details?.notes?.value) ) {
+        const said = mendingIn(await this.#tables.entry(uuid));
+        if ( !said.regen && !said.fastHealing ) continue;
+        ({ regen } = said);
+        fastHealing ??= said.fastHealing;
+        break;
+      }
+    }
+    if ( !regen && !fastHealing ) return null;
+    return {
+      regen: regen ? { amount: regen.amount, stoppedBy: regen.stoppedBy, ...(regen.burst ? { burst: true, dice: regen.dice } : { needsHp: true }) } : null,
+      fastHealing: fastHealing || null
+    };
   }
 
   #infravision(kind, line) {

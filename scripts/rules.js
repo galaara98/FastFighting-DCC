@@ -30,7 +30,7 @@
  * escapeWork): against a grip, 10 + the grabber's grapple, as a Grapple at it is; against anything else, a hard check.
  * A fall (shoved off a ledge) is 1d6 for each 10 feet.
  */
-import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition, parseFormula } from "./core.js";
+import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition, parseFormula, samplePart } from "./core.js";
 import { t } from "./words.js";
 import { leftBehind } from "./commit.js";
 import { tiedStopsSpells } from "./tied.js";
@@ -67,6 +67,18 @@ function employerOf(run, u) {
   if ( head?.spec.kind === "pc" ) return Number(head.spec.personality) || 0;
   const pcs = run.units.filter(o => o.spec.kind === "pc" && o.side === u.side && o.status === STATUS.STANDING);
   return pcs.length ? Math.max(...pcs.map(o => Number(o.spec.personality) || 0)) : 0;
+}
+
+/**
+ * A regeneration that goes on the round it's killed (spec.regen.burst: a troll's, adapter.js): a last burst, rolled.
+ * Taken below 0 by as much or more, it's put down for good (its regeneration stopped); otherwise the core's
+ * regeneration holds it there, mending, to get up again (unless what it can't regenerate from finds it first).
+ */
+function lastBurst(c, overflow, rng) {
+  const regen = c.spec.regen;
+  if ( !regen?.burst || c.regenStopped ) return;
+  const burst = rng && regen.dice ? samplePart(regen.dice, rng) : Number(regen.amount) || 0;
+  if ( burst <= (Number(overflow) || 0) ) c.regenStopped = true;
 }
 
 /** Damage-type imagery for the story. */
@@ -322,11 +334,15 @@ export const dccRules = {
   },
 
   /* Dying ----------------------------------------------------------------- */
-  /** Monsters and 0-level characters die at 0; anyone else bleeds out for as many rounds as their level. */
-  onDropped(c, { model = DOWNED_MODELS.SIMULATE } = {}) {
+  /**
+   * Monsters and 0-level characters die at 0; anyone else bleeds out for as many rounds as their level. A regeneration
+   * that goes on the round it's killed (a troll's) has a last burst (lastBurst).
+   */
+  onDropped(c, { model = DOWNED_MODELS.SIMULATE, overflow = 0, rng = null } = {}) {
     const level = Number(c.spec.level) || 0;
     if ( model === DOWNED_MODELS.DEAD || c.spec.diesAtZero || c.spec.kind !== "pc" || level <= 0 ) {
       c.status = STATUS.DEAD;
+      lastBurst(c, overflow, rng);
       return c.status;
     }
     if ( model === DOWNED_MODELS.OUT ) {
@@ -342,12 +358,15 @@ export const dccRules = {
     }
     return c.status;
   },
-  /** Healed while bleeding out: back up, scarred, a point of Stamina gone for good. */
+  /**
+   * Healed while bleeding out: back up, scarred, a point of Stamina gone for good. (Not a troll getting up again: it
+   * wasn't bleeding.)
+   */
   onHealed(c, amount) {
     const wasDown = c.status === STATUS.DOWN;
     c.hp = Math.min(c.maxHp, Math.max(0, c.hp) + amount);
     if ( wasDown && c.hp > 0 ) {
-      if ( !c.stable && !c.knockedOut ) c.bledOut = true;
+      if ( !c.stable && !c.knockedOut && Number.isFinite(c.bleed) ) c.bledOut = true;
       c.status = STATUS.STANDING;
       c.stable = false;
       c.dying = 0;

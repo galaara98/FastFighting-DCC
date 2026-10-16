@@ -2,7 +2,8 @@
  * DCC's tables at run time: crit and fumble tables, Mighty Deeds, spell results, Lay on Hands and Turn Unholy,
  * wherever the world keeps them. It looks where the dcc system itself looks (the packs and tables set in its
  * settings, which the DCC and XCC core books fill in), then in any installed book's packs, then in the world's own
- * tables. Each table is read once a session; nothing is copied anywhere.
+ * tables. Also a creature's entry in a book, that its stat line links to. Each is read once a session; nothing is
+ * copied anywhere.
  */
 import { tableRow } from "./text.js";
 
@@ -142,6 +143,19 @@ export class DccTables {
       table ??= await findTable(n => spellKey(n) === wanted, tablePacks().filter(p => /spell/i.test(p.collection)));
       if ( !table ) return null;
       return { rows: rowsOf(table), range: twin?.system?.range ?? null, save: twin?.system?.save ?? null, level: twin?.system?.level ?? null, mode: twin?.system?.config?.castingMode ?? null };
+    });
+  }
+
+  /**
+   * What a document a stat line links to says (a creature's entry in a book: its journal's pages), as its words, or
+   * null when there's none to read.
+   */
+  entry(uuid) {
+    return this.#once(`entry:${uuid}`, async () => {
+      const doc = await globalThis.fromUuid?.(uuid);
+      if ( !doc ) return null;
+      const pages = doc.pages ? [...doc.pages] : [doc];
+      return pages.map(p => p?.text?.content ?? p?.system?.description?.value ?? "").join(" ");
     });
   }
 
