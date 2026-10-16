@@ -25,12 +25,14 @@
  *
  * Withdrawing from a melee: every foe engaged with it gets one free attack. Firing into a melee: -1 to hit, and a shot
  * that misses goes toward a random friend of the shooter's in that melee half the time (the attack again, against it).
+ * A foe behind cover (the walls hiding any of it) is -2 to hit, melee or missile; cover does nothing for saves.
  *
  * Breaking free (of a grip, bonds, a web) is the grapple roll again, an action on its action die (adapter.js
  * escapeWork): against a grip, 10 + the grabber's grapple, as a Grapple at it is; against anything else, a hard check.
+ * In a grapple the bigger of the two adds its size's edge: twice the other's size, +4; three times, +8; four, +16.
  * A fall (shoved off a ledge) is 1d6 for each 10 feet.
  */
-import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition, parseFormula, samplePart } from "./core.js";
+import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition, parseFormula, samplePart, rollD20 } from "./core.js";
 import { t } from "./words.js";
 import { leftBehind } from "./commit.js";
 import { tiedStopsSpells } from "./tied.js";
@@ -56,6 +58,21 @@ function counters(own, spell, fire) {
 
 /** A morale check's DC. */
 const MORALE_DC = 11;
+/** What attacking a foe behind cover costs, melee or missile (DCC has no degrees of it, and nothing for saves). */
+const COVER_PENALTY = 2;
+
+/**
+ * What size gives `a` in a grapple with `b`: twice b's size, +4 to its roll; three times, +8; four times, +16; and so on,
+ * doubling. Size is the token's (the core's spec.position.size, in feet: the only size a DCC world keeps). 0 when
+ * either size isn't known.
+ */
+export function sizeEdge(a, b) {
+  const big = Number(a?.spec?.position?.size);
+  const small = Number(b?.spec?.position?.size);
+  if ( !(big > 0) || !(small > 0) ) return 0;
+  const times = Math.floor(big / small + 1e-9);
+  return times >= 2 ? 4 * 2 ** (times - 2) : 0;
+}
 const signed = n => (n >= 0 ? `+${n}` : String(n));
 /** The group a creature checks morale with: its side's (a hostile group), or its friend group when it takes no side. */
 const groupOf = u => `${u.homeSide ?? u.side}|${u.spec.group ?? ""}`;
@@ -219,15 +236,35 @@ export const dccRules = {
       data: { trigger, natural, total, dc: MORALE_DC, holds } };
     return { result: holds ? MORALE.HOLD : MORALE.ROUT, said };
   },
-  /** Grappling is opposed attack rolls: the defender's, as a DC. */
-  defenseDc(target, against) {
-    return against === "grapple" ? 10 + (Number(target.spec.grapple) || 0) : null;
+  /**
+   * Grappling is opposed attack rolls: the defender's, as a DC; the bigger of the two adds its size's edge (sizeEdge),
+   * when the core says who grapples (`by`).
+   */
+  defenseDc(target, against, by = null) {
+    if ( against !== "grapple" ) return null;
+    return 10 + (Number(target.spec.grapple) || 0) + sizeEdge(target, by) - sizeEdge(by, target);
+  },
+  /**
+   * Breaking a grip, the grapple roll again (adapter.js escapeWork, against 10 + the grabber's grapple): the bigger of
+   * the two adds its size's edge. Between two of a size, the core's own try (null), which is the same roll.
+   */
+  breakFree(run, who, hold, { freeing = false } = {}) {
+    if ( freeing || hold?.key !== "grabbed" || hold.hazard || !hold.byId ) return null;
+    const grabber = run.byId?.get(hold.byId);
+    const edge = sizeEdge(who, grabber) - sizeEdge(grabber, who);
+    const work = who.spec.escapeWork;
+    if ( !edge || !Number.isFinite(work?.mod) || !Number.isFinite(hold.dc) ) return null;
+    const mod = work.mod + edge;
+    const roll = rollD20(dccRules, run.rng, mod, hold.dc, { kind: "check", faces: work.faces ?? 20 });
+    return { success: roll.degree >= 2, degree: roll.degree, natural: roll.natural, mod, total: roll.total, dc: hold.dc };
   },
   /** Hiding takes not having a foe beside it. */
   usable(run, u, action) {
     if ( !action?.hide ) return true;
     return ![...(u.adjacent ?? [])].some(id => { const o = run.byId.get(id); return o && o.status === STATUS.STANDING && run.prep.sides[u.side]?.enemies.has(o.side); });
   },
+  /** Cover is DCC's (a foe behind it is -2 to hit: modifiers.attack), not the core's. */
+  handlesCover: true,
   /** One in a hurry (its playstyles' rush) would rather charge in: a melee attack it has to move for (+2 to hit). */
   optionWeight(run, u, action, t, moves) {
     const rush = Number(behaviorOf(u).rush) || 0;
@@ -429,10 +466,12 @@ export const dccRules = {
     defense({ target }) {
       return target?.charging ? -2 : 0;
     },
-    attack({ attacker, target, action, distance, positioning, alliesAdjacent }) {
+    attack({ attacker, target, action, distance, positioning, alliesAdjacent, cover }) {
       let bonus = 0;
       // A charge: +2.
       if ( charging(attacker, action) ) bonus += 2;
+      // A foe behind cover (any of it hidden by the walls, the core's cover): -2, melee or missile.
+      if ( cover && cover !== "none" ) bonus -= COVER_PENALTY;
       // Firing into a melee (the target engaged with the shooter's friends): -1.
       if ( !action?.melee && action?.range && alliesAdjacent > 0 ) bonus -= 1;
       // Attacking a prone or helpless foe in melee: +2; a stunned or blind one too.

@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { DccAdapter } from "../scripts/adapter.js";
-import { dccRules } from "../scripts/rules.js";
+import { dccRules, sizeEdge } from "../scripts/rules.js";
 import { leftBehind } from "../scripts/commit.js";
 import { registerTiedStopsSpells } from "../scripts/tied.js";
 import { parseFormula } from "../scripts/core.js";
@@ -93,7 +93,11 @@ describe("what holds one, by DCC's rules", () => {
   });
 
   test("the core's plain check is DCC's: a natural 1 fails, a natural 20 (or a d24's top) succeeds; a try is an action", () => {
-    expect(dccRules.breakFree).toBeUndefined();
+    // (Its own try only where size tells: between two of a size, the core's.)
+    const one = id => ({ id, spec: { position: { size: 5 }, escapeWork: { mod: 2 } } });
+    const run = { byId: new Map([["g", one("g")]]) };
+    expect(dccRules.breakFree(run, one("h"), { key: "grabbed", byId: "g", dc: 14 }, {})).toBeNull();
+    expect(dccRules.breakFree(run, one("h"), { key: "held", dc: 15 }, {})).toBeNull();
     expect(dccRules.degreeOfSuccess(1, 99, 15, "check")).toBe(1);
     expect(dccRules.degreeOfSuccess(20, 5, 99, "check")).toBe(2);
     expect(dccRules.degreeOfSuccess(24, 5, 99, "check", { faces: 24 })).toBe(2);
@@ -199,5 +203,49 @@ describe("tied up stops spells: the world's setting", () => {
     expect(setting).toMatchObject({ scope: "world", config: true, type: Boolean, default: true });
     expect(text(setting.name)).toBeTruthy();
     expect(text(setting.hint)).toBeTruthy();
+  });
+});
+
+describe("grappling by size", () => {
+  const at = size => ({ spec: { position: { x: 0, y: 0, size }, grapple: 3, escapeWork: { mod: 3 } } });
+
+  test("twice the other's size, +4; three times, +8; four times, +16; and on, doubling; the tokens' sizes, when known", () => {
+    expect([10, 15, 20, 25].map(s => sizeEdge(at(s), at(5)))).toEqual([4, 8, 16, 32]);
+    expect(sizeEdge(at(5), at(5))).toBe(0);
+    expect(sizeEdge(at(7.5), at(5))).toBe(0);
+    expect(sizeEdge(at(5), at(10))).toBe(0);
+    expect(sizeEdge({ spec: {} }, at(5))).toBe(0);
+    expect(sizeEdge(at(10), null)).toBe(0);
+  });
+
+  test("a grapple's DC: the bigger one's edge, when the core says who grapples; without, as ever", () => {
+    expect(dccRules.defenseDc(at(5), "grapple")).toBe(13);
+    expect(dccRules.defenseDc(at(5), "grapple", at(10))).toBe(9);
+    expect(dccRules.defenseDc(at(15), "grapple", at(5))).toBe(21);
+    expect(dccRules.defenseDc(at(5), "will", at(10))).toBeNull();
+  });
+
+  test("breaking a giant's grip: the grapple roll with the giant's edge against it, on its own die; a halfling's grip, the other way", () => {
+    const traits = () => ({ tactical: { base: 60, fudge: 0 }, brave: { base: 95, fudge: 0 }, selfish: { base: 30, fudge: 0 }, loyal: { base: 75, fudge: 0 } });
+    const one = (id, side, x, size, extra = {}) => ({
+      id, name: id, side, kind: side === "friendly" ? "pc" : "npc", level: 1, hp: { value: 30, max: 30 }, hitDie: 8, defenses: { ac: 14, frt: 1, ref: 1, wil: 1 },
+      initiative: { mod: 0 }, speeds: { walk: 30 }, iwr: {}, traits: traits(), flags: { fearless: true }, diesAtZero: false, actionDice: [20], position: { x, y: 0, size },
+      actions: [{ id: `${id}-blade`, name: "Longsword", kind: "strike", cost: 1, bonus: 2, melee: true, reach: 5, damage: [parseFormula("1d8", "slashing")] }], ...extra
+    });
+    const spec = list => ({ combatants: list, sides: { friendly: { label: "Party", enemies: ["hostile"] }, hostile: { label: "Foes", enemies: ["friendly"] } }, options: { positioning: true, maxRounds: 2 } });
+    const run = beginRun(prepareBattle(spec([one("hero", "friendly", 0, 5, { escapeWork: { mod: 4, faces: 16 } }), one("giant", "hostile", 15, 15, { escapeDC: 20 })]), dccRules), 2, { log: true });
+    beginRound(run, 1);
+    const hero = run.byId.get("hero");
+    hero.grabbedBy = "giant";
+    const [hold] = holdsOf(run, hero);
+    const tried = tryHold(run, hero, hold);
+    expect(tried).toMatchObject({ mod: 4 - 8, dc: 20 });
+    expect(tried.natural).toBeLessThanOrEqual(16);
+    // (Held by a smaller one: its own edge.)
+    const giant = run.byId.get("giant");
+    giant.spec.escapeWork = { mod: 4 };
+    giant.grabbedBy = "hero";
+    hero.spec.escapeDC = 12;
+    expect(tryHold(run, giant, holdsOf(run, giant)[0])).toMatchObject({ mod: 12, dc: 12 });
   });
 });

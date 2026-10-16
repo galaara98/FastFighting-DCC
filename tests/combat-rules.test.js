@@ -8,7 +8,7 @@ import { speaksCommon, monsterKind } from "../scripts/traits.js";
 import { wordList } from "../scripts/words.js";
 import { parseFormula } from "../scripts/core.js";
 import { replay } from "../../FastFighting/scripts/engine/simulator.js";
-import { createRun } from "../../FastFighting/scripts/engine/battle-state.js";
+import { createRun, coverDefault } from "../../FastFighting/scripts/engine/battle-state.js";
 import { prepareBattle } from "../../FastFighting/scripts/engine/simulator.js";
 import { createRng } from "../../FastFighting/scripts/engine/rng.js";
 
@@ -102,5 +102,20 @@ describe("languages", () => {
     expect(speaksCommon({ kind: null, name: "Grimhold" })).toBe(true);
     expect(speaksCommon({ kind: null, name: "Grimhold", beast: true })).toBe(false);
     expect(speaksCommon({ kind: "humanoid", mindless: true })).toBe(false);
+  });
+});
+
+describe("cover", () => {
+  test("a foe behind cover is -2 to hit, melee or missile, whatever share of it the walls hide; DCC's, not the core's", () => {
+    const base = { attacker: {}, target: {}, distance: 10, positioning: false, alliesAdjacent: 0 };
+    for ( const cover of ["some", "most", "total"] ) {
+      expect([cover, dccRules.modifiers.attack({ ...base, action: bow(), cover }).bonus]).toEqual([cover, -2]);
+      expect([cover, dccRules.modifiers.attack({ ...base, action: sword(), cover }).bonus]).toEqual([cover, -2]);
+    }
+    expect(dccRules.modifiers.attack({ ...base, action: bow(), cover: "none" }).bonus).toBe(0);
+    expect(dccRules.handlesCover).toBe(true);
+    // (Nothing for a save, and not the core's own little more to AC and saves.)
+    expect(dccRules.modifiers.save({ unit: {}, type: "ref", cover: "most" })).toEqual({ bonus: 0, advantage: 0 });
+    expect(coverDefault({ prep: { rules: dccRules } }, { pos: { x: 0, y: 0 } }, { pos: { x: 30, y: 0 } })).toBe(0);
   });
 });
