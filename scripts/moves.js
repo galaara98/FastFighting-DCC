@@ -3,7 +3,8 @@
  *  - Help (homebrew: the rules have no aid): an action, the friend's foe beside the helper; the friend's next attack or
  *    check goes a step up the dice chain, counted as +2 (as the Jammer's step down is -2).
  *  - Grapple: the rules' opposed attack rolls, each with its attack bonus and the better of Strength and Agility (the
- *    defender's as a DC, rules.defenseDc "grapple"); won, the foe is pinned until its next turn.
+ *    defender's as a DC, rules.defenseDc "grapple"); won, the foe is pinned: in the grappler's grip (the core's
+ *    grapple, maneuvers.js) until it breaks free, the same roll against 10 + the grappler's (adapter.js escapeDC).
  *  - Hide: a thief's Hide in Shadows (a halfling's Sneak and Hide); anyone else's an untrained check, a d10, and
  *    Agility; against the sharpest eyes among its foes. Hidden, it's harder to hit (-4, as against what it can't see),
  *    and its next attack catches its foe unready (a thief's backstab), until it attacks. Not with a foe beside it.
@@ -20,11 +21,12 @@ export function helpAction(id) {
   };
 }
 
-/** Grapple: opposed attack rolls (its own against the foe's, as a DC); won, the foe is pinned. */
+/** Grapple: opposed attack rolls (its own against the foe's, as a DC); won, the foe is pinned, held until it breaks free. */
 export function grappleAction(id, mod) {
-  const pinned = { conditions: { immobilized: 1 }, rounds: 1, label: t("Pinned") };
+  // (A check: no crit to grip harder, no botch to fall over.)
+  const pinned = { grab: true, label: t("Pinned") };
   return {
-    id: `${id}.grapple`, name: t("Grapple"), kind: "control", cost: 1, traits: [], melee: true, reach: 5, special: false,
+    id: `${id}.grapple`, name: t("Grapple"), kind: "control", maneuver: "grapple", cost: 1, traits: [], melee: true, reach: 5, special: false,
     check: { mod, against: "grapple" }, onHit: [null, null, pinned, pinned]
   };
 }

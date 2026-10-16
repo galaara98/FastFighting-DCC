@@ -28,8 +28,9 @@
  *
  * Breaking free (of a grip, bonds, a web) is the grapple roll again, an action on its action die (adapter.js
  * escapeWork): against a grip, 10 + the grabber's grapple, as a Grapple at it is; against anything else, a hard check.
+ * A fall (shoved off a ledge) is 1d6 for each 10 feet.
  */
-import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition } from "./core.js";
+import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition, parseFormula } from "./core.js";
 import { t } from "./words.js";
 import { leftBehind } from "./commit.js";
 import { tiedStopsSpells } from "./tied.js";
@@ -309,6 +310,14 @@ export const dccRules = {
       total += value;
     }
     return total;
+  },
+  /**
+   * A fall (shoved off a ledge: the core's behavior/forced.js): 1d6 for each 10 feet, as far as it goes (the core's
+   * 20d6 at most is another system's). A 6 rolled breaking a bone isn't played. It lands prone, as the core has it.
+   */
+  fallDamage(feet) {
+    const dice = Math.floor((Number(feet) || 0) / 10);
+    return dice > 0 ? [parseFormula(`${dice}d6`, "bludgeoning")] : [];
   },
 
   /* Dying ----------------------------------------------------------------- */

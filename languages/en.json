@@ -55,6 +55,8 @@
       "Disarmed": "disarmed",
       "Defend": "Defensive maneuver",
       "Rally": "Rallying maneuver",
+      "Pushback": "Pushback ({weapon})",
+      "PushedBack": "pushed back",
       "ThrownDown": "thrown down",
       "Dazzled2": "dazzled (-2 to attacks)",
       "Blinded": "blinded",
