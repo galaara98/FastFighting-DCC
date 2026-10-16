@@ -13,7 +13,7 @@
  * in this kind of fight and aren't tried.
  * Pure.
  */
-import { outcomeIn, modsWords, affected } from "./text.js";
+import { outcomeIn, modsWords, affected, plain } from "./text.js";
 import { listItems } from "./core.js";
 import { t } from "./words.js";
 
@@ -78,6 +78,7 @@ export function deedsFrom(tables) {
 function tierFrom(base, row) {
   const min = Number(row.range?.[0]);
   if ( !Number.isFinite(min) ) return null;
+  if ( base.allies ) return rallyTier(base, row, min);
   const read = outcomeIn(row.text, { defaultRounds: 1 });
   let outcome = read ? { ...read } : null;
   delete outcome?.slay;
@@ -86,16 +87,44 @@ function tierFrom(base, row) {
   if ( !outcome ) return null;
   // Not quite blind yet: dust and blood in the eyes.
   if ( base.id === "blind" && !outcome.conditions?.blinded ) outcome.label = t("Deed.Dazzled", { what: modsWords(outcome.mods) || outcome.label });
-  if ( base.allies ) {
-    // A rally: the bonuses it lends the warrior's friends (to attacks, saves or AC), for those near enough.
-    const lent = Object.fromEntries(Object.entries(outcome.mods ?? {}).filter(([k, v]) => ["attack", "saves", "ac"].includes(k) && v > 0));
-    if ( !Object.keys(lent).length ) return null;
-    return { min, outcome: { mods: lent, rounds: outcome.rounds ?? 1, label: t("Deed.Rallied", { what: listItems(Object.entries(lent).map(([k, v]) => t("Deed.Lent", { n: `+${v}`, stat: k === "ac" ? t("Ac") : k === "attack" ? t("Attack") : t("Saves") }))) }), allies: base.allies * Math.max(1, Math.floor(min / 3)) } };
-  }
   if ( base.self ) {
     // Defensive: only the bonus to AC, for the warrior.
     if ( !(outcome.mods?.ac > 0) ) return null;
     outcome = { mods: { ac: outcome.mods.ac }, rounds: outcome.rounds ?? 1, label: t("Deed.Ac", { n: outcome.mods.ac }), self: true };
   }
   return { min, outcome };
+}
+
+/** "+1 to morale checks", "a +2 morale bonus": what a rally adds to its friends' morale checks. */
+const MORALE_BONUS = [/([+-]\s*\d+)\s*(?:bonus\s+|penalty\s+)?(?:to|on)\s+(?:(?:their|its|his|her|all|any)\s+)?morale\b/, /([+-]\s*\d+)\s+morale\b/];
+/** "Those that failed a morale check get a second check", "reroll a failed morale check", "recover their wits". */
+const MORALE_AGAIN = /\b(?:second|another|new|fresh)\s+(?:morale\s+)?(?:check|save|roll)\b|\bre-?roll\w*\b[^.;]*\bmorale\b|\brecover\w*\s+(?:their|its|his|her)\s+(?:wits|nerve|courage)\b/;
+
+/**
+ * A rally row as a tier: what it does for the warrior's friends who see it, those near enough (more, and farther, at a
+ * higher deed). The bonuses it lends them outright (to attacks, saves or AC: not one that waits on a kill or a crit,
+ * which the deed can't wait for), and its say on their nerve, which DCC's morale plays (rules.js morale): so much to
+ * their morale checks (mods.morale), a second check for any whose nerve has broken (mods.moraleAgain). Null when it
+ * does none of these (a row that only says "as above" leaves the one below it to stand).
+ */
+function rallyTier(base, row, min) {
+  const words = plain(row.text);
+  const sure = words.split(/(?<=[.!?;])\s+/).filter(s => !/\b(?:if|unless)\b/i.test(s)).join(" ");
+  const read = outcomeIn(sure, { defaultRounds: 1 });
+  const lent = Object.fromEntries(Object.entries(read?.mods ?? {}).filter(([k, v]) => ["attack", "saves", "ac"].includes(k) && v > 0));
+  const said = Object.entries(lent).map(([k, v]) => t("Deed.Lent", { n: `+${v}`, stat: k === "ac" ? t("Ac") : k === "attack" ? t("Attack") : t("Saves") }));
+  const mods = { ...lent };
+  // (Its say on their nerve, whatever it hangs on: "a second check, and they recover if they make it".)
+  const lower = words.toLowerCase();
+  const bonus = Number(MORALE_BONUS.map(re => re.exec(lower)?.[1]).find(Boolean)?.replace(/\s+/g, ""));
+  if ( bonus > 0 ) {
+    mods.morale = bonus;
+    said.push(t("Deed.Morale", { n: `+${bonus}` }));
+  }
+  if ( MORALE_AGAIN.test(lower) ) {
+    mods.moraleAgain = 1;
+    said.push(t("Deed.MoraleAgain"));
+  }
+  if ( !said.length ) return null;
+  return { min, outcome: { mods, rounds: read?.rounds ?? 1, label: t("Deed.Rallied", { what: listItems(said) }), allies: base.allies * Math.max(1, Math.floor(min / 3)) } };
 }

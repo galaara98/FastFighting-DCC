@@ -30,7 +30,8 @@
     "MoraleWhy": {
       "first": "its first has fallen",
       "half": "half of them are down",
-      "hurt": "badly hurt"
+      "hurt": "badly hurt",
+      "rallied": "rallied"
     },
     "MoraleHolds": "holds",
     "MoraleBreaks": "breaks",
@@ -66,7 +67,9 @@
       "Rallied3": "rallied (+2 to attacks and saves)",
       "Dazzled": "dazzled ({what})",
       "Rallied": "rallied ({what})",
-      "Lent": "{n} {stat}"
+      "Lent": "{n} {stat}",
+      "Morale": "{n} to morale checks",
+      "MoraleAgain": "a second morale check"
     },
     "Bleed": {
       "Dies": "bleeds out and dies",

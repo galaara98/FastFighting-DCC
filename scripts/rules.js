@@ -112,6 +112,31 @@ function conditionsOn(u, kind, action = null) {
   return n;
 }
 
+/** A morale check: a d20 and its Will (and the rest: morale's mod) against MORALE_DC, and the words for the log. */
+function moraleCheck(run, why, mod) {
+  const natural = run.rng.die(20);
+  const total = natural + mod;
+  const holds = total >= MORALE_DC;
+  const said = { text: t("Morale", { why: t(`MoraleWhy.${why}`), natural, mod: signed(mod), total, dc: MORALE_DC, result: t(holds ? "MoraleHolds" : "MoraleBreaks") }),
+    data: { trigger: why, natural, total, dc: MORALE_DC, holds } };
+  return { holds, said };
+}
+
+/**
+ * What a warrior's rally lends a creature's nerve (deeds.js rallyTier: its effects' mods.morale and mods.moraleAgain,
+ * which only DCC's morale reads; the core leaves keys it doesn't know alone): the best bonus to its morale checks, and
+ * a second check it hasn't tried yet.
+ */
+function rallyOf(u) {
+  let bonus = 0;
+  let again = null;
+  for ( const e of u.effects ?? [] ) {
+    bonus = Math.max(bonus, Number(e.mods?.morale) || 0);
+    if ( e.mods?.moraleAgain && u.moraleAgainOf !== e ) again ??= e;
+  }
+  return { bonus, again };
+}
+
 /** Damage-type imagery for the story. */
 const STORY_TYPES = { electricity: "electricity", holy: "radiant", unholy: "unholy", force: "force" };
 
@@ -218,15 +243,26 @@ export const dccRules = {
   /**
    * DCC morale, for creatures (null for a character: its player decides, as the core plays it). Once its group has a
    * new reason (its first fallen, half of it down; alone, half its hit points gone), one roll decides for the group.
+   * A warrior's rally (deeds.js) adds to its friends' checks, and may give one whose group has broken a second check of
+   * its own: made, it holds while the rest run.
    */
   morale(run, u) {
     if ( u.spec.kind === "pc" ) return null;
     if ( u.spec.flags?.mindless || u.spec.flags?.fearless ) return MORALE.HOLD;
     const key = groupOf(u);
     const groups = run.dccMorale ??= new Map();
-    const g = groups.get(key) ?? { first: false, half: false, hurt: false, broke: false };
+    const g = groups.get(key) ?? { first: false, half: false, hurt: false, broke: false, breaks: 0 };
     groups.set(key, g);
-    if ( g.broke ) return MORALE.ROUT;
+    const rally = rallyOf(u);
+    const mod = (Number(u.spec.defenses?.wil) || 0) + (retainerOf(run, u) ? employerOf(run, u) : 0) + rally.bonus;
+    // (Broken: it runs with the rest, unless a rally gives it a second check, or gave it one it has made since.)
+    if ( g.broke && u.dccRallied !== g.breaks ) {
+      if ( !rally.again ) return MORALE.ROUT;
+      u.moraleAgainOf = rally.again;
+      const again = moraleCheck(run, "rallied", mod);
+      if ( again.holds ) u.dccRallied = g.breaks;
+      return { result: again.holds ? MORALE.HOLD : MORALE.ROUT, said: again.said };
+    }
     const members = run.units.filter(o => groupOf(o) === key && !o.spec.hazard);
     const down = members.filter(o => o.status !== STATUS.STANDING).length;
     let trigger = null;
@@ -240,14 +276,11 @@ export const dccRules = {
       g.hurt = true;
     }
     if ( !trigger ) return MORALE.HOLD;
-    const will = Number(u.spec.defenses?.wil) || 0;
-    const employer = retainerOf(run, u) ? employerOf(run, u) : 0;
-    const natural = run.rng.die(20);
-    const total = natural + will + employer;
-    const holds = total >= MORALE_DC;
-    if ( !holds ) g.broke = true;
-    const said = { text: t("Morale", { why: t(`MoraleWhy.${trigger}`), natural, mod: signed(will + employer), total, dc: MORALE_DC, result: t(holds ? "MoraleHolds" : "MoraleBreaks") }),
-      data: { trigger, natural, total, dc: MORALE_DC, holds } };
+    const { holds, said } = moraleCheck(run, trigger, mod);
+    if ( !holds ) {
+      g.broke = true;
+      g.breaks = (g.breaks ?? 0) + 1;
+    }
     return { result: holds ? MORALE.HOLD : MORALE.ROUT, said };
   },
   /**

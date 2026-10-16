@@ -58,6 +58,9 @@ describe("reading table text", () => {
     expect(outcomeIn("Dust in the eyes: blinded for [[/roll 1d4]] rounds.")).toMatchObject({ conditions: { blinded: 1 }, rounds: 3 });
     expect(outcomeIn("The target must save or fall asleep.")).toMatchObject({ conditions: { incapacitated: 1 }, endsOnDamage: true });
     expect(outcomeIn("Its weapon is knocked from its hand.")).toMatchObject({ conditions: { disarmed: 1 } });
+    // (A weapon knocked out of reach: dropped, not its wielder knocked out.)
+    expect(outcomeIn("It drops its weapon, knocked out of reach.").conditions).toEqual({ disarmed: 1 });
+    expect(outcomeIn("The blow knocked out the brute.")).toMatchObject({ conditions: { unconscious: 1 } });
     expect(modsIn("They suffer a -4 penalty to their next attack roll.")).toEqual({ attack: -4 });
     expect(outcomeIn("They suffer a -4 penalty to their next attack roll.").label).toBe(text("FFDCC.Mods.Hampered", { what: text("FFDCC.Mods.attack", { n: "-4" }) }));
     expect(modsIn("A +2 bonus to AC for the round.")).toEqual({ ac: 2 });

@@ -146,7 +146,8 @@ const CONDITIONS = [
   { re: /\bslay|\bdecapitat|\binstantly killed|\bdies instantly|\bkilled instantly|\bdies on the spot|\bis slain\b/, slay: true },
   { re: /\b(?:falls?|fall|put|placed|sent) (?:into (?:a )?)?(?:\w+ )?(?:asleep|sleep|slumber)|\bsleeps?\b/, conditions: { incapacitated: 1, asleep: 1 }, told: "asleep", extra: { endsOnDamage: true } },
   { re: /\bparaly[sz]/, conditions: { incapacitated: 1, paralyzed: 1 }, told: "paralyzed" },
-  { re: /\b(?:knocked |falls? |is )?unconscious|\bknocked out\b|\bsenseless\b/, conditions: { incapacitated: 1, unconscious: 1 }, told: "knockedOut" },
+  // (Not a weapon "knocked out of reach".)
+  { re: /\b(?:knocked |falls? |is )?unconscious|\bknocked out\b(?!\s+of\b)|\bsenseless\b/, conditions: { incapacitated: 1, unconscious: 1 }, told: "knockedOut" },
   { re: /\bstun(?:ned|s)?\b|\bbottom of the initiative|\bloses? (?:his |her |its |their |the )?next (?:action|attack|round|turn)|\bdazed\b/, conditions: { stunned: 1 }, told: "stunned" },
   { re: /\b(?:knocked|falls?|thrown|sent|lands?|knocks? \w+|sweeps? \w+|tripped)\b(?: \w+){0,4} (?:prone|down|to the ground|off (?:his|her|its|their) feet)|\bprone\b/, conditions: { prone: 1 }, told: "knockedDown" },
   { re: /\bblind(?:ed|s)?\b/, conditions: { blinded: 1 }, told: "blinded" },
