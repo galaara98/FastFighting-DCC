@@ -7,8 +7,11 @@ import { localize, hasWords } from "./core.js";
 /** This module's words. */
 export const t = (key, data = null) => localize(`FFDCC.${key}`, data);
 
-/** A condition's name, lower case ("blinded"): this module's word for it, else its identifier. */
-export const conditionName = key => (hasWords(`FFDCC.Cond.${key}`) ? t(`Cond.${key}`) : key);
+/**
+ * A condition's name: this module's word for it, lower case ("blinded"); else `other` (the system's name for its
+ * status, say), else its identifier.
+ */
+export const conditionName = (key, other = null) => (hasWords(`FFDCC.Cond.${key}`) ? t(`Cond.${key}`) : other ?? key);
 
 /**
  * Foundry's English for a key when the reader's language is another (its fallback, as Foundry itself reads it); null

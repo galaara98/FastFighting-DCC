@@ -9,8 +9,6 @@
 import { MODULE_ID, STATUS, commonOutcome } from "./core.js";
 import { t, conditionName } from "./words.js";
 
-/** Engine conditions -> the dcc system's statuses, for the ones a dcc sheet carries. */
-const LINGERING = { stunned: "stun", paralyzed: "paralysis", asleep: "sleep", unconscious: "unconscious", blinded: "blind", frightened: "fear", held: "restrain", slowed: "slowed" };
 const abilityName = k => ({ str: t("Ability.str"), agl: t("Ability.agl"), sta: t("Ability.sta") }[k] ?? k);
 
 /**
@@ -21,6 +19,78 @@ export function statusesOf(actor) {
   const out = new Set(actor?.statuses ?? []);
   for ( const e of actor?.effects ?? [] ) if ( !e.disabled ) for ( const s of e.statuses ?? [] ) out.add(s);
   return out;
+}
+
+/* -------------------------------------------- */
+/*  Statuses and conditions                     */
+/* -------------------------------------------- */
+
+/**
+ * The dcc system's statuses and the engine's conditions, one for one (the core's key where it has one, DCC's own where
+ * not: held): a live battle writes the condition as the status, on and off, and reads the status back as the same
+ * condition. Read, a status also brings what its condition means to the engine and the DCC rules (`also`): asleep,
+ * paralyzed or out cold, it can't act at all (the engine's incapacitated); held, it can't move (immobilized).
+ * Some are in one palette only: slowed in XCC's (its status effects on), disarmed in the dcc system's (XCC's leaves it
+ * out). XCC's grappled is only read: it can't move, but not everything that holds one still is a grapple (a web, a
+ * spell), so immobilized isn't written as one.
+ */
+const SHEET_STATUSES = Object.freeze([
+  { id: "prone", key: "prone" },
+  { id: "stun", key: "stunned" },
+  { id: "paralysis", key: "paralyzed", also: ["incapacitated"] },
+  { id: "sleep", key: "asleep", also: ["incapacitated"] },
+  { id: "unconscious", key: "unconscious", also: ["incapacitated"] },
+  { id: "blind", key: "blinded" },
+  { id: "deaf", key: "deafened" },
+  { id: "silence", key: "silenced" },
+  { id: "fear", key: "frightened" },
+  { id: "restrain", key: "held", also: ["immobilized"] },
+  { id: "slowed", key: "slowed" },
+  { id: "disarmed", key: "disarmed" },
+  { id: "invisible", key: "invisible" },
+  { id: "poison", key: "poisoned" },
+  { id: "grappled", also: ["immobilized"] }
+].map(Object.freeze));
+
+/** The status the token palette has under this id (the dcc system's, or XCC's in its place), or null. */
+function paletteStatus(id) {
+  const all = globalThis.CONFIG?.statusEffects;
+  if ( !all ) return null;
+  // (Walked through, not Object.values: XCC's palette can hold an id twice, and that throws.)
+  for ( const s of Array.isArray(all) ? all : Object.values(all) ) if ( s?.id === id ) return s;
+  return null;
+}
+
+/**
+ * The status an engine condition is written as, where the palette has one; null for a condition the sheet can't
+ * carry (the core keeps it).
+ */
+export function statusFor(key) {
+  const entry = SHEET_STATUSES.find(s => s.key === key);
+  return entry && paletteStatus(entry.id) ? entry.id : null;
+}
+
+/** Every engine condition a dcc sheet carries here: written as its status and read back as the same. */
+export function sheetConditions() {
+  return SHEET_STATUSES.filter(s => s.key && paletteStatus(s.id)).map(s => s.key);
+}
+
+/** The engine's conditions a dcc actor's statuses say, each with what it brings (SHEET_STATUSES). */
+export function conditionsOf(actor) {
+  const on = statusesOf(actor);
+  const out = {};
+  for ( const s of SHEET_STATUSES ) {
+    if ( !on.has(s.id) ) continue;
+    for ( const k of [s.key, ...(s.also ?? [])] ) if ( k ) out[k] = 1;
+  }
+  return out;
+}
+
+/** The system's name for the status a condition is written as, in the table's language; null for none. */
+export function statusName(key) {
+  const id = statusFor(key);
+  const name = id ? paletteStatus(id)?.name ?? paletteStatus(id)?.label : null;
+  return name ? game.i18n.localize(name) : null;
 }
 
 const emptyRecord = (tokenDoc, actor) => ({
@@ -71,12 +141,14 @@ export function describeDccOutcome(spec, final) {
     if ( a ) lines.push(t("Out.Lost", { name: a.name }));
   }
   if ( s.disapproval ) lines.push(t("Out.Disapproval", { n: s.disapproval }));
-  for ( const k of Object.keys(final.conditions ?? {}) ) if ( LINGERING[k] && final.status !== STATUS.DEAD ) lines.push(conditionName(k));
+  // (The statuses it keeps on its sheet.)
+  for ( const k of Object.keys(final.conditions ?? {}) ) if ( statusFor(k) && final.status !== STATUS.DEAD ) lines.push(conditionName(k, statusName(k)));
   return lines;
 }
 
+/** A status on or off, and how to put it back in the undo record. Nothing for none (a condition the sheet can't carry). */
 async function setStatus(actor, id, active, undo, { overlay = false } = {}) {
-  if ( statusesOf(actor).has(id) === active ) return;
+  if ( !id || statusesOf(actor).has(id) === active ) return;
   await actor.toggleStatusEffect(id, { active, overlay });
   undo.statuses.push({ id, active: !active, overlay });
 }
@@ -185,8 +257,11 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
   }
   if ( changes.prone && !dead && !changes.fell ) await setStatus(actor, "prone", !!changes.prone.to, undo);
   if ( changes.conditions && !dead ) {
-    for ( const k of Object.keys(changes.conditions.set) ) if ( LINGERING[k] ) await setStatus(actor, LINGERING[k], true, undo);
-    for ( const k of changes.conditions.cleared ) if ( LINGERING[k] ) await setStatus(actor, LINGERING[k], false, undo);
+    // Each condition set or cleared, as its status (statusFor): on or off. Not prone (changes.prone, above), nor
+    // unconscious when this turn's fall, steadying or revival has already said (above).
+    const said = k => k === "prone" || (k === "unconscious" && !!(changes.fell || changes.revived || changes.stable?.to));
+    for ( const k of Object.keys(changes.conditions.set ?? {}) ) if ( !said(k) ) await setStatus(actor, statusFor(k), true, undo);
+    for ( const k of changes.conditions.cleared ?? [] ) if ( !said(k) ) await setStatus(actor, statusFor(k), false, undo);
   }
   if ( changes.died ) {
     // (Dead: no longer dying, nor merely out.)

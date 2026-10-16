@@ -146,7 +146,7 @@ In a live battle, each turn's changes go onto the tokens as the turn is played:
 - Luck and spellburn spent, and Fleeting Luck or Mojo as the fight left it;
 - spells lost for the day, a cleric's disapproval range;
 - the Stamina lost to bleeding out, or, when the body was rolled after the fight and found alive, the ability lost, Groggy, and no longer dead;
-- statuses still on a creature (stunned, paralyzed, asleep, blinded, frightened, held, slowed, prone);
+- statuses put on a creature or taken off it, by the fight or by the GM in the Battle Interface: Prone, Stunned, Paralyzed, Asleep, Unconscious, Blind, Deaf, Silenced, Frightened, Restrained (DCC's held), Invisible, Poisoned, and Disarmed (the dcc system's palette) or Slowed (XCC's). Each turn the token's statuses are read back as the same conditions, so one the GM takes off the token is gone from the fight too. What DCC has no status for (turned, hidden, can't move or can't act on its own) FastFighting keeps;
 - the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the party: Hostile).
 
 Rewind Turn takes one turn back; Rewind This Encounter, all of it.

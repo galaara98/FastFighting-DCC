@@ -8,7 +8,7 @@
  * results, Lay on Hands and Turn Unholy (see tables.js); without them, crits add the crit die, deeds and the
  * cleric's skills use rough built-in versions, and spells it can't read are left out.
  */
-import { SystemAdapter, parseFormula, parseTypedFormula, part } from "./core.js";
+import { SystemAdapter, parseFormula, parseTypedFormula, part, hasWords } from "./core.js";
 import { dccRules } from "./rules.js";
 import { plain, statLine, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn } from "./text.js";
 import { classId, archetype } from "./classes.js";
@@ -17,7 +17,7 @@ import { deedsFrom } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
 import { deriveDccTraits, speaksCommon, monsterKind } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
-import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, statusesOf } from "./commit.js";
+import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, conditionsOf, statusFor, statusName, sheetConditions } from "./commit.js";
 import { readDccTurn } from "./read-turn.js";
 import { loreBoost } from "./lore.js";
 import { dccHints, dccTactics, plainText } from "./auto.js";
@@ -426,7 +426,8 @@ export class DccAdapter extends SystemAdapter {
       traitReasons: derived.reasons,
       flags: { ...derived.flags },
       diesAtZero: !pc,
-      conditions: this.#conditions(actor),
+      // (Statuses on the token that the fight would feel: commit.js, which writes them too.)
+      conditions: conditionsOf(actor),
       perception: Math.max(Number(sys.abilities?.int?.mod) || 0, Number(sys.abilities?.per?.mod) || 0),
       // (An employer's Personality steadies its retainers.)
       personality: Number(sys.abilities?.per?.mod) || 0,
@@ -526,21 +527,6 @@ export class DccAdapter extends SystemAdapter {
     if ( kind.dwarf || kind.elf ) return 60;
     if ( kind.halfling ) return 30;
     return 0;
-  }
-
-  /** Statuses on the token that the fight would feel. */
-  #conditions(actor) {
-    const out = {};
-    const s = statusesOf(actor);
-    if ( s.has("prone") ) out.prone = true;
-    if ( s.has("stun") ) out.stunned = 1;
-    if ( s.has("paralysis") ) Object.assign(out, { paralyzed: 1, incapacitated: 1 });
-    if ( s.has("sleep") || s.has("unconscious") ) out.incapacitated = 1;
-    if ( s.has("blind") ) out.blinded = 1;
-    if ( s.has("fear") ) out.frightened = 1;
-    if ( s.has("restrain") || s.has("grappled") ) out.immobilized = 1;
-    if ( s.has("slowed") ) out.slowed = 1;
-    return out;
   }
 
   /** The fumble table a character rolls on, with its fumble die (from its armor) and Luck. */
@@ -924,6 +910,31 @@ export class DccAdapter extends SystemAdapter {
   /** A live battle: one turn's changes (commit.js commitDccChanges). */
   async commitChanges(tokenDoc, spec, changes, final, options) {
     return commitDccChanges(tokenDoc, spec, changes, final, options);
+  }
+
+  /**
+   * The conditions a dcc sheet carries: those written as the system's statuses and read back as the same (commit.js
+   * SHEET_STATUSES), where the token palette has the status. What a status only brings along (incapacitated,
+   * immobilized), and what DCC has no status for (turned, hidden ...), the core keeps.
+   */
+  sheetCarries(key) {
+    return !!statusFor(key);
+  }
+
+  /** A condition's name: its status's, as the system has it (Restrained for held); else this module's word for one of DCC's own. */
+  conditionLabel(key) {
+    const name = statusName(key);
+    if ( name ) return name;
+    // (The core has words for its own.)
+    return hasWords(`FFDCC.Cond.${key}`) && !super.conditionChoices().some(c => c.key === key) ? t(`Cond.${key}`) : null;
+  }
+
+  /**
+   * DCC's conditions, those its sheets carry (on or off: none is counted), then the core's: but not its restrained,
+   * which in DCC is held (a status, Restrained, that keeps one still).
+   */
+  conditionChoices() {
+    return [...sheetConditions().map(key => ({ key })), ...super.conditionChoices().filter(c => c.key !== "restrained")];
   }
 
   /** With the dcc system's Death Clock on, it counts a dying character's rounds itself. */
