@@ -375,6 +375,10 @@ export class DccAdapter extends SystemAdapter {
 
     const derived = this.deriveTraits(actor, { line, casts: actions.some(a => a.casting), level });
     const immune = [...line.immune];
+    // Grappling (opposed attack rolls): its attack bonus and the better of Strength and Agility; a monster's, its best
+    // melee attack's bonus and its Hit Dice in their place.
+    const grapple = pc ? flatOf(sys.details?.attackBonus) + Math.max(Number(sys.abilities?.str?.mod) || 0, Number(sys.abilities?.agl?.mod) || 0)
+      : Math.max(0, ...actions.filter(a => a.melee && a.kind === "strike").map(a => Number(a.bonus) || 0)) + hd.level;
     const fumble = pc ? await this.#fumble(sys, luckMod) : null;
     return {
       id: tokenDoc.id,
@@ -407,9 +411,11 @@ export class DccAdapter extends SystemAdapter {
       fumble,
       // (A stat line's half and double damage; and the weak spot a Puzzle-Maniac goes for: harm it guards less well.)
       iwr: { immune, resist: Object.fromEntries((line.resist ?? []).map(k => [k, 1])), weak: Object.fromEntries((line.weak ?? []).map(k => [k, 1])), exploit: weakSpot(Object.fromEntries((line.resist ?? []).map(k => [k, 1]))) },
-      // Grappling: its attack bonus and the better of Strength and Agility (a monster's, its best melee attack's bonus).
-      grapple: pc ? flatOf(sys.details?.attackBonus) + Math.max(Number(sys.abilities?.str?.mod) || 0, Number(sys.abilities?.agl?.mod) || 0)
-        : Math.max(0, ...actions.filter(a => a.melee && a.kind === "strike").map(a => Number(a.bonus) || 0)),
+      grapple,
+      // Breaking free (of a grip, bonds, a web): the grapple roll again, on its first action die, against the hold's DC
+      // (rules.js). Its own grip is broken against 10 + its grapple, as a Grapple at it is (rules.defenseDc).
+      escapeWork: { mod: grapple, faces: dice[0] !== 20 ? dice[0] : undefined },
+      escapeDC: 10 + grapple,
       // Binding a friend's wound (homebrew; a player character): the friend's Luck decides (rules.firstAid).
       firstAid: pc ? { mod: 0, skill: t("BindWounds") } : null,
       resources,

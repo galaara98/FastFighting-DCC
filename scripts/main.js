@@ -5,6 +5,7 @@
  */
 import { DccAdapter } from "./adapter.js";
 import { registerLoreBoost } from "./lore.js";
+import { registerTiedStopsSpells } from "./tied.js";
 
 export const MODULE_ID = "fast-fighting-dcc";
 
@@ -20,6 +21,8 @@ const KNOWN_TRANSLATIONS = {};
 Hooks.once("init", () => {
   // How much a Lore-Collector's sizing a foe up pays off (lore.js).
   registerLoreBoost();
+  // Whether a creature tied up can still cast (tied.js).
+  registerTiedStopsSpells();
 });
 
 Hooks.once("fastFighting.init", api => {

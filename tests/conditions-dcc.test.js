@@ -26,7 +26,7 @@ const XCC_PALETTE = ["prone", "stun", "unconscious", "dying", "dead", "bleeding"
 /** The conditions each palette lets a sheet carry. */
 const CARRIED = ["prone", "stunned", "paralyzed", "asleep", "unconscious", "blinded", "deafened", "silenced", "frightened", "held", "invisible", "poisoned"];
 const DCC_CARRIED = [...CARRIED, "disarmed"];
-const XCC_CARRIED = [...CARRIED, "slowed"];
+const XCC_CARRIED = [...CARRIED, "slowed", "grabbed"];
 
 /** A world with the system and a palette; the system's names for its statuses, in a language of its own. */
 function world(palette) {
@@ -137,7 +137,8 @@ describe("a dcc sheet's statuses, read", () => {
     expect(read("paralysis")).toEqual({ paralyzed: 1, incapacitated: 1 });
     expect(read("unconscious")).toEqual({ unconscious: 1, incapacitated: 1 });
     expect(read("restrain")).toEqual({ held: 1, immobilized: 1 });
-    expect(read("grappled")).toEqual({ immobilized: 1 });
+    // (XCC's Grappled: someone's grip, the core's grabbed.)
+    expect(read("grappled")).toEqual({ grabbed: 1, immobilized: 1 });
     expect(read("stun", "fear", "blind", "prone")).toEqual({ stunned: 1, frightened: 1, blinded: 1, prone: 1 });
     // (The dcc system's way: statuses on its effects, not on the actor; a disabled effect's don't count.)
     expect(conditionsOf({ statuses: new Set(), effects: [{ statuses: new Set(["slowed"]) }, { disabled: true, statuses: new Set(["deaf"]) }] })).toEqual({ slowed: 1 });

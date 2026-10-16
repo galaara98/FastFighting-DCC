@@ -1,5 +1,6 @@
 /**
- * Dungeon Crawl Classics rules for the FastFighting engine. Pure functions only: no Foundry globals.
+ * Dungeon Crawl Classics rules for the FastFighting engine. Pure functions only: no Foundry globals (but one world
+ * setting, read through tied.js).
  *
  * Each turn a move and one action for each action die (a d20 for most; a giant may roll a d24 and then a d16, a
  * high-level warrior a d20 and then a d14); an attack rolls the action die. A natural roll at the top of the die
@@ -24,9 +25,14 @@
  *
  * Withdrawing from a melee: every foe engaged with it gets one free attack. Firing into a melee: -1 to hit, and a shot
  * that misses goes toward a random friend of the shooter's in that melee half the time (the attack again, against it).
+ *
+ * Breaking free (of a grip, bonds, a web) is the grapple roll again, an action on its action die (adapter.js
+ * escapeWork): against a grip, 10 + the grabber's grapple, as a Grapple at it is; against anything else, a hard check.
  */
 import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition } from "./core.js";
 import { t } from "./words.js";
+import { leftBehind } from "./commit.js";
+import { tiedStopsSpells } from "./tied.js";
 
 const has = (u, key) => (u?.conds?.[key] ?? 0) > 0;
 const ABILITY_LOSS = ["str", "agl", "sta"];
@@ -63,6 +69,17 @@ function employerOf(run, u) {
 
 /** Damage-type imagery for the story. */
 const STORY_TYPES = { electricity: "electricity", holy: "radiant", unholy: "unholy", force: "force" };
+
+/**
+ * How hard a hold is to break where nothing says (the judge's call in DCC): a hard check, as forcing a stout door is.
+ * FastFighting's improvised bonds, a sheet's Restrained, and its Grappled with no grabber known.
+ */
+const ESCAPE_DC = 15;
+/**
+ * The statuses an action breaks (commit.js SHEET_STATUSES, by their conditions): Restrained (held: a web, a net, ropes),
+ * which a friend beside it can tear or cut loose with the same roll; Grappled (XCC's), someone's grip, only its own.
+ */
+const SHEET_HOLDS = Object.freeze({ held: Object.freeze({ dc: ESCAPE_DC, others: "check" }), grabbed: Object.freeze({ dc: ESCAPE_DC, others: null }) });
 
 export const dccRules = {
   id: "dcc",
@@ -120,7 +137,8 @@ export const dccRules = {
   },
   /**
    * The start of a turn: where it set out from (for a charge), its charge's opening closed, and an action spent on a
-   * spell duel since its last turn taken from this one.
+   * spell duel since its last turn taken from this one. What a status on its sheet brought goes once the status has
+   * (commit.js leftBehind): broken free of Restrained, it can move again.
    */
   startTurn(run, u) {
     u.turnFeet = u.feetMoved ?? 0;
@@ -128,6 +146,11 @@ export const dccRules = {
     u.turnRound = run.round;
     u.duelCost = u.dueled ? 1 : 0;
     u.dueled = false;
+    for ( const key of leftBehind(u.baseConds, u.conds) ) {
+      delete u.baseConds[key];
+      // (Counted again, unless an effect of its own still says so: a pin.)
+      if ( !(u.effects ?? []).some(e => e.conditions?.[key]) ) dropCondition(u, key);
+    }
     return null;
   },
   /**
@@ -226,6 +249,21 @@ export const dccRules = {
   /** A stout door: AC 15, about 15 hit points; forcing it is a Strength check against DC 15. */
   door: { ac: 15, hp: 15, threshold: 0, forceDC: 15, pickDC: 15 },
   doorCosts: { open: {}, force: { action: 1 }, pick: { action: 1 } },
+  /**
+   * Breaking free (the core's holds.js), each try an action: the creature's escapeWork against the hold's DC, the core's
+   * plain check (a natural 1 fails and a natural 20 succeeds, degreeOfSuccess). Bonds tied with whatever was to hand,
+   * and the statuses an action breaks (SHEET_HOLDS), are a hard check.
+   */
+  bondsDC() {
+    return ESCAPE_DC;
+  },
+  escapeFrom(run, u, key) {
+    return Object.hasOwn(SHEET_HOLDS, key) ? { ...SHEET_HOLDS[key] } : null;
+  },
+  /** Tied up, it can't cast: the world's setting (tied.js; DCC doesn't say which spells need hands), on by default. */
+  get tiedStopsSpells() {
+    return tiedStopsSpells();
+  },
 
   /* Rolls ----------------------------------------------------------------- */
   /**

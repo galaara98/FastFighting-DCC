@@ -31,8 +31,8 @@ export function statusesOf(actor) {
  * condition. Read, a status also brings what its condition means to the engine and the DCC rules (`also`): asleep,
  * paralyzed or out cold, it can't act at all (the engine's incapacitated); held, it can't move (immobilized).
  * Some are in one palette only: slowed in XCC's (its status effects on), disarmed in the dcc system's (XCC's leaves it
- * out). XCC's grappled is only read: it can't move, but not everything that holds one still is a grapple (a web, a
- * spell), so immobilized isn't written as one.
+ * out). XCC's grappled is the core's grabbed (someone's grip on it: written and read as that), and it can't move; but
+ * not everything that holds one still is a grapple (a web, a spell), so immobilized alone isn't written as one.
  */
 const SHEET_STATUSES = Object.freeze([
   { id: "prone", key: "prone" },
@@ -49,8 +49,21 @@ const SHEET_STATUSES = Object.freeze([
   { id: "disarmed", key: "disarmed" },
   { id: "invisible", key: "invisible" },
   { id: "poison", key: "poisoned" },
-  { id: "grappled", also: ["immobilized"] }
+  { id: "grappled", key: "grabbed", also: ["immobilized"] }
 ].map(Object.freeze));
+
+/** What the statuses bring (SHEET_STATUSES `also`), never a status's own condition. */
+const BROUGHT = [...new Set(SHEET_STATUSES.flatMap(s => s.also ?? []))];
+
+/**
+ * What a status brought that it no longer stands behind: a condition the sheet gave only with a status (`base`, the
+ * conditions the sheet gave as the engine keeps them) while none of the statuses that bring it is on the creature now
+ * (`conds`, from the sheet or anything else). Broken free of Restrained, nothing holds it still.
+ */
+export function leftBehind(base, conds) {
+  const on = k => (Number(conds?.[k]) || 0) > 0;
+  return BROUGHT.filter(k => (Number(base?.[k]) || 0) > 0 && !SHEET_STATUSES.some(s => s.key && s.also?.includes(k) && on(s.key)));
+}
 
 /** The status the token palette has under this id (the dcc system's, or XCC's in its place), or null. */
 function paletteStatus(id) {

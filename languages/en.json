@@ -19,6 +19,10 @@
       "loreBoost": {
         "Name": "Lore-Collector advantage",
         "Hint": "How much likelier a Lore-Collector's rolls against a foe it has sized up are to succeed, through its next turn, after spending its turn on an Intelligence check (when it worked; never without it). 1.25× is a nudge, 3× a sure thing more often than not. Default 2.25×: it costs the whole turn, but deed dice and Luck already swing a fight hard. Ordinary attacks already hit often, and the dice stop a roll near 95%, so above about 1.75× little changes for them; the rest helps long-shot rolls (a hard AC, a hard talk)."
+      },
+      "tiedStopsSpells": {
+        "Name": "Tied up stops spells",
+        "Hint": "The rules don't say which spells need free hands, so this decides for all of them. On: a creature tied up can't cast. Off: it can, and may cast instead of struggling against its bonds."
       }
     },
     "Will": "Will",
