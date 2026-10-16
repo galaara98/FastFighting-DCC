@@ -4,10 +4,11 @@
  *
  * Read from the world's Mighty Deed tables when a book has them (trips and throws, blinding attacks, disarming
  * attacks, defensive maneuvers, rallying maneuvers: the ones that change a fight), else rough built-in versions of
- * the same. A rally puts heart into the warrior's friends nearby: a better swing next, more at a higher deed. Each
- * names the core's maneuver it is (maneuvers.js and the story's: trip, blindFoe, disarm, defend, rally).
- * A pushback is an attack of its own (pushbackAction: the core's deeds move no one). Precision shots don't show in
- * this kind of fight and aren't tried.
+ * the same. A rally puts heart into the warrior's friends nearby: a better swing next, more at a higher deed. A
+ * pushback shoves the foe back 5 feet, 10 at a 5 or more: off a ledge, into a fire, out of reach (the core weighs
+ * where it ends up). Its tiers are the built-in ones only: a book's pushback rows measure by the warrior's movement
+ * and the foe's size, which aren't read. Each names the core's maneuver it is (maneuvers.js and the story's: trip,
+ * blindFoe, disarm, shove, defend, rally). Precision shots don't show in this kind of fight and aren't tried.
  * Pure.
  */
 import { outcomeIn, modsWords, affected } from "./text.js";
@@ -16,11 +17,13 @@ import { t } from "./words.js";
 
 /** The kinds of deed (their names and what they leave a foe, in the reader's language: worked out when asked for). */
 // (What playstyles lean on: a spoiler trips, blinds and disarms; one who'd lead or rally rallies; a defensive maneuver
-// goes as the shield answer says, a DCC shield being in the AC already.)
+// goes as the shield answer says, a DCC shield being in the AC already. A pushback leans on nothing here: the core
+// already counts a shove for more to those who like shoving, Brawlers and the Cruel.)
 const kinds = () => ({
   trip: { id: "trip", maneuver: "trip", label: t("Deed.Trip"), melee: true, condition: { prone: 1 }, label2: t("Deed.KnockedDown"), leans: ["hinders"] },
   blind: { id: "blind", maneuver: "blindFoe", label: t("Deed.Blind"), leans: ["hinders"] },
   disarm: { id: "disarm", maneuver: "disarm", label: t("Deed.Disarm"), melee: true, condition: { disarmed: 1 }, label2: t("Deed.Disarmed"), leans: ["hinders"] },
+  push: { id: "push", maneuver: "shove", label: t("Deed.Pushback"), melee: true, builtInOnly: true },
   defend: { id: "defend", maneuver: "defend", label: t("Deed.Defend"), self: true, guard: true },
   rally: { id: "rally", maneuver: "rally", label: t("Deed.Rally"), allies: 10, leans: ["rally"] }
 });
@@ -28,10 +31,12 @@ const kinds = () => ({
 /** Rough versions for when no book's tables are installed. */
 const builtIn = () => {
   const ac = n => t("Deed.Ac", { n });
+  const push = feet => ({ move: { kind: "push", feet }, label: t("Deed.PushedBack") });
   return {
     trip: [{ min: 3, outcome: { conditions: { prone: 1 }, rounds: 1, label: t("Deed.KnockedDown") } }, { min: 5, outcome: { conditions: { prone: 1 }, mods: { attack: -2 }, rounds: 2, label: t("Deed.ThrownDown") } }],
     blind: [{ min: 3, outcome: { mods: { attack: -2 }, rounds: 1, label: t("Deed.Dazzled2") } }, { min: 5, outcome: { conditions: { blinded: 1 }, rounds: 2, label: t("Deed.Blinded") } }, { min: 7, outcome: { conditions: { blinded: 1 }, rounds: 5, label: t("Deed.Blinded") } }],
     disarm: [{ min: 4, outcome: { conditions: { disarmed: 1 }, rounds: 1, label: t("Deed.Disarmed") } }, { min: 6, outcome: { conditions: { disarmed: 1 }, rounds: 3, label: t("Deed.Disarmed") } }],
+    push: [{ min: 3, outcome: push(5) }, { min: 5, outcome: push(10) }],
     defend: [{ min: 3, outcome: { mods: { ac: 1 }, rounds: 1, label: ac(1), self: true } }, { min: 5, outcome: { mods: { ac: 2 }, rounds: 1, label: ac(2), self: true } }, { min: 7, outcome: { mods: { ac: 3 }, rounds: 1, label: ac(3), self: true } }],
     rally: [
       { min: 3, outcome: { mods: { attack: 1 }, uses: 1, rounds: 1, label: t("Deed.Rallied1"), allies: 10 } },
@@ -50,37 +55,12 @@ export function deedsFrom(tables) {
   const out = [];
   const fallback = builtIn();
   for ( const [kind, base] of Object.entries(kinds()) ) {
-    const rows = tables?.[kind];
+    const rows = base.builtInOnly ? null : tables?.[kind];
     let tiers = rows?.length ? rows.map(r => tierFrom(base, r)).filter(Boolean) : [];
     if ( !tiers.length ) tiers = fallback[kind].map(tier => ({ ...tier, outcome: { ...tier.outcome } }));
     out.push({ id: base.id, maneuver: base.maneuver, label: base.label, melee: base.melee, leans: base.leans, guard: base.guard, tiers: tiers.sort((a, b) => a.min - b.min) });
   }
   return out;
-}
-
-/**
- * A pushback: an attack of its own with a melee weapon that has a deed die, the core's shove (maneuvers.js), as its
- * deeds can't move anyone. It's a control action (the core's behavior/control.js) on the attack roll, with the deed
- * die folded into its bonus: plus what the die shows when the deed works ((D + 3) / 2, a 3 or more), less 20 / D for
- * the 2 times in D it doesn't (at an even chance to hit, that leaves the chance of a hit that brings the deed off).
- * Its damage is the weapon's alone: what the die would add to it stands for the deed a blow would have carried
- * instead (a trip, a blinding), so it's chosen where a push does harm (over a drop, into a fire), not on open ground.
- * Worked, the foe is pushed back 5 feet; with a d7 or bigger, 10 (a 5 or more is then the likelier result). A crit
- * pushes no farther, and rolls no crit table here; a fumble, no fumble.
- * @param {object} strike   the weapon's action (adapter.js)
- * @returns {object|null}   the control action, or null if the weapon can't push
- */
-export function pushbackAction(strike) {
-  const faces = Number(strike?.deedDie) || 0;
-  if ( faces < 3 || strike.kind !== "strike" || !strike.melee || !strike.damage?.length ) return null;
-  const pushed = { move: { kind: "push", feet: faces >= 7 ? 10 : 5 }, label: t("Deed.PushedBack") };
-  return {
-    id: `${strike.id}.pushback`, name: t("Deed.Pushback", { weapon: strike.name }), kind: "control", maneuver: "shove", cost: strike.cost ?? 1,
-    traits: [], melee: true, reach: strike.reach ?? 5, special: false,
-    bonus: (Number(strike.bonus) || 0) + Math.round((faces + 3) / 2 - 20 / faces), die: strike.die, critOn: strike.critOn, fumbleOn: strike.fumbleOn,
-    damage: strike.damage, subdual: strike.subdual,
-    onHit: [null, null, pushed, pushed]
-  };
 }
 
 /** One deed table row as a tier: what it does to the foe (or, for a defensive deed, for the warrior). */

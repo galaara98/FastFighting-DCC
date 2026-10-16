@@ -1,29 +1,30 @@
 /**
- * DCC's maneuvers as the core plays them (its maneuvers.js): the Mighty Deeds that trip, blind and disarm ride a blow
- * and name the core's maneuvers; a pushback is an attack of its own, the core's shove, the deed die folded into its
- * roll; a Grapple's pin is the core's grip, held until broken; a fall is 1d6 for each 10 feet. The characters and
- * creatures here are made up for the tests; the field paths are the dcc system's own.
+ * DCC's maneuvers as the core plays them (its maneuvers.js): the Mighty Deeds that trip, blind, disarm and push back
+ * ride a blow and name the core's maneuvers (a pushback the core's shove, chosen where a push does harm); a Grapple's
+ * pin is the core's grip, held until broken; a fall is 1d6 for each 10 feet. The characters and creatures here are
+ * made up for the tests; the field paths are the dcc system's own.
  */
 import { describe, expect, test } from "vitest";
 import { DccAdapter } from "../scripts/adapter.js";
 import { dccRules } from "../scripts/rules.js";
-import { deedsFrom, pushbackAction } from "../scripts/deeds.js";
+import { deedsFrom } from "../scripts/deeds.js";
 import { grappleAction } from "../scripts/moves.js";
-import { parseFormula, degreeDistribution } from "../scripts/core.js";
+import { parseFormula } from "../scripts/core.js";
 import { MANEUVERS } from "../../FastFighting/scripts/engine/maneuvers.js";
 import { MANEUVERS as STORY_MANEUVERS } from "../../FastFighting/scripts/story/master.js";
 import { beginRun, beginRound, takeTurn, prepareBattle } from "../../FastFighting/scripts/engine/simulator.js";
+import { chooseDeed } from "../../FastFighting/scripts/engine/behavior/riders.js";
 import { text } from "./foundry-i18n.js";
 
 const traits = (tactical = 70) => ({ tactical: { base: tactical, fudge: 0 }, brave: { base: 90, fudge: 0 }, selfish: { base: 40, fudge: 0 }, loyal: { base: 60, fudge: 0 } });
 const at = (x, y = 0) => ({ position: { x, y, size: 5 } });
 const sword = (extra = {}) => ({ id: "sword", name: "Longsword", kind: "strike", cost: 1, bonus: 4, melee: true, reach: 5, damage: [parseFormula("1d8", "slashing")], deedDie: 8, ...extra });
 
-/** A 6th-level warrior: a longsword its d8 deed die rides, the deeds, and a pushback with the sword. */
+/** A 6th-level warrior: a longsword its d8 deed die rides, and the deeds. */
 function warrior(extra = {}, blade = sword()) {
   return {
     id: "warrior", name: "Warrior", side: "friendly", kind: "pc", level: 6, hp: { value: 60, max: 60 }, hitDie: 12,
-    defenses: { ac: 16, frt: 4, ref: 2, wil: 2 }, initiative: { mod: 1 }, speeds: { walk: 30 }, actions: [blade, pushbackAction(blade)],
+    defenses: { ac: 16, frt: 4, ref: 2, wil: 2 }, initiative: { mod: 1 }, speeds: { walk: 30 }, actions: [blade],
     deeds: deedsFrom(null), iwr: {}, traits: traits(), flags: {}, diesAtZero: false, actionDice: [20], resources: {}, ...at(0), ...extra
   };
 }
@@ -50,7 +51,7 @@ const ledge = () => Array.from({ length: 6 }, (_, k) => [2 + k, 0, { g: -20 }]);
 describe("the deeds that ride a blow, as the core's maneuvers", () => {
   test("each names its maneuver, one the story tells; trips lay it down, blinding attacks dazzle then blind, disarms disarm", () => {
     const deeds = Object.fromEntries(deedsFrom(null).map(d => [d.id, d]));
-    expect(Object.fromEntries(Object.values(deeds).map(d => [d.id, d.maneuver]))).toEqual({ trip: "trip", blind: "blindFoe", disarm: "disarm", defend: "defend", rally: "rally" });
+    expect(Object.fromEntries(Object.values(deeds).map(d => [d.id, d.maneuver]))).toEqual({ trip: "trip", blind: "blindFoe", disarm: "disarm", push: "shove", defend: "defend", rally: "rally" });
     for ( const d of Object.values(deeds) ) expect(STORY_MANEUVERS).toContain(d.maneuver);
     // (As the core's own do, by the deed die: from a 3, more the higher it shows.)
     expect(deeds.trip.tiers.map(x => [x.min, x.outcome.conditions])).toEqual([[3, MANEUVERS.trip.success.conditions], [5, MANEUVERS.trip.crit.conditions]]);
@@ -63,35 +64,20 @@ describe("the deeds that ride a blow, as the core's maneuvers", () => {
   });
 });
 
-describe("a pushback: an attack of its own, the core's shove", () => {
-  test("the deed die folded into the roll; the weapon's damage; 5 feet, 10 from a d7 up; no pushback without a deed die, or at range", () => {
-    const d3 = pushbackAction(sword({ bonus: 1, deedDie: 3 }));
-    expect(d3).toMatchObject({ id: "sword.pushback", kind: "control", maneuver: "shove", melee: true, reach: 5, name: text("FFDCC.Deed.Pushback", { weapon: "Longsword" }) });
-    // (A d3: +3 when it works, less 20 / 3 for the two times in three it doesn't.)
-    expect(d3.bonus).toBe(1 + Math.round(3 - 20 / 3));
-    expect(d3.onHit).toEqual([null, null, { move: { kind: "push", feet: 5 }, label: text("FFDCC.Deed.PushedBack") }, { move: { kind: "push", feet: 5 }, label: text("FFDCC.Deed.PushedBack") }]);
-    // (What the die would add to the blow stands for the deed a blow would have carried instead.)
-    expect(d3.damage).toEqual(sword().damage);
-    expect(pushbackAction(sword({ deedDie: 6 })).onHit[2].move.feet).toBe(5);
-    expect(pushbackAction(sword({ deedDie: 7 })).onHit[2].move.feet).toBe(10);
-    expect(pushbackAction(sword({ bonus: 4, deedDie: 8 }))).toMatchObject({ bonus: 7, onHit: [null, null, { move: { feet: 10 } }, { move: { feet: 10 } }] });
-    expect(pushbackAction(sword({ deedDie: undefined }))).toBeNull();
-    expect(pushbackAction(sword({ melee: false, range: { increment: 50 } }))).toBeNull();
+describe("a pushback: a deed that rides the blow, the core's shove", () => {
+  test("pushed back 5 feet from a 3, 10 from a 5 (as the core's shove, and its crit); in melee only; leaning on nothing; a book's rows don't replace it", () => {
+    const push = deedsFrom(null).find(d => d.id === "push");
+    expect(push).toMatchObject({ maneuver: "shove", label: text("FFDCC.Deed.Pushback"), melee: true });
+    expect(push.leans).toBeUndefined();
+    const pushed = feet => ({ move: { kind: "push", feet }, label: text("FFDCC.Deed.PushedBack") });
+    expect(push.tiers).toEqual([{ min: 3, outcome: pushed(5) }, { min: 5, outcome: pushed(10) }]);
+    expect(push.tiers.map(x => x.outcome.move)).toEqual([MANEUVERS.shove.success.move, MANEUVERS.shove.crit.move]);
+    // (A book's pushback rows measure by the warrior's movement and the foe's size: the built-in tiers stand.)
+    const read = deedsFrom({ push: [{ range: [3, 7], text: "The foe falls prone." }] }).find(d => d.id === "push");
+    expect(read.tiers).toEqual(push.tiers);
   });
 
-  test("at an even chance to hit, the folded roll comes off about as often as a hit with the deed die showing 3 or more", () => {
-    const hits = (mod, ac) => { const d = degreeDistribution(dccRules, mod, ac, { kind: "attack" }); return d[2] + d[3]; };
-    for ( const faces of [3, 4, 5, 6, 7, 8, 10] ) {
-      const bonus = 2;
-      const ac = Math.round(11 + bonus + (faces + 3) / 2);
-      let real = 0;
-      for ( let x = 3; x <= faces; x++ ) real += hits(bonus + x, ac) / faces;
-      const folded = hits(pushbackAction(sword({ bonus, deedDie: faces })).bonus, ac);
-      expect([faces, Math.abs(folded - real) <= 0.06]).toEqual([faces, true]);
-    }
-  });
-
-  test("a warrior's sheet: a pushback with each melee weapon its deed die rides, none with a bow", async () => {
+  test("a warrior's sheet: the pushback among its deeds, no attack of its own", async () => {
     globalThis.CONFIG = { DCC: {}, Item: { typeLabels: {} } };
     Object.assign(globalThis.game, { packs: Object.assign([], { get: () => undefined }), tables: [], actors: { filter: () => [] }, users: [], modules: { get: () => undefined },
       settings: { get: () => { throw new Error("no such setting"); } } });
@@ -110,41 +96,65 @@ describe("a pushback: an attack of its own, the core's shove", () => {
     };
     actor.itemTypes = { weapon: items, armor: [], spell: [] };
     const spec = await new DccAdapter().toCombatantSpec({ id: "t1", name: actor.name, actor, texture: {} });
-    const pushes = spec.actions.filter(a => a.maneuver === "shove");
-    expect(pushes.map(a => a.id)).toEqual(["a1.blade.pushback"]);
-    // (A d4 deed die: +3.5 when it works, less 5.)
-    expect(pushes[0].bonus).toBe(1 + Math.round(3.5 - 5));
-    expect(spec.deeds.map(d => d.maneuver)).toContain("trip");
+    expect(spec.actions.filter(a => a.maneuver === "shove")).toEqual([]);
+    expect(spec.actions.filter(a => a.kind === "strike").map(a => a.deedDie)).toEqual([4, 4]);
+    expect(spec.deeds.map(d => d.maneuver)).toEqual(expect.arrayContaining(["trip", "shove"]));
   });
 });
 
-describe("a shove deed by a ledge, in a fight", () => {
-  test("pushed over: it falls 20 feet (2d6), lands prone, and the story tells the push", () => {
+describe("a pushback by a ledge, in a fight", () => {
+  test("the deed the warrior declares: a pushback by the drop (the fall it would take weighed), a trip or a blinding on flat ground", () => {
+    for ( const [ground, wanted] of [[ledge(), ["push"]], [null, ["trip", "blind"]]] ) {
+      const run = fight([warrior(), orc(5)], ground);
+      const u = run.byId.get("warrior");
+      expect(wanted).toContain(chooseDeed(run, u, u.spec.actions[0], run.byId.get("orc"))?.id);
+    }
+  });
+
+  test("pushed over: the deed, the push, then a fall of 20 feet (2d6); it lands prone", () => {
     let pushed = 0;
-    for ( let seed = 1; seed <= 8; seed++ ) {
+    for ( let seed = 1; seed <= 12; seed++ ) {
       const run = fight([warrior(), orc(5)], ledge(), seed);
       const o = run.byId.get("orc");
       takeTurn(run, run.byId.get("warrior"));
-      const control = run.log.find(e => e.type === "control" && e.actorId === "warrior");
-      expect(control).toMatchObject({ maneuver: "shove" });
-      if ( control.degree < 2 ) continue;
+      const deeds = run.log.filter(e => e.type === "deed" && e.actorId === "warrior");
+      // (Told whether the blow lands or not; on a hit, as the core's maneuver.)
+      const hit = run.log.find(e => e.type === "attack" && e.actorId === "warrior").degree >= 2;
+      expect(deeds.length).toBe(1);
+      expect(deeds[0].deed).toBe(text("FFDCC.Deed.Pushback"));
+      if ( hit ) expect(deeds[0].maneuver).toBe("shove");
+      const at = type => run.log.findIndex(e => e.type === type && (e.targetId === "orc" || e.actorId === "orc") && (type !== "deed" || e.success));
+      if ( !deeds.some(e => e.success) ) {
+        expect(at("forced")).toBe(-1);
+        continue;
+      }
       pushed += 1;
-      expect(run.log.find(e => e.type === "forced" && e.targetId === "orc")).toMatchObject({ how: "push", fall: 20 });
-      const fell = run.log.find(e => e.type === "fall" && e.actorId === "orc");
-      expect(fell.feet).toBe(20);
+      expect(deeds.find(e => e.success)).toMatchObject({ effect: text("FFDCC.Deed.PushedBack") });
+      expect(deeds.find(e => e.success).roll).toBeGreaterThanOrEqual(3);
+      expect(at("deed")).toBeLessThan(at("forced"));
+      expect(at("forced")).toBeLessThan(at("fall"));
+      expect(run.log[at("forced")]).toMatchObject({ how: "push", feet: 5, fall: 20 });
+      const fell = run.log[at("fall")];
+      expect(fell).toMatchObject({ actorId: "orc", feet: 20 });
       expect(fell.amount).toBeGreaterThanOrEqual(2);
       expect(fell.amount).toBeLessThanOrEqual(12);
       expect(o.prone).toBe(true);
-      expect(o.hp).toBeLessThan(30);
     }
     expect(pushed).toBeGreaterThan(3);
   });
 
-  test("on flat ground the warrior strikes, its deed die riding the blow", () => {
-    const run = fight([warrior(), orc(5)]);
-    takeTurn(run, run.byId.get("warrior"));
-    expect(run.log.some(e => e.type === "attack" && e.actorId === "warrior" && e.deed !== null)).toBe(true);
-    expect(run.log.some(e => e.type === "forced")).toBe(false);
+  test("on flat ground the warrior trips or blinds, its deed die riding the blow; no one is pushed", () => {
+    for ( let seed = 1; seed <= 6; seed++ ) {
+      const run = fight([warrior(), orc(5)], null, seed);
+      takeTurn(run, run.byId.get("warrior"));
+      expect(run.log.some(e => e.type === "attack" && e.actorId === "warrior" && e.deed !== null)).toBe(true);
+      const deeds = run.log.filter(e => e.type === "deed");
+      const hit = run.log.find(e => e.type === "attack" && e.actorId === "warrior").degree >= 2;
+      expect(deeds.length).toBe(1);
+      expect([text("FFDCC.Deed.Trip"), text("FFDCC.Deed.Blind")]).toContain(deeds[0].deed);
+      if ( hit ) expect(["trip", "blindFoe"]).toContain(deeds[0].maneuver);
+      expect(run.log.some(e => e.type === "forced")).toBe(false);
+    }
   });
 });
 

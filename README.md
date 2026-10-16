@@ -45,12 +45,11 @@ Enable both in a DCC world.
   - trip;
   - blinding attack;
   - disarm;
+  - pushback (in melee): the foe is shoved back 5 feet, or 10 when the die shows 5 or more;
   - defensive maneuver;
   - rallying maneuver: friends nearby take heart (a better next swing; more, and farther, at a higher deed).
 
-  The deed lands on a hit when the die shows 3 or more, and does more the higher it shows. The deeds come from the world's Mighty Deed tables, else rough built-in versions.
-
-  A **pushback** is an attack of its own, with any melee weapon the deed die rides, since FastFighting's deeds can't move anyone yet. Its roll has the deed die folded in: the weapon's bonus, plus what the die shows when the deed works, less what its failing costs (a d3: -4 in all; a d5: nothing; a d8: +3). That's about as often as a hit with a working deed when the odds of hitting are even. It does the weapon's damage only, the die's share standing for the deed a blow would carry instead, so warriors push where it hurts (over a drop, into a hazard) and trip or blind on open ground. Done, the foe is pushed back 5 feet, or 10 with a d7 or bigger deed die. Its crits and fumbles roll no tables.
+  The deed lands on a hit when the die shows 3 or more, and does more the higher it shows. The deeds come from the world's Mighty Deed tables, else rough built-in versions. The pushback always uses the built-in distances, since a book's pushback rows measure by the warrior's movement and the foe's size. A pushback is worth most where the push does harm (over a drop, into a hazard), so warriors push there and trip or blind on open ground.
 - **Gaining an edge:** besides deeds, Luck (a halfling's for friends too), spellburn and blessings, a Lore-Collector sizes a foe up with an Intelligence check against DC 10 (anyone with a mind: not the mindless or constructs); when it works, its next rolls against that foe are far likelier to land, by the **Lore-Collector advantage** setting (1.25× to 3×; default 2.25×: it costs the whole turn, but deed dice and Luck already swing a fight; ordinary attacks get all they can by about 1.75×, the rest helps long-shot rolls). What it learns holds for every foe of the same sort.
 - **Crits and fumbles:** a crit rolls the crit die plus Luck on the attacker's crit table for extra damage and a lasting effect (knocked down, stunned, blinded, disarmed, a penalty, sometimes death outright). A monster's crit against a player character is lessened by that character's Luck. A player character's fumble rolls the fumble die (from its armor) on the fumble table.
 - **Spells:** a spell check with the action die, its results table read into what each result does:

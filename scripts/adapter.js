@@ -13,7 +13,7 @@ import { dccRules } from "./rules.js";
 import { plain, statLine, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn } from "./text.js";
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
-import { deedsFrom, pushbackAction } from "./deeds.js";
+import { deedsFrom } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
 import { deriveDccTraits, speaksCommon, monsterKind } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
@@ -588,11 +588,6 @@ export class DccAdapter extends SystemAdapter {
           effects: this.#riders(a.rider)
         });
       }
-    }
-    // A pushback with each melee weapon its deed die rides (deeds.js); not with a dwarf's shield bash, which comes besides.
-    for ( const a of [...actions] ) {
-      const push = a.economy !== "bonus" && !a.sequence ? pushbackAction(a) : null;
-      if ( push ) actions.push(push);
     }
     // An XCC brawler's fists (fighting unarmed, or a free punch besides its weapon).
     const armed = actions.some(a => a.melee && a.kind === "strike");

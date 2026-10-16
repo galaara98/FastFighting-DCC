@@ -118,7 +118,7 @@ describe("dying, DCC style", () => {
 describe("deeds", () => {
   test("built-in deeds without the book, and a book's rows read when it's there", () => {
     const built = deedsFrom(null);
-    expect(built.map(d => d.id)).toEqual(["trip", "blind", "disarm", "defend", "rally"]);
+    expect(built.map(d => d.id)).toEqual(["trip", "blind", "disarm", "push", "defend", "rally"]);
     expect(built.find(d => d.id === "rally").tiers.every(t => t.outcome.allies > 0)).toBe(true);
     expect(built.find(d => d.id === "defend").tiers.every(t => t.outcome.self)).toBe(true);
     const read = deedsFrom({
