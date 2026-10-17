@@ -36,7 +36,7 @@ The class is the character sheet chosen for the actor or its token, as in DCC an
 
 Each weapon brings its to-hit, damage, range, action die, crit range, crit die and table, and fumble range. DCC doesn't say whether a weapon cuts, pierces or crushes, so the damage formula or the weapon's name does. A monster's stat line fills in what its sheet leaves out: attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check.
 
-Natural attacks (a bite, claws, a slam, a Brawler's fists) need no free hand, except claws and fists, which need their own. A creature with no weapon in hand can't be disarmed, by a deed or a crit.
+Natural attacks (a bite, claws, a slam, a Brawler's fists) need no free hand, except fists, which need their own. A creature with no weapon in hand can't be disarmed, by a deed or a crit.
 
 ### Action dice: the core's turn
 
@@ -154,8 +154,8 @@ Every perk a playstyle (or a tactics answer) can switch on does something here. 
 | Mending, healing, rescue | A cleric's Lay on Hands and healing spells; **binding the wound** of a friend bleeding out. |
 
 Tactics answers:
-- **Shields:** a DCC shield is already in the AC, so the answer goes to a warrior's or dwarf's defensive Mighty Deed: half again as readily, as it would anyway, or never.
-- **Resources:** how freely it burns Luck (and Fleeting Luck or Mojo) and spellburns: conserving, half as readily; all out, half again.
+- **Shield or defending:** a DCC shield is already in the AC, so the answer goes to a warrior's or dwarf's defensive Mighty Deed: half again as readily, as it would anyway, or never.
+- **Spell slots, focus and limited abilities:** how freely it burns Luck (and Fleeting Luck or Mojo) and spellburns: conserving, half as readily; all out, half again.
 - **Magic and specialties** (an Un-Mundane character leans on them): spells, a cleric's Lay on Hands and Turn Unholy, and XCC classes' own (a Brawler's fists, a Hottie's Not in the Face, a Jammer's Disrespect, a Gnome's Draw Agro, an Athlete's wrestling). Weapons, Help, Grapple and Hide are what anyone could do; a warrior's deeds go with every blow.
 
 ## Set up by itself
@@ -173,7 +173,7 @@ In a live battle, each turn's changes go onto the tokens as the turn is played:
 - the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the party: Hostile);
 - what a creature hands over (or has stolen): coins, or an item, unequipped and out of any container.
 
-Rewind Turn takes one turn back; Rewind This Encounter, all of it.
+Rewind takes one turn back; Rewind This Encounter, all of it.
 
 ## Settings
 
