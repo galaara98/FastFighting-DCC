@@ -1,15 +1,15 @@
 /**
- * A reaction's strike rolled the dcc system's way in a live battle (core API 19 rollReaction): the weapon the engine's
+ * A strike rolled the dcc system's way in a live battle (core API 19 rollStrike): the weapon the engine's
  * strike names, rolled with the actor's rollWeaponAttack at the strike's target (the user's target for the roll, theirs
  * put back after), no dialog; the attack read off the card (a critical hit, a hit, a miss, a fumble), a hit's damage by
- * kind as rolled, a critical's as its crit row has it (double damage; its damage buttons rolled as they would roll); the
- * card kept from the system's own
- * Auto-apply damage and Fleeting Luck. Null where the strike isn't a weapon on the sheet, or its target isn't on the
+ * kind as rolled, a critical's as its crit row has it (double damage; its damage buttons rolled as they would roll: then no one card
+ * holds the blow, `card: null`); the card kept from the system's own Auto-apply damage and Fleeting Luck, and for the
+ * GMs only when secret. Null where the strike isn't a weapon on the sheet, or its target isn't on the
  * scene.
  */
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { DccAdapter } from "../scripts/adapter.js";
-import { damageByKind, tableDamageRolls } from "../scripts/reaction.js";
+import { damageByKind, tableDamageRolls } from "../scripts/strike-roll.js";
 import { wordList } from "../scripts/words.js";
 
 const was = { Hooks: globalThis.Hooks, canvas: globalThis.canvas, Roll: globalThis.Roll };
@@ -102,14 +102,14 @@ function fighter(outcome = {}, { weapons = [{ id: "w1", name: wordList("Damage.s
 
 const target = { id: "tokB", uuid: "Scene.s.Token.tokB", parent: { id: "s" } };
 const strike = (id = "actA.w1") => ({ id, name: "a blade" });
-const react = (token, action = strike(), at = target) => new DccAdapter().rollReaction(token, { action, target: at });
+const react = (token, action = strike(), at = target) => new DccAdapter().rollStrike(token, { action, target: at });
 
 beforeEach(() => {
   globalThis.Hooks = hooks();
   dice();
 });
 
-describe("a reaction's strike, rolled the dcc system's way", () => {
+describe("a strike, rolled the dcc system's way", () => {
   test("the weapon the engine's strike names, rolled with no dialog at the strike's target; the user's own targets put back", async () => {
     const { sets } = scene({ targets: ["tokC"] });
     const { token, calls } = fighter();
@@ -134,7 +134,7 @@ describe("a reaction's strike, rolled the dcc system's way", () => {
     const posted = dice(5);
     const critResult = "<p>Broken ribs. <a class=\"inline-roll roll\" data-mode=\"roll\" data-flavor=\"damage\" data-formula=\"1d6\" data-tooltip-text=\"/roll 1d6 #damage\"><i class=\"fa-solid fa-dice-d20\"></i>1d6</a> damage.</p>";
     const { token } = fighter({ natural: 20, total: 22, isCrit: true, critResult });
-    expect(await react(token)).toEqual({ attack: { degree: 3, natural: 20, total: 22 }, damage: { byType: { slashing: 11 } } });
+    expect(await react(token)).toEqual({ attack: { degree: 3, natural: 20, total: 22 }, damage: { byType: { slashing: 11 } }, card: null });
     expect(posted).toEqual([{ formula: "1d6", total: 5, flavor: "damage", speaker: { scene: "s", token: "tokA", actor: "actA" } }]);
   });
 
@@ -142,8 +142,29 @@ describe("a reaction's strike, rolled the dcc system's way", () => {
     scene();
     const posted = dice();
     const { token } = fighter({ natural: 20, total: 22, isCrit: true, critResult: "<p>A crushing blow: double damage.</p>" });
-    expect((await react(token)).damage).toEqual({ byType: { slashing: 12 } });
+    const out = await react(token);
+    expect(out.damage).toEqual({ byType: { slashing: 12 } });
+    expect(out.card).toBeNull();
     expect(posted).toEqual([]);
+  });
+
+  test("a critical whose row adds nothing: the attack card holds the blow, for the core to apply", async () => {
+    scene();
+    const { token } = fighter({ natural: 20, total: 22, isCrit: true, critResult: "<p>A glancing blow.</p>" });
+    expect(await react(token)).not.toHaveProperty("card");
+  });
+
+  test("secret: its card in the GMs' mode, as Foundry sets a GM roll's", async () => {
+    scene();
+    const modes = [];
+    globalThis.ChatMessage = { implementation: { applyMode: (data, mode) => { modes.push(mode); data.whisper = ["gm"]; } } };
+    try {
+      await new DccAdapter().rollStrike(fighter().token, { action: strike(), target, secret: true });
+      await new DccAdapter().rollStrike(fighter().token, { action: strike(), target });
+    } finally {
+      delete globalThis.ChatMessage;
+    }
+    expect(modes).toEqual(["gm"]);
   });
 
   test("a miss is degree 1 and a fumble 0, with no damage", async () => {

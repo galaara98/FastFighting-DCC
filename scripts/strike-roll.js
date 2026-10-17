@@ -1,7 +1,7 @@
 /**
- * A reaction's strike in a live battle (core API 19 rollReaction), rolled the dcc system's way: the free attack a foe
- * gets as someone withdraws, as its player would roll it from the sheet, its card in the chat. FastFighting plays the
- * strike with what the card says.
+ * A strike in a live battle (core API 19 rollStrike), rolled the dcc system's way: every strike in a turn FastFighting
+ * plays, and the free attack a foe gets as someone withdraws, as its player would roll it from the sheet, its card in
+ * the chat. FastFighting plays the strike with what the card says.
  *   - The weapon: the one the engine's strike names (the adapter's action id, "<actor id>.<item id>"). A strike that
  *     isn't a weapon on the sheet (a stat line's attack, a Brawler's fists) is left to the engine's dice.
  *   - The target: the system reads it from the user's targets, so the user's target is set to it for the roll and the
@@ -109,15 +109,17 @@ async function rollTableDamage(rolls, actor, speaker) {
 }
 
 /**
- * A reaction's strike rolled with the dcc system's own roller, its card in the chat: {attack: {degree, natural, total},
- * damage: {byType} | null} (damage null on a miss, or where the card rolled none: the system's automation off), or
- * null where it can't be rolled here or read (the engine rolls it).
+ * A strike rolled with the dcc system's own roller, its card in the chat: {attack: {degree, natural, total}, damage:
+ * {byType} | null} (damage null on a miss, or where the card rolled none: the system's automation off), or null where
+ * it can't be rolled here or read (the engine rolls it). A critical whose table row multiplies the blow or rolls more
+ * damage says `card: null`: no one card holds all of it, so the core deals the sum, not the attack card's damage.
  * @param {TokenDocument} token    the one who strikes
  * @param {object} options
  * @param {object} options.action  the engine's strike, {id, name}
  * @param {TokenDocument} options.target
+ * @param {boolean} [options.secret]  for the GMs only (its card in the GMs' mode)
  */
-export async function rollDccReaction(token, { action, target } = {}) {
+export async function rollDccStrike(token, { action, target, secret = false } = {}) {
   const actor = token?.actor;
   const weapon = weaponFor(actor, action);
   if ( !weapon || typeof actor.rollWeaponAttack !== "function" ) return null;
@@ -131,6 +133,8 @@ export async function rollDccReaction(token, { action, target } = {}) {
     flags["dcc.damageApplied"] = true;
     delete flags["dcc.FleetingLuckEffect"];
     if ( flags.dcc && typeof flags.dcc === "object" ) delete flags.dcc.FleetingLuckEffect;
+    // (For the GMs only, as Foundry sets a GM roll's card.)
+    if ( secret ) globalThis.ChatMessage?.implementation?.applyMode?.(data, "gm");
     card = { flags: { ...flags }, rolls: [...(rolls ?? [])], system: { ...data.system }, speaker: data.speaker };
   });
   try {
@@ -156,6 +160,8 @@ export async function rollDccReaction(token, { action, target } = {}) {
       const kind = Object.keys(byType)[0];
       byType[kind] += extra;
     }
+    // (More than the attack card's own damage: the core deals the sum.)
+    if ( times > 1 || extra > 0 ) return { attack, damage: { byType }, card: null };
   }
   return { attack, damage: { byType } };
 }

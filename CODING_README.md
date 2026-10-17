@@ -28,7 +28,7 @@ When new work needs something the core can't handle in a close-enough way with w
 | `tables.js` | `DccTables`: finds the books' tables at run time, each read once a session (below). |
 | `commit.js` | Live write-back, concessions, the planner's outcome lines; the status mapping. |
 | `read-turn.js` | A player's turn read from the dcc system's chat cards (`dcc.isToHit` and the rest): attacks, damage, Personality checks, each marked `sure` or not. |
-| `reaction.js` | A reaction's strike rolled as the dcc system's attack card (`rollReaction`). |
+| `strike-roll.js` | A strike rolled as the dcc system's attack card (`rollStrike`): a live battle's turns and reactions. |
 | `traits.js` | Personality defaults (below). Pure. |
 | `auto.js` | Setting a character up by itself: `dccHints` (playstyles), `dccTactics` ("Let this character decide"). Pure. |
 | `leadership.js` | `rankDccLeaders`: Personality, a title (`FFDCC.Words.Title`), a cleric, level or Hit Dice. |
@@ -81,7 +81,7 @@ The adapter also gives `label` ("DCC", or "DCC / XCC" with the xcc module on), `
 
 Players' damage (API 19): `damageCard` (read-turn.js `readDccDamage`: an attack's damage roll, a Roll Damage button's or inline damage roll at its attack's target, a roll typed `[healing]`), `applyDamageCard` (commit.js `applyDccDamage`: the actor's `applyDamage`, the HP and combatant defeated in the undo record) and `appliesPlayerDamage` (the system's `autoApplyDamage`, unless dcc-qol is active).
 
-Reactions (API 19): `rollReaction` (reaction.js `rollDccReaction`): the weapon the strike's id names, through the actor's `rollWeaponAttack` with no dialog and the user's target set to the strike's target for the roll (theirs put back), read off the card in the `dcc.rollWeaponAttack` hook; the card is marked `dcc.damageApplied` and loses its `dcc.FleetingLuckEffect`, so the system's Auto-apply damage and Fleeting Luck leave it to FastFighting.
+Strikes (API 19): `rollStrike` (strike-roll.js `rollDccStrike`), every strike in a turn FastFighting plays and a reaction's: the weapon the strike's id names, through the actor's `rollWeaponAttack` with no dialog and the user's target set to the strike's target for the roll (theirs put back), read off the card in the `dcc.rollWeaponAttack` hook; the card is marked `dcc.damageApplied` and loses its `dcc.FleetingLuckEffect`, so the system's Auto-apply damage and Fleeting Luck leave it to FastFighting; `secret` puts it in the GMs' mode (`ChatMessage.applyMode`). A critical whose row multiplies the blow or rolls more damage returns `card: null`, so the core deals the sum rather than applying the attack card's own damage.
 
 ## Personality (traits.js)
 

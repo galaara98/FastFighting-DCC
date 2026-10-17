@@ -22,7 +22,7 @@ import { readDccTurn, readDccDamage } from "./read-turn.js";
 import { loreBoost } from "./lore.js";
 import { dccHints, dccTactics } from "./auto.js";
 import { t, saysWord, harmOf } from "./words.js";
-import { rollDccReaction } from "./reaction.js";
+import { rollDccStrike } from "./strike-roll.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
@@ -1008,11 +1008,11 @@ export class DccAdapter extends SystemAdapter {
   }
 
   /**
-   * API 19. A reaction's strike rolled the dcc system's way, its card in the chat (reaction.js rollDccReaction): the
-   * weapon's attack at its target, and a hit's damage as rolled; null where the strike isn't a weapon on the sheet.
+   * API 19. A strike rolled the dcc system's way, its card in the chat (strike-roll.js rollDccStrike): the weapon's attack
+   * at its target, and a hit's damage as rolled; null where the strike isn't a weapon on the sheet.
    */
-  async rollReaction(token, { action, target } = {}) {
-    return rollDccReaction(token, { action, target });
+  async rollStrike(token, options = {}) {
+    return rollDccStrike(token, options);
   }
 
   describeOutcome(spec, final) {
