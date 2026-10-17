@@ -2,7 +2,7 @@
 
 > **AI use:** This module used AI in its creation.
 > - **Programming:** I am a skilled programmer by profession, but AI was used heavily as a co-pilot.
-> - **Strings:** ALL initial strings were created by AI. An AI-made Spanish translation was used to test localization and has since been removed.
+> - **Strings:** ALL initial strings were proposed by a LLM to get the concepts out, ALL strings were  tracked to make sure they were re-written (for simple or ttrpg/game specific phrases, approved by) a native speaker.
 
 Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaara98/FastFighting), the Foundry VTT module that resolves a battle by simulating it thousands of times, tells the story of one fight, and plays it for real on the Combat Tracker, a turn at a time, with **Do it For Real Now**. It works in Xcrawl Classics worlds too (the XCC module rides on the same system).
 
