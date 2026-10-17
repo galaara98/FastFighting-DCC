@@ -15,7 +15,7 @@ import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
 import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
-import { deriveDccTraits, speaksCommon, monsterKind } from "./traits.js";
+import { deriveDccTraits, speaksCommon, monsterKind, animalisticOf } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
 import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, conditionsOf, statusFor, statusName, sheetConditions, applyDccDamage, systemAppliesDamage } from "./commit.js";
 import { readDccTurn, readDccDamage } from "./read-turn.js";
@@ -434,6 +434,8 @@ export class DccAdapter extends SystemAdapter {
       traits: Object.fromEntries(Object.entries(derived.traits).map(([k, v]) => [k, { base: v, fudge: 0 }])),
       traitReasons: derived.reasons,
       flags: { ...derived.flags },
+      // (Whether it fights as an animal does: the core's behavior/animal.js.)
+      animalistic: animalisticOf({ pc, beast: !!derived.flags.beast, mindless: !!derived.flags.mindless, int: pc ? NaN : Number(sys.abilities?.int?.value), languages: languagesOf(actor, { pc, flags: derived.flags }) }),
       diesAtZero: !pc,
       // (Statuses on the token that the fight would feel: commit.js, which writes them too.)
       conditions: conditionsOf(actor),

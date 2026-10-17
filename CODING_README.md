@@ -31,7 +31,7 @@ When new work needs something the core can't handle in a close-enough way with w
 | `strike-roll.js` | A strike rolled as the dcc system's attack card (`rollStrike`): a live battle's turns and reactions. |
 | `check-roll.js` | Saves and checks rolled as the dcc system's cards (`rollSave`, `rollCheck`): a live battle's turns. |
 | `damage-roll.js` | A spell's damage rolled as the dcc system's Damage card (`rollDamage`): a live battle's turns. |
-| `traits.js` | Personality defaults (below). Pure. |
+| `traits.js` | Personality defaults (below); `animalisticOf`, the core's `spec.animalistic` (a beast, or Intelligence 11 or less where the sheet says and no language; never a mindless one or a character). Pure. |
 | `auto.js` | Setting a character up by itself: `dccHints` (playstyles), `dccTactics` ("Let this character decide"). Pure. |
 | `leadership.js` | `rankDccLeaders`: Personality, a title (`FFDCC.Words.Title`), a cleric, level or Hit Dice. |
 | `moves.js` | Help, Grapple and Hide actions; weak spots from a stat line's resistances. |

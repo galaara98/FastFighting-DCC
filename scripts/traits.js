@@ -210,6 +210,17 @@ export function speaksCommon({ pc = false, kind = null, name = "", mindless = fa
 }
 
 /**
+ * Does it fight as an animal (the core's spec.animalistic)? A beast (deriveDccTraits: its name, unless it's one of the
+ * people), or a creature of animal wits, Intelligence 11 or less where its sheet says, that speaks no language. Never
+ * a mindless one, never a character.
+ * @param {{pc?: boolean, beast?: boolean, mindless?: boolean, int?: number, languages?: string[]}} d
+ */
+export function animalisticOf({ pc = false, beast = false, mindless = false, int = NaN, languages = [] } = {}) {
+  if ( pc || mindless ) return false;
+  return beast || (!languages.length && Number.isFinite(int) && int <= 11);
+}
+
+/**
  * @param {object} d
  * @param {boolean} d.pc         a player character
  * @param {number} d.level       level, or hit dice
