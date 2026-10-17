@@ -4,11 +4,13 @@
 > - **Programming:** I am a skilled programmer by profession, but AI was used heavily as a co-pilot.
 > - **Strings:** ALL initial strings were proposed by a LLM to get the concepts out, ALL strings were  tracked to make sure they were re-written (for simple or ttrpg/game specific phrases, approved by) a native speaker.
 
-Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaara98/FastFighting), the Foundry VTT module that resolves a battle by simulating it thousands of times, tells the story of one fight, and plays it for real on the Combat Tracker, a turn at a time, with **Do it For Real Now**. It works in Xcrawl Classics worlds too (the XCC module rides on the same system).
+Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaara98/FastFighting). It works in Xcrawl Classics worlds too, since the XCC module runs on the same system.
+
+FastFighting Core knows no game's rules. It offers a large but fixed set of options (conditions, maneuvers, holds, reactions, resources, outcomes, morale, dying), and each system's helper maps its system into them. This module maps DCC's: a Mighty Deed becomes one of the core's maneuvers, Luck one of its resources, a crit table's row one of its outcomes. [How DCC maps onto FastFighting](#how-dcc-maps-onto-fastfighting) goes through each.
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
-- **Requires:** FastFighting Core (API 18 or later)
+- **Requires:** FastFighting Core 0.3.0 or later (API 18)
 
 ## Installation
 
@@ -20,159 +22,179 @@ https://github.com/galaara98/FastFighting-DCC/releases/latest/download/module.js
 
 Enable both in a DCC world.
 
-## What it reads
+## With and without the books
 
-**Works from the free system alone,** and reads more when a book is installed. Without the DCC or XCC core book, crits add the crit die as extra damage, Mighty Deeds and the cleric's Lay on Hands and Turn Unholy use rough built-in versions (marked as guesses), and spells it can't read are left out. With a book installed, it reads that book's tables at run time, wherever the dcc system's own settings point. Nothing from a book is copied into this module.
+The module works from the free system alone. With the DCC or XCC core book installed, it reads the book's tables at run time (crits, fumbles, Mighty Deeds, spell results, Lay on Hands, Turn Unholy), wherever the dcc system's settings point, and copies nothing from it. Without a book, a crit adds the crit die as extra damage; Mighty Deeds, Lay on Hands and Turn Unholy use rough built-in versions, marked as guesses; and spells it can't read are left out.
 
-- **Class:** the character sheet chosen for the actor or its token, which is how DCC and XCC pick a class. A sheet that has been opened records the class itself. For one that hasn't (an imported pregen), the class is read from the sheet chosen, then from the class name. Everything else comes from the character's own numbers (a deed die, spells and how they're cast), so classes from other books still work.
-- **Attacks:** each weapon's to-hit, damage (the kind its formula names; DCC's weapons don't say whether they cut, pierce or crush, so failing that the kind its name says, by the language file's words, else none), range, action die, crit range, crit die and crit table, and fumble range. A monster's stat line fills in anything its sheet leaves out (attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check).
-- **Natural attacks:** a bite, claws, a slam, a Brawler's fists (DCC doesn't mark them, so by the name, the language file's words; never one that was bought). They need no hand free (claws and fists need their own), and there's nothing in hand to knock away: a disarming deed only goes for a foe with a weapon, and a deed or a crit that would disarm a creature that has none does nothing. (What the book's disarm rows do to claws and teeth instead isn't played.)
-- **Mending:** a monster's regeneration from its stat line ("regenerates 1d6 hp per round"; harm it doesn't regenerate from, such as fire, stops it for a turn) and its healing each round ("heal 2 hp per round"). At 0 hit points a regenerating monster is dead like any other, unless its words say it regenerates even the round it's killed (a troll's). Then it gets a last burst, rolled: if it was taken below 0 by less than that, it lies there mending and gets up again. A stat line that only names its regeneration (the core book's troll) takes how much from the creature's entry in the book, which the stat line links to, when that book is installed.
-- **Action dice:** one action for each (a giant's d24 then d16, a high-level character's second die). Crit ranges scale to the die.
-- **Initiative:** the system's own die: a d20, a d16 with a two-handed weapon in hand, or a weapon's own. Springing an ambush (the core's stealth surprise), a thief rolls its Sneak Silently and Agility instead, a halfling its Sneak and Hide; anyone else, its initiative as ever.
-- **Withdrawing and shooting into a melee:** a creature that withdraws from a melee gives every foe engaged with it a free attack. A shot into a melee is at -1; when it misses, half the time it goes toward a random friend of the shooter's in that melee, and the attack is made again against it.
-- **Cover:** a foe behind cover (the scene's walls hiding any of it) is -2 to hit, melee or missile. DCC has no degrees of cover, and cover adds nothing to saves.
-- **Charging:** a melee attack after moving at least half its speed that turn is a charge: +2 to hit, and -2 AC until its next turn.
-- **Falling:** a creature pushed over a drop takes 1d6 for each 10 feet it falls, with no upper limit, and lands prone. Bones broken on a roll of 6 aren't played.
-- **Breaking free:** held, a creature breaks free with the grapple roll (its attack bonus and the better of Strength and Agility; a monster's, its best melee attack's bonus and its Hit Dice in their place), an action on its action die. A grip is broken against 10 + the grabber's own grapple, as a Grapple at it is, and the bigger of the two adds its size's edge, by the tokens' sizes: twice the other's size, +4; three times, +8; four times, +16, and so on. (Not yet on a Grapple itself: the core doesn't yet tell the rules who's grappling.) bonds tied with whatever was to hand, Restrained (a web, a net, ropes: a friend beside it can tear it loose with the same roll) and XCC's Grappled with no grabber known, against DC 15. The **Tied up stops spells** setting (on by default) says whether a creature tied up can still cast, since the rules don't say which spells need free hands.
-- **Spell duels:** a caster yet to act this round may answer a foe's spell that worked with one of its own that can counter it (the same spell, Dispel Magic, Fire Resistance against a fire spell, Magic Shield against Magic Missile, Invoke Patron against Invoke Patron; not one lost for the day). Its spell check against the caster's: higher, the spell is undone; the same, neither stands; lower, or its own check failing, the spell goes on. Answering costs it its next action. (The book's duel tables, with momentum and phlogiston disturbance, aren't played: the checks are compared.)
-- **Two-weapon fighting:** a weapon set up as the primary hand and one as the off hand attack together, one action for both, on the dice the system steps down for each (Table 4-3), with each hand's crit rule (no crits, or only on the die's highest face: a halfling's).
-- **XCC classes:** the Messenger plays as a cleric (holy acts with disapproval, turning the unholy, healing), each Specialist (Acrobat, Commando, Scout, Criminal and the rest) as a thief (backstab, a luck die). The Brawler fights with its fists: unarmed, two attacks together on a d16 each (a crit on a natural 16; no fumble on one alone), or, armed, a free unarmed attack on a d14 once a round besides its own; its attack bonus, Strength and Luck (when it helps) on its unarmed damage die; no crits in armor too heavy (a check penalty of -4 or worse). Its Toughness takes so much off every melee blow. More of XCC's classes' own:
-  - **Dungeon Hottie:** Not in the Face (a round spent defending: its bonus to AC until its next turn), and Too Cute to Die (a failed body roll passes for a point of Luck, once a level; Do it For Real Now marks it used).
-  - **Jammer:** Disrespect (a performance check, Personality, level and Luck, its foe saves against with Will, or takes the Jammer's penalty, a step down the dice chain counted as -2, to attacks, checks and damage for level + Personality rounds; the save's DC is the check's average; the mindless pay it no heed).
-  - **Gnome:** Draw Agro (a check, Personality, level and Luck when it helps, its foe saves against with Will, within 60 feet; failed, the foe spends its next turn going for the gnome, or pays a step down the dice chain, two from 5th level, on its rolls against anyone else; the core's taunt. A point of Mojo each time it draws an attack; the mindless pay it no heed).
-  - **Athlete:** wrestling (a grapple, not with a shield in hand, a shield being the armor with no fumble die: its training die rolled with it like a deed die, onto the roll and the damage, a d4 and Strength; its own crit range; a hit grabs).
-  - **Acrobat and Half-Elf:** acrobatics to get clear of a melee: half its move and a check, 15 to slip one foe, 20 for several; missed, the free attacks come.
-  - Not yet: the Jammer's Lionize (its table is the XCC book's) and the Half-Orc's Wild Attack.
-- **Deed dice and Mighty Deeds:** warriors and dwarves (anyone whose attack bonus is a die) roll it with every attack, adding it to the roll and the damage. Before the roll they declare the deed that would help most:
-  - trip;
-  - blinding attack;
-  - disarm (a foe with a weapon in hand);
-  - pushback (in melee): the foe is shoved back 5 feet, or 10 when the die shows 5 or more;
-  - defensive maneuver;
-  - rallying maneuver: friends nearby take heart. By the world's rally table, what its rows say: so much to their morale checks, and a second check for a hireling whose group has broken (DCC's morale plays both; a bonus that waits on a kill or a crit isn't played). Without a table, a rough built-in version: a better next swing, more, and farther, at a higher deed. A rally that only steadies nerves isn't declared yet, because the core can't weigh it.
+Where DCC marks nothing (whether a weapon cuts or crushes, whether an attack is a bite), the module goes by name, using word lists in its language file.
 
-  The deed lands on a hit when the die shows 3 or more, and does more the higher it shows. The deeds come from the world's Mighty Deed tables, else rough built-in versions. The pushback always uses the built-in distances, since a book's pushback rows measure by the warrior's movement and the foe's size. A pushback is worth most where the push does harm (over a drop, into a hazard), so warriors push there and trip or blind on open ground.
-- **Gaining an edge:** besides deeds, Luck (a halfling's for friends too), spellburn and blessings, a Lore-Collector sizes a foe up with an Intelligence check against DC 10 (anyone with a mind: not the mindless or constructs); when it works, its next rolls against that foe are far likelier to land, by the **Lore-Collector advantage** setting (1.25× to 3×; default 2.25×: it costs the whole turn, but deed dice and Luck already swing a fight; ordinary attacks get all they can by about 1.75×, the rest helps long-shot rolls). What it learns holds for every foe of the same sort.
-- **Crits and fumbles:** a crit rolls the crit die plus Luck on the attacker's crit table for extra damage and a lasting effect (knocked down, stunned, blinded, disarmed, a penalty, sometimes death outright). A monster's crit against a player character is lessened by that character's Luck. A player character's fumble rolls the fumble die (from its armor) on the fumble table.
-- **What a condition costs:** prone, -4 to its attacks (and +2 to a melee attack at it); blinded, -4 to its attacks and -2 to its AC; frightened, -2 to its attacks and saves; slowed, -2 to its attacks and AC; disarmed, -4 to its weapons' blows (not its claws or fangs); hidden, +4 to its AC.
-- **Spells:** a spell check with the action die, its results table read into what each result does:
-  - damage, including so many missiles of so much each;
-  - a save or a hold (sleep, paralysis, a charm that turns the target to the caster's side, a command that costs it its turn);
-  - healing;
-  - a blessing.
+## How DCC maps onto FastFighting
 
-  A save's DC is the spell check, as in the rules. A wizard or elf loses the spell on a failure. A cleric's failures widen its disapproval, and a natural roll inside the range fails. Monsters lose nothing. Spells from a stat-block importer that name no table are found by name in the installed books.
-- **The cleric's own:** Lay on Hands (so many of the target's hit dice) and Turn Unholy (un-dead, demons and devils up to so many hit dice cower), by their tables.
-- **Luck:** a player character burns Luck on a roll that falls short, more readily the more is at stake (a save against death, a spell, a friend bleeding out). A thief rolls its luck die for each point burned. A halfling's points count double, and it can spend them on a friend's roll within 30 feet. Wizards and elves spellburn Strength, Stamina and Agility on spell checks.
-- **Fleeting Luck and Mojo:** with DCC's Fleeting Luck on in the world (each player's, for all its characters), or XCC's Mojo (each crawler's own, always on), a character spends it before its Luck on a roll that falls short, a point for +1 (at most 20 counted: points come one at a time and a natural 1 takes them all, so more was typed in, not earned). A character's natural 20 earns its pool a point; a natural 1 on a d14 or bigger takes every pool there is. Do it For Real Now writes what's left back (on the player, or the crawler), and Rewind This Encounter puts it back.
-- **Dying:** monsters and 0-level characters die at 0 hit points. Anyone else bleeds out for as many rounds as their level, and if healed in time loses a point of Stamina for good. After the fight, friends who hold the field roll the body of each fallen player character: a Luck check (a d20 at or under their Luck) finds them only unconscious, at 1 hit point, groggy, a point of Strength, Agility or Stamina gone for good.
-- **Morale:** DCC's own, for creatures (a character's is its player's, as FastFighting plays it). A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. One roll decides for the group, by whichever of it acts next: a d20 + its Will (a retainer adds its employer's Personality: the party leader's, else the best of the party's) against DC 11. Under, the whole group flees. A warrior's rallying deed can add to the roll, or give one whose group has broken a second check of its own: if it makes it, it stays while the rest run. The mindless and the fearless never break. The Statistician shows each roll.
-- **Personality:** a player character starts as the usual hero (bold, loyal, unselfish, a good head) and everything on its sheet moves it a little:
-  - a 0-level funnel peasant is no hardened hero (about 45 Tactical, 50 Brave, 35 Selfish, 55 Loyal before the rest); past that, its level;
-  - its abilities: Intelligence (and Agility) for Tactical; Strength, Stamina and Luck for Brave; Personality's charm for Loyal (its force of will is in its Will save);
-  - its Will save against the usual at its level, and its hit points against the usual for its level and hit die;
-  - its class, by the class sheet (a cleric selfless, a thief or an XCC Criminal less so, a wizard a planner, a warrior or a Brawler bold, a Gnome its friends' shield); a class from another book by what it does (a deed die, spells);
-  - its alignment (Law's fellowship, Chaos's each for itself; a cleric's or Messenger's counts half again: it serves that side's god);
-  - its birth augur, by what the lucky sign governs (its effect on the sheet, or the core book's for that sign): a sign on attacks, damage, Armor Class or Fortitude for Brave; on traps, secret doors, spell checks or initiative for Tactical; on turning the unholy, a selfless calling; its Luck modifier at birth says how much, and which way;
-  - whether it's in one of the world's parties (DCC's Party sheets), when the world keeps any.
+### Characters and monsters
 
-  Monsters are read from what their stat line says they are (the walking dead, constructs, spellcasters) and the kind the system files them as (the crit table it gave them), and only where those say nothing from their name (the language file's word lists: a beast, the mindless, a cunning or commanding mind; a creature the system files as one of the people is no beast whatever it's called); their Will save and their alignment, then what their stat line says (immune to fear, a demon or devil) and any ability scores they have. The mindless never change. Each trait's tooltip in the planner lists where it started and every part that moved it.
-- **Leadership:** Personality, a title in its name (the language file's words: king, thane, captain ...), a cleric's standing, and experience.
-- **Talking:** Personality for persuading, intimidating and deceiving, against Will. A sheet with no languages listed speaks Common (every character; any creature the system files as one of the people, by the crit table it gave it: a humanoid's, a giant's, a dragon's or a demon's. Of the un-dead and other monsters, those whose name says they speak, by the language file's words: a centaur, a ghoul, not a beast; with a crit table the system doesn't file, any but a beast or the mindless). What it could hand over to end an argument: its coins, what it carries, and the weapons and shield in its hands; never the armor it wears.
+The class is the character sheet chosen for the actor or its token, as in DCC and XCC; the rest comes from the character's own numbers (a deed die, its spells), so classes from other books work too.
+
+Each weapon brings its to-hit, damage, range, action die, crit range, crit die and table, and fumble range. DCC doesn't say whether a weapon cuts, pierces or crushes, so the damage formula or the weapon's name does. A monster's stat line fills in what its sheet leaves out: attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check.
+
+Natural attacks (a bite, claws, a slam, a Brawler's fists) need no free hand, except claws and fists, which need their own. A creature with no weapon in hand can't be disarmed, by a deed or a crit.
+
+### Action dice: the core's turn
+
+A creature gets one action for each action die: a giant its d24 then its d16, a high-level character its second die. Crit ranges scale to the die (19–20 on a d20 is 23–24 on a d24). Initiative rolls the system's die: a d20, a d16 with a two-handed weapon in hand, or a weapon's own. Springing an ambush (the core's stealth surprise), a thief rolls its Sneak Silently and Agility, a halfling its Sneak and Hide.
+
+Two weapons set up as the primary hand and the off hand attack together for one action, on the dice the system steps down for each (Table 4-3), each hand with its own crit rule (no crits, or only on the die's highest face: a halfling's).
+
+### Mighty Deeds: the core's maneuvers, riding the blow
+
+Anyone whose attack bonus is a die (warriors, dwarves) rolls it with every attack, adding it to the roll and the damage, and first declares the deed that would help most: trip, blinding attack, disarm, pushback, defensive maneuver or rallying maneuver, each one of the core's maneuvers riding the blow. It lands on a hit with a 3 or more on the deed die, doing more the higher the die shows: a trip knocks the foe down; a pushback shoves it back 5 feet, or 10 on a 5 or more.
+
+Deeds come from the world's Mighty Deed tables, else rough built-in versions. A pushback always uses the built-in distances, because a book's pushback rows measure by the warrior's movement and the foe's size. Warriors push where the push does harm (over a drop, into a hazard) and trip or blind on open ground.
+
+A rally follows the world's rally table: so much to friends' morale checks, and a second check for a hireling whose group has broken. Without a table, friends nearby get a better next swing, more, and farther, at a higher deed.
+
+### Crits and fumbles: the core's outcomes
+
+A crit rolls the crit die plus Luck on the attacker's crit table, and the row becomes the core's outcomes: extra damage and a lasting effect (knocked down, stunned, blinded, disarmed, a penalty, sometimes death outright). A player character's Luck lessens a monster's crit against it. A player character's fumble rolls the fumble die (from its armor) on the fumble table.
+
+### Conditions and position: the core's, with DCC's numbers
+
+| Condition | What it costs |
+| --- | --- |
+| Prone | -4 to its attacks; +2 to a melee attack at it |
+| Blinded | -4 to its attacks, -2 AC |
+| Frightened | -2 to its attacks and saves |
+| Slowed | -2 to its attacks and AC |
+| Disarmed | -4 to its weapons' blows (not its claws or fangs) |
+| Hidden | +4 AC |
+| Behind cover (walls hide any of it) | -2 to hit it, melee or missile; DCC has no degrees of cover, and cover adds nothing to saves |
+
+A charge (a melee attack after moving at least half its speed that turn) is +2 to hit, and -2 AC until its next turn. A shot into a melee is at -1, and half its misses go toward a random friend of the shooter's in that melee, attacked again. A creature pushed over a drop takes 1d6 for each 10 feet, with no upper limit, and lands prone.
+
+### Free attacks, spell duels and Toughness: the core's reactions
+
+A creature that withdraws from a melee gives every foe engaged with it a free attack. An XCC Brawler's Toughness takes so much off every melee blow.
+
+A caster yet to act this round may answer a foe's spell that worked with one that counters it: the same spell, Dispel Magic, Fire Resistance against a fire spell, Magic Shield against Magic Missile, Invoke Patron against Invoke Patron (never one lost for the day). The spell checks are compared: higher, the spell is undone; a tie, neither stands; lower, or a failed check, the spell goes on. Answering costs the caster its next action.
+
+### Grapples and bonds: the core's holds
+
+A Grapple is DCC's opposed attack rolls: the attack bonus plus the better of Strength and Agility (a monster's best melee attack bonus plus its Hit Dice). The winner pins the foe in its grip. Breaking free is the same roll, an action on the action die, against 10 + the grabber's grapple. In both, the bigger adds its size's edge, by the tokens' sizes: twice the other's size, +4; three times, +8; four times, +16, and so on.
+
+Bonds tied with whatever was to hand, Restrained (a web, a net, ropes) and XCC's Grappled with no grabber known are DC 15 to break. A friend beside a Restrained creature can tear it loose with the same roll. The **Tied up stops spells** setting says whether a creature tied up can still cast.
+
+### Luck, spellburn, Fleeting Luck and Mojo: the core's resources
+
+A player character burns Luck on a roll that falls short, more readily the more is at stake (a save against death, a spell, a friend bleeding out). A thief rolls its luck die for each point. A halfling's points count double, and it can spend them on a friend's roll within 30 feet. Wizards and elves spellburn Strength, Stamina and Agility on spell checks.
+
+DCC's Fleeting Luck (when the world has it on: each player's, for all its characters) and XCC's Mojo (each crawler's own) are spent before Luck, a point for +1. A character's natural 20 earns its pool a point; a natural 1 on a d14 or bigger empties every pool. At most 20 points count: points come one at a time and a natural 1 takes them all, so a bigger pool was typed in.
+
+### Spells: the core's spell actions
+
+A spell check rolls the action die, and the spell's results table says what each result does: damage (so many missiles of so much each, too), a save or a hold (sleep, paralysis, a charm that turns the target to the caster's side, a command that costs it its turn), healing, or a blessing. A save's DC is the spell check. A wizard or elf loses the spell for the day on a failure; a cleric's failures widen its disapproval, and a natural roll inside the range fails. Monsters lose nothing. A spell from a stat-block importer that names no table is found by name in the installed books. A cleric's Lay on Hands (so many of the target's hit dice) and Turn Unholy (un-dead, demons and devils up to so many hit dice cower) follow their tables.
+
+### Dying and mending: the core's downed creatures
+
+Monsters and 0-level characters die at 0 hit points. Anyone else bleeds out for as many rounds as their level; healed in time, it loses a point of Stamina for good. After the fight, friends who hold the field roll the body of each fallen player character: a Luck check (a d20 at or under its Luck) finds it only unconscious, at 1 hit point, groggy, a point of Strength, Agility or Stamina gone for good.
+
+A monster's stat line gives its regeneration ("regenerates 1d6 hp per round"; harm it doesn't regenerate from, such as fire, stops it for a turn) and its healing each round ("heal 2 hp per round"). At 0 hit points a regenerating monster is dead, unless its words say it regenerates even the round it's killed (a troll's): then it rolls a last burst, and if it was taken below 0 by less than that, it gets up again. A stat line that only names its regeneration (the core book's troll) takes the amount from the book entry it links to, when that book is installed.
+
+### Morale: DCC's, in place of the core's
+
+DCC's morale is for creatures; a character's is its player's. A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. Whichever of the group acts next rolls for all: a d20 + its Will against DC 11 (a retainer adds its employer's Personality: the party leader's, else the best in the party). Under, the whole group flees. A warrior's rallying deed can add to the roll, or give one whose group has broken a second check: made, it stays while the rest run. The mindless and the fearless never break. The Statistician shows each roll.
+
+### Sizing a foe up: the core's Lore-Collector
+
+A Lore-Collector with a mind (not the mindless or constructs) sizes a foe up with an Intelligence check against DC 10. When it works, its next rolls against every foe of that sort are far likelier to land, by the **Lore-Collector advantage** setting.
+
+### Personality, leadership and talking: the core's traits and standoffs
+
+A player character starts as the usual hero, and its sheet moves each trait a little: a 0-level funnel peasant starts lower (about 45 Tactical, 50 Brave, 35 Selfish, 55 Loyal), and its level, abilities, Will save, hit points, class, alignment, birth augur and party (DCC's Party sheets) each count. A monster's traits come from what its stat line and crit table say it is (the walking dead, a construct, a spellcaster), its name only where those say nothing, then its Will, alignment and any ability scores. The mindless never change. Each trait's tooltip in the planner lists every part that moved it.
+
+DCC has no social skills and keeps no rank, so a leader is someone with Personality, a title in its name (king, thane, captain ...), a cleric's standing, or experience.
+
+A creature persuades, intimidates (with Strength, when better) and deceives with Personality, against Will. A sheet with no languages listed speaks Common if it's a character, one of the people by its crit table (a humanoid's, a giant's, a dragon's or a demon's), or an un-dead or other monster whose name says it speaks (a centaur, a ghoul; never a beast); with a crit table the system doesn't file, anything but a beast or the mindless. To end an argument it can hand over its coins, what it carries, and the weapons and shield in its hands, never the armor it wears.
+
+### XCC classes
+
+The Messenger plays as a cleric (holy acts with disapproval, turning the unholy, healing), each Specialist (Acrobat, Commando, Scout, Criminal and the rest) as a thief (backstab, a luck die). Others bring their own:
+- **Brawler:** unarmed, two attacks together on a d16 each (a crit on a natural 16; no fumble on one alone); armed, a free unarmed attack on a d14 once a round besides its own. Its attack bonus, Strength and Luck (when it helps) go on its to-hit and its unarmed damage die. No crits in armor too heavy (a check penalty of -4 or worse).
+- **Dungeon Hottie:** Not in the Face (a round spent defending: its bonus to AC until its next turn); Too Cute to Die (a failed body roll passes for a point of Luck, once a level; Do it For Real Now marks it used).
+- **Jammer:** Disrespect, a performance check (Personality, level and Luck) its foe saves against with Will (the DC the check's average), or takes the Jammer's penalty (a step down the dice chain, counted as -2) to attacks, checks and damage for level + Personality rounds.
+- **Gnome:** Draw Agro, the core's taunt: a check (Personality, level, and Luck when it helps) a foe within 60 feet saves against with Will, or spends its next turn going for the gnome or pays a step down the dice chain (two from 5th level) on its rolls against anyone else. Each attack it draws earns the gnome a point of Mojo.
+- **Athlete:** wrestling, a grapple for 1d4 + Strength, not with a shield in hand (the armor with no fumble die). Its training die rolls with it like a deed die, onto the roll and the damage; it has its own crit range (none in armor too heavy), and a hit grabs.
+- **Acrobat and Half-Elf:** acrobatics to get clear of a melee: half its move and a check, 15 to slip one foe, 20 for several; missed, the free attacks come.
+
+The mindless pay no heed to Disrespect or Draw Agro.
+
+### Homebrew
+
+Where the rules say nothing, the module keeps to DCC's own mechanics:
+- **Help:** a step up the dice chain, counted as +2 (as the Jammer's step down is -2), on a friend's next attack or check, at the foe beside the helper.
+- **Hide:** a thief's Hide in Shadows (a halfling's Sneak and Hide), anyone else's untrained check (a d10 and Agility), against the sharpest eyes among its foes, never with a foe beside it. Hidden, it's -4 to hit, and its next attack catches its foe unready (a thief's backstab); it stays hidden until it attacks.
+- **Binding a bleeding friend's wound** (only healing saves one in the rules): an action beside it, and the friend's own Luck decides, once, as rolling the body would. Made, it stops bleeding, still out, a point of Stamina gone for good.
+- **Subdual:** any blunt blow, bare hands, or a weapon the system marks as dealing subdual damage knocks a foe out instead of killing it.
 
 ## Playstyles in DCC
 
-Every perk a playstyle (or a tactics answer) can switch on does something here. Most play as they do in any system (who a character goes for, when it loses heart, whom it listens to, how it talks). These lean on DCC's own:
+Every perk a playstyle (or a tactics answer) can switch on does something here. Most play as in any system; these lean on DCC's own:
 
-| Perk (playstyles) | In DCC |
+| Perk | In DCC |
 | --- | --- |
-| Hard to spot (Chicken, Fragile, Wallflower) | Foes' attention slides off it, and it would rather **Hide**: a thief's Hide in Shadows (a halfling's Sneak and Hide); anyone else's an untrained check, a d10 and Agility; against the sharpest eyes among its foes, not with a foe beside it. Hidden, it's harder to hit (-4, as against what it can't see), and its next attack catches its foe unready (a thief's backstab), until it attacks. |
-| Spoiling (Instigator most; Cruel, Wants to Lead, Wallflower, Puzzle-Maniac) | A warrior's or dwarf's **Mighty Deed**: it would rather trip, blind or disarm. Anyone else can **Grapple**: the rules' opposed attack rolls (its attack bonus and the better of Strength and Agility against the foe's), and won, the foe is pinned, held until it breaks free. |
-| Helping (Enabler, People-Pleaser, Moralist, Martyr, Redeem-Seeker, Tank) | **Help**, a step up the dice chain (+2) on a friend's next attack or check, at the foe beside the helper; a cleric's Lay on Hands; a halfling's Luck for a friend. |
-| Rallying (Wants to Lead, Martyr) | A warrior's rallying deed, more readily. |
-| In a hurry (Impatient, Speed-Runner) | It **charges** in (a melee attack it moves for: +2 to hit, -2 AC), rather than shooting; it doesn't stop to hide or slip a melee with acrobatics. |
-| Acting first (Instigator) | Its initiative. |
-| Lore-Collector | An Intelligence check against DC 10. |
-| Weak spots (Puzzle-Maniac) | A monster's stat line: "half damage from piercing and slashing weapons" (a skeleton) leaves blunt harm a weak spot; "vulnerable to fire", double damage. |
-| Thief | A thief's Pick Pockets; anyone else's an untrained check (a d10 and Agility). The same for a lock. |
+| Hard to spot | Foes' attention slides off it, and it would rather **Hide**. |
+| Spoiling | A warrior's or dwarf's **Mighty Deed**: it would rather trip, blind or disarm. Anyone else can **Grapple**. |
+| Helping | **Help**; a cleric's Lay on Hands; a halfling's Luck for a friend. |
+| Rallying | A warrior's rallying deed, more readily. |
+| In a hurry | It **charges** in rather than shooting, and doesn't stop to hide or to slip a melee with acrobatics. |
+| Acting first | Its initiative. |
+| Weak spots | A monster's stat line: "half damage from piercing and slashing weapons" (a skeleton) leaves blunt harm a weak spot; "vulnerable to fire", double damage. |
+| Thief, locked doors | A thief's Pick Pockets and Pick Lock; anyone else's untrained check (a d10 and Agility). Strength forces a door (DC 15). |
 | Trap avoiders | A token the GM marks as a hazard. |
-| Finishing the fallen (Cruel) | A character bleeding out; a foe knocked out, after the fight. |
-| Sparing the fallen (Moralist, Peacekeeper, a Diplomat now and then) | **Subdual:** a blunt blow, bare hands, or a weapon the system marks as dealing subdual damage, knocks a foe out instead of killing it; and it leaves the fallen be. |
+| Finishing the fallen | A character bleeding out; a foe knocked out, after the fight. |
+| Sparing the fallen | **Subdual**, and it leaves the fallen be. |
 | Mending, healing, rescue | A cleric's Lay on Hands and healing spells; **binding the wound** of a friend bleeding out. |
-| Locked doors | Strength to force it; a thief's Pick Lock (anyone else's untrained). |
 
 Tactics answers:
-
-- **Shields:** a DCC shield is already in the AC; a warrior's or dwarf's defensive Mighty Deed goes as the answer says: half again as readily; as it would anyway; never.
+- **Shields:** a DCC shield is already in the AC, so the answer goes to a warrior's or dwarf's defensive Mighty Deed: half again as readily, as it would anyway, or never.
 - **Resources:** how freely it burns Luck (and Fleeting Luck or Mojo) and spellburns: conserving, half as readily; all out, half again.
-- **Magic and specialties** (an Un-Mundane character leans on them): spells, a cleric's Lay on Hands and Turn Unholy, and XCC classes' own (a Brawler's fists, a Hottie's Not in the Face, a Jammer's Disrespect, a Gnome's Draw Agro, an Athlete's wrestling). Its weapons, Help, Grapple and Hide are what anyone could do; a warrior's deeds go with every blow it strikes.
-
-**Homebrew** (the rules don't say; this module's reading, kept to DCC's own mechanics where it could):
-- Help: a step up the dice chain, counted as +2, as the Jammer's step down counts as -2.
-- Hide's DC (the foes' sharpest eyes), and what hidden does.
-- Binding a bleeding friend's wound (only healing saves one in the rules): an action beside it, and its own Luck decides as rolling the body would (a d20 at or under its Luck), once. Made, it stops bleeding, still out, a point of Stamina gone for good, as if healed in time.
-- Subdual by any blunt blow or bare hands.
+- **Magic and specialties** (an Un-Mundane character leans on them): spells, a cleric's Lay on Hands and Turn Unholy, and XCC classes' own (a Brawler's fists, a Hottie's Not in the Face, a Jammer's Disrespect, a Gnome's Draw Agro, an Athlete's wrestling). Weapons, Help, Grapple and Hide are what anyone could do; a warrior's deeds go with every blow.
 
 ## Set up by itself
 
-When FastFighting sets a character up by itself (the first time it sees it: see the core's README), DCC has its say:
-- **Class, by the class sheet** (DCC's and XCC's):
-  - a Warrior a Brawler or a Tank; a Dwarf a Tank, relentless; a Thief (and every XCC Specialist) a Thief; a Halfling a Wallflower; an Elf or Wizard Un-Mundane and a Lore-Collector; a Cleric or Messenger an Enabler; a funnel peasant Fragile;
-  - XCC: a Brawler a Brawler; a Dungeon Hottie a People-Pleaser; a Jammer an Instigator; a Gnome a Tank; an Athlete a Brawler; an Acrobat a Speed-Runner.
-- **Alignment:** Lawful leans Moralist; Chaotic, Cruel and Wildcard.
-- **A monster's stat line:** the un-dead and the mindless Relentless; demons and devils Cruel; beasts Brawlers.
-- **Keywords:** its occupation, title (XCC's casting), birth augur and a wizard's corruption, and a monster's notes, as what's said of it; a player character's notes (and XCC's rewards notes) as its story, counted a little. Never its patron, god, contacts or entourage: those are others.
-
-### Let this character decide
-
-What "Let this character decide" stands for (the GM sees each answer and why, in orange under the question) comes from the sheet wherever DCC says something; the core's reading of the hidden scores answers the rest.
-
-A player character, by what its build clearly implies (the rest is its player's):
-- **Its signature attack:** two weapons set up together (two-weapon fighting); else the weapon its class sheet names (a Warrior's Lucky Weapon; XCC's deed weapon, chosen weapon or favored weapon), when it carries it; else a Brawler's bare fists; else, beside a weapon it isn't trained in, the one weapon it is (a funnel peasant's, its occupation's).
-- **Its class:** its fighting style (the front line for a Warrior, Dwarf, Cleric, Messenger, Brawler, Athlete or Half-Orc; a skirmisher for a Thief, Specialist, Halfling, Dungeon Hottie or Half-Elf; a caster for a Wizard, Elf or Blaster; a Gnome guards its friends); a Blaster goes for casters (it earns its Mojo bringing down magic users); how strongly it reaches for its own (spells first for a Wizard or Blaster, and a Brawler's fists; a little more often for an Elf, a Cleric or Messenger, a Jammer, a Gnome or an Athlete); a Dungeon Hottie talks first, a Jammer when it could work; a Thief, trained to cast from scrolls and handle poison, uses consumables freely.
-- **Luck:** a Thief's, a Halfling's and a Specialist's comes back each day, so they spend it (and Fleeting Luck or Mojo) freely. Anyone else's burned Luck is gone for good: how freely is left to its nerve.
-- **A Cleric or Messenger** keeps everyone topped up with Lay on Hands, drops everything for a friend bleeding out, and heals itself first when it gets back up. A chaotic one heals those who are hurting and keeps fighting: each for itself.
-- **A deed die:** its defensive Mighty Deed as it would anyway (a DCC shield is already in the AC, so the core alone would say never).
-- **A Luck of 5 or less:** it gets out when hurt (a body roll under its Luck would rarely save it).
-- **A 0-level funnel peasant** runs when it's badly hurt: it dies at 0. To end an argument it offers to leave, and wants only not to be harmed.
-
-A creature, by its stat line and Will:
-- **The un-dead** never flee. **The mindless and constructs** don't either, and never talk, offer and want nothing, go for whoever's nearest, hold the line, stay with the fight, and use up nothing. One **immune to fear**, or with a Will no morale check can break (+10), never flees.
-- **A beast** flees when hurt, has no words, offers and wants nothing, and has no use for potions or scrolls. **Pack tactics:** it gangs up on the weakest, and hunts down the rest.
-- **Anyone else** checks DCC's morale when the fight turns against it (its Will shown).
-- **A spellcaster** (spellcasting, a spell check, "Atk spells or ...") leads with its spells; **a flier** strikes and wheels away.
-- **Its name**, only where its stat line and crit table say nothing (the language file's word lists): a beast or the mindless, as above. Never a role by its name: what its notes say of it, a highwayman's greed for one, reaches the core as its biography's keywords, and the core's offer and expectation follow from those.
-
-Left to the core: anything the sheet doesn't speak to. (DCC's fights use no consumables yet: that answer is for the survey.)
+The first time FastFighting sets a character up by itself (see the [core's README](https://github.com/galaara98/FastFighting)), DCC's sheet has its say. The class sheet suggests playstyles (a Warrior Brawler and Tank, a Halfling Wallflower, a Wizard Un-Mundane and Lore-Collector), and so do alignment (Lawful leans Moralist; Chaotic, Cruel and Wildcard) and a monster's stat line (the un-dead Relentless, demons and devils Cruel). Where DCC says something, the sheet answers "Let this character decide" too: a Warrior's Lucky Weapon as its signature attack, a Thief spending Luck freely (it comes back each day), a beast fleeing when hurt. The GM sees each answer and why, in orange under the question. [CODING_README.md](CODING_README.md#set-up-by-itself) lists them all. DCC's fights use no consumables yet, so that answer only shows in the survey.
 
 ## Do it For Real Now
 
 In a live battle, each turn's changes go onto the tokens as the turn is played:
-- hit points, death (and the combatant defeated), the fled hidden;
-- Luck and spellburn spent, and Fleeting Luck or Mojo as the fight left it;
-- spells lost for the day, a cleric's disapproval range;
-- the Stamina lost to bleeding out, or, when the body was rolled after the fight and found alive, the ability lost, Groggy, and no longer dead;
-- statuses put on a creature or taken off it, by the fight or by the GM in the Battle Vantage: Prone, Stunned, Paralyzed, Asleep, Unconscious, Blind, Deaf, Silenced, Frightened, Restrained (DCC's held), Invisible, Poisoned, and Disarmed (the dcc system's palette) or Slowed and Grappled (XCC's). Each turn the token's statuses are read back as the same conditions, so one the GM takes off the token is gone from the fight too. What DCC has no status for (turned, hidden, can't move or can't act on its own) FastFighting keeps;
-- the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the party: Hostile).
+- hit points; death (and the combatant defeated); the fled hidden; a Surrendered effect on one that gave up;
+- Luck and spellburn spent (spellburn from Strength, then Stamina, then Agility, none below 3), and Fleeting Luck or Mojo as the fight left it (on the player, or the crawler);
+- spells lost for the day, and a cleric's disapproval range;
+- the Stamina lost to bleeding out, or, for a body rolled after the fight and found alive, the ability lost, Groggy, and no longer dead (with the dcc system's Death Clock on, the system marks the dying, counts their rounds and scars the saved itself);
+- statuses put on or taken off, by the fight or by the GM in the Battle Vantage: Prone, Stunned, Paralyzed, Asleep, Unconscious, Blind, Deaf, Silenced, Frightened, Restrained (DCC's held), Invisible, Poisoned, and Disarmed (the dcc system's palette) or Slowed and Grappled (XCC's). Each turn the token's statuses are read back, so one the GM takes off is gone from the fight too. FastFighting keeps what DCC has no status for (turned, hidden, can't move, can't act on its own);
+- the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the party: Hostile);
+- what a creature hands over (or has stolen): coins, or an item, unequipped and out of any container.
 
 Rewind Turn takes one turn back; Rewind This Encounter, all of it.
 
-## Development
+## Settings
 
-The tests import FastFighting Core from a checkout beside this one (`../FastFighting`; override with `FASTFIGHTING_CORE`):
+- **Lore-Collector advantage** (1.25× to 3×): how much likelier a Lore-Collector's rolls against a foe it has sized up are to succeed, through its next turn. Default 2.25×: sizing up costs the whole turn, but deed dice and Luck already swing a fight hard. Ordinary attacks get all they can by about 1.75×; the rest helps long-shot rolls (a hard AC, a hard talk).
+- **Tied up stops spells** (on by default): the rules don't say which spells need free hands, so this decides for all of them. On, a creature tied up can't cast; off, it can, and may cast instead of struggling against its bonds.
 
-```
-npm install
-npm test
-```
+## Not played
 
-The tables in the tests are written for them in DCC's style; no book's text is quoted.
-
-Every word this module shows is in `languages/en.json`: the code holds keys, never the English. Translating it takes only a copy of that file (see **Translating** in the core README). `npm run test:reworded` runs the tests again with every word in the language files reworded, so they never depend on the wording.
-
-`hardcoded-toEN.json` lists words that stay in English for now, whatever the reader's language: keys of `languages/en.json` (or a group, `"FFDCC.Cond"`) whose translation would contradict a game system that isn't translated yet. It has the date it was last updated (`lastUpdated`) and the list (`keys`). It's plain JSON, edited like the language files.
+- What the book's disarm rows do to claws and teeth.
+- The book's spell duel tables, with momentum and phlogiston disturbance (the checks are compared instead).
+- A book's pushback rows (the built-in distances stand in).
+- A rally bonus that waits on a kill or a crit, and a rally that only steadies nerves (the core can't weigh it yet).
+- Bones broken in a fall (on a roll of 6).
+- Precision shots (a Mighty Deed).
+- The Jammer's Lionize (its table is the XCC book's) and the Half-Orc's Wild Attack.
+- Consumables in a fight.
 
 ## License
 
 MIT for this module's code. Dungeon Crawl Classics is a trademark of Goodman Games; this module isn't affiliated with or endorsed by them.
+
+---
+
+Developer notes: [CODING_README.md](CODING_README.md). FastFighting itself: [FastFighting Core](https://github.com/galaara98/FastFighting) and its [developer docs](https://github.com/galaara98/FastFighting/blob/main/CODING_README.md).
