@@ -1,8 +1,8 @@
 /**
  * Players' damage in a live battle (core API 19): a dcc card's damage read (an attack's, a Roll Damage button's at its
  * attack's target, a roll typed healing; nothing from a miss or a check), applied the dcc system's way (its actor's
- * applyDamage, times the GM's multiplier) with the hit points as they were for Rewind, and the dcc system's own
- * Auto-apply damage, while it's on, named for the GM.
+ * applyDamage, times the GM's multiplier; in a turn FastFighting plays, the engine's own sum, resistances counted) with
+ * the hit points as they were for Rewind, and the dcc system's own Auto-apply damage, while it's on, named for the GM.
  */
 import { afterEach, describe, expect, test } from "vitest";
 import { DccAdapter } from "../scripts/adapter.js";
@@ -127,6 +127,22 @@ describe("a dcc card's damage applied", () => {
     expect(applied).toEqual([[9, -1]]);
     expect(actor.system.attributes.hp.value).toBe(8);
     expect(records[0].actorUpdate).toEqual({ "system.attributes.hp.value": 4 });
+  });
+
+  test("a strike's card in a turn FastFighting plays: the engine's sum (a skeleton's half from piercing), exactly; 0, nothing", async () => {
+    const { token, actor, applied } = npc(10);
+    const records = await new DccAdapter().applyDamageCard(hit(7), token, { multiplier: 1, amount: 3 });
+    expect(applied).toEqual([[3, 1]]);
+    expect(actor.system.attributes.hp.value).toBe(7);
+    expect(records[0].actorUpdate).toEqual({ "system.attributes.hp.value": 10 });
+    expect(await new DccAdapter().applyDamageCard(hit(7), token, { multiplier: 1, amount: 0 })).toEqual([]);
+    expect(applied).toHaveLength(1);
+  });
+
+  test("healing goes as the card has it, whatever sum comes with it", async () => {
+    const { token, applied } = npc(4, 20);
+    await new DccAdapter().applyDamageCard(card({ rolls: [roll(6, { formula: "1d6[healing]" })] }), token, { amount: 2 });
+    expect(applied).toEqual([[6, -1]]);
   });
 
   test("a card that deals nothing: nothing applied, no records", async () => {

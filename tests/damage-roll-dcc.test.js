@@ -3,8 +3,9 @@
  * reached (the core's "<actor id>.<item id>@<n>"), its damage as the spell's table reads, rolled once with the system's
  * damage roller, no dialog, its Damage card in the chat as the Roll Damage button makes it; several missiles, their
  * count rolled first; by kind as rolled; for the GMs only when secret. Null for anything that isn't a spell's result
- * with damage. The card applied (applyDamageCard): each target's share by the multiplier, rounded down, and what its
- * stat line says it takes none, half or double of. No useAction: a spell's card is its spell check's.
+ * with damage. The card applied (applyDamageCard): in a turn FastFighting plays, the engine's sum for each target (its
+ * share, its resistances counted), exactly; without it, the card times the multiplier. No useAction: a spell's card is
+ * its spell check's.
  */
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { DccAdapter } from "../scripts/adapter.js";
@@ -91,7 +92,7 @@ describe("a spell's damage, rolled the dcc system's way", () => {
     expect(chat).toHaveLength(1);
     expect(chat[0]).toMatchObject({
       speaker: { actor: "actA", token: "tokA" }, flavor: "«DCC.RollsDamageWith:Ember Spray»", mode: null,
-      flags: { dcc: { RollType: "Damage" }, "fast-fighting-dcc": { byType: { fire: 9 } } }
+      flags: { dcc: { RollType: "Damage" } }
     });
   });
 
@@ -159,12 +160,12 @@ describe("by kind, as rolled", () => {
   });
 });
 
-/** A dcc NPC on a token, its stat line as `notes`, its applyDamage as the system's. */
-function npc(notes = "", hp = 30) {
+/** A dcc NPC on a token, its applyDamage as the system's. */
+function npc(hp = 30) {
   const applied = [];
   const actor = {
     uuid: "Scene.s.Token.tokB.Actor.actB", type: "NPC", statuses: new Set(), effects: [],
-    system: { attributes: { hp: { value: hp, max: hp } }, details: { notes: { value: notes } } },
+    system: { attributes: { hp: { value: hp, max: hp } }, details: { notes: { value: "" } } },
     applyDamage: async (amount, multiplier) => {
       applied.push([amount, multiplier]);
       actor.system.attributes.hp.value -= amount * multiplier;
@@ -175,45 +176,36 @@ function npc(notes = "", hp = 30) {
 }
 
 describe("a spell's Damage card applied", () => {
-  /** The card rollDamage posts, for so much of each kind. */
-  async function card(parts, rolled) {
+  /** The card rollDamage posts. */
+  async function card(rolled) {
     const { token } = wizard();
     const { chat } = dice(rolled);
-    await rollDccDamage(token, { name: "Ember Spray", damage: parts });
+    await rollDccDamage(token, { name: "Ember Spray", damage: [{ dice: [{ n: 2, faces: 6 }], flat: 0, type: "fire" }] });
     return chat.at(-1);
   }
-  const fire = [{ dice: [{ n: 2, faces: 6 }], flat: 0, type: "fire" }];
-  const apply = (message, token, multiplier = 1) => new DccAdapter().applyDamageCard(message, token, { multiplier });
+  const apply = (message, token, options) => new DccAdapter().applyDamageCard(message, token, options);
 
-  test("its share by the multiplier, rounded down, through the system's applyDamage, the hit points kept for Rewind", async () => {
-    const m = await card(fire, [9]);
+  test("the engine's sum for this target (its save's half, its resistances counted), exactly, the hit points kept for Rewind", async () => {
+    const m = await card([9]);
     const { token, applied } = npc();
-    const records = await apply(m, token, 0.5);
-    expect(applied).toEqual([[4, 1]]);
+    const records = await apply(m, token, { multiplier: 0.5, amount: 2 });
+    expect(applied).toEqual([[2, 1]]);
     expect(records[0]).toMatchObject({ actorUpdate: { "system.attributes.hp.value": 30 } });
-    await apply(m, token);
-    expect(applied.at(-1)).toEqual([9, 1]);
   });
 
-  test("what its stat line says: none of what it's immune to, half, double", async () => {
-    const m = await card(fire, [9]);
-    const immune = npc("Atk claw +2 melee (1d6); AC 14; HD 3d8; SP immune to fire; SV Fort +3, Ref +1, Will +0.");
-    expect(await apply(m, immune.token)).toEqual([]);
-    expect(immune.applied).toEqual([]);
-    const half = npc("SP half damage from fire; SV Fort +3.");
-    await apply(m, half.token);
-    expect(half.applied).toEqual([[4, 1]]);
-    const double = npc("SP double damage from fire; SV Fort +3.");
-    await apply(m, double.token);
-    expect(double.applied).toEqual([[18, 1]]);
+  test("nothing at 0 (a target immune to it): nothing applied, no records", async () => {
+    const m = await card([9]);
+    const { token, applied } = npc();
+    expect(await apply(m, token, { multiplier: 1, amount: 0 })).toEqual([]);
+    expect(applied).toEqual([]);
   });
 
-  test("each kind on its own: what it's immune to of two kinds", async () => {
-    const m = await card([...fire, { dice: [{ n: 1, faces: 6 }], flat: 0, type: "cold" }], [7, 4]);
-    expect(m.flags["fast-fighting-dcc"].byType).toEqual({ fire: 7, cold: 4 });
-    const { token, applied } = npc("SP immune to cold; SV Fort +3.");
+  test("without the engine's sum: the card times the multiplier, rounded down", async () => {
+    const m = await card([9]);
+    const { token, applied } = npc();
+    await apply(m, token, { multiplier: 0.5 });
     await apply(m, token);
-    expect(applied).toEqual([[7, 1]]);
+    expect(applied).toEqual([[4, 1], [9, 1]]);
   });
 });
 

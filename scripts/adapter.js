@@ -24,7 +24,7 @@ import { dccHints, dccTactics } from "./auto.js";
 import { t, saysWord, harmOf } from "./words.js";
 import { rollDccStrike } from "./strike-roll.js";
 import { rollDccSave, rollDccCheck } from "./check-roll.js";
-import { spellTier, rollDccDamage, harmTo } from "./damage-roll.js";
+import { spellTier, rollDccDamage } from "./damage-roll.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
@@ -1014,12 +1014,13 @@ export class DccAdapter extends SystemAdapter {
   }
 
   /**
-   * API 19. A card's damage applied the dcc system's way (commit.js applyDccDamage), with its undo records. A spell's
-   * damage card of this helper's (rollDamage) deals each target its share as the engine reckons it, its stat line's
-   * immunities, half and double damage counted (damage-roll.js harmTo).
+   * API 19. A card's damage applied the dcc system's way (commit.js applyDccDamage), with its undo records. In a turn
+   * FastFighting plays (a strike's card, a spell's), `amount` is the engine's sum for this target, after what its stat
+   * line says it takes none, half or double of, and its share of a save's: dealt as it is, since the dcc system's
+   * applyDamage counts no resistances.
    */
-  async applyDamageCard(message, token, { multiplier = 1 } = {}) {
-    return applyDccDamage(message, token, { multiplier, amount: harmTo(message, token?.actor, multiplier) });
+  async applyDamageCard(message, token, { multiplier = 1, amount = null } = {}) {
+    return applyDccDamage(message, token, { multiplier, amount });
   }
 
   /** API 19. The dcc system's Auto-apply damage, by its name, while it's on (commit.js systemAppliesDamage). */

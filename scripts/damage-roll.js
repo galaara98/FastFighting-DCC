@@ -9,16 +9,10 @@
  *     and caster level its row says. Nothing to read there (not a spell on the sheet, no table): null, the engine's dice.
  *   - Several missiles, bolts or rays, so many of so much each: a count with dice is rolled first, its own card (the
  *     spell's name on it), and every missile's damage is on the one Damage card.
- *   - By kind as rolled (each part's dice and bonus), keyed as the helper's rules key them (fire, cold ...; untyped).
- *   - The card carries that by kind for this helper (its flags), so applying it (harmTo) counts what the target's stat
- *     line says it takes none, half or double of, as the engine counts it: the dcc system's applyDamage counts none.
+ *   - By kind as rolled (each part's dice and bonus), keyed as the helper's rules key them (fire, cold ...; untyped):
+ *     the engine counts each target's share and resistances from it, and applyDamageCard deals that (its `amount`).
  * Nothing is applied here, and nothing earns or costs Fleeting Luck. It's for the GMs only when secret.
  */
-import { dccRules } from "./rules.js";
-import { statLine, iwrIn } from "./text.js";
-
-/** This helper's flags on a card (the module's id). */
-const SCOPE = "fast-fighting-dcc";
 
 /**
  * The spell and the result the core names: {itemId, tier} for "<actor id>.<item id>@<n>" (the core's id for a spell
@@ -115,24 +109,7 @@ export async function rollDccDamage(token, { name, damage, repeat = null, secret
   const byType = byKind(roll, damage, times);
   const card = await roll.toMessage({
     speaker, flavor: game.i18n.format("DCC.RollsDamageWith", { weapon: name }),
-    flags: { dcc: { RollType: "Damage" }, [SCOPE]: { byType } }
+    flags: { dcc: { RollType: "Damage" } }
   }, modeOf(secret));
   return card?.id ? { damage: { byType }, card: card.id } : null;
-}
-
-/**
- * What a damage card of this helper's (rollDccDamage: its damage by kind on it) deals a target: each kind's share by
- * the multiplier, rounded down, as the engine reckons a save's share; then what the target's stat line says it takes
- * none, half or double of (the rules' applyIwr, as for its spec), which the dcc system's applyDamage doesn't count.
- * Null for any other card.
- * @param {ChatMessage} message
- * @param {Actor} actor       the target's
- * @param {number} [multiplier]
- */
-export function harmTo(message, actor, multiplier = 1) {
-  const kinds = message?.flags?.[SCOPE]?.byType;
-  if ( !kinds || typeof kinds !== "object" ) return null;
-  const times = Math.max(0, Number(multiplier) || 0);
-  const share = Object.fromEntries(Object.entries(kinds).map(([k, v]) => [k, Math.floor((Number(v) || 0) * times)]));
-  return dccRules.applyIwr(iwrIn(statLine(actor?.system?.details?.notes?.value ?? "")), share);
 }
