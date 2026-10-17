@@ -2,7 +2,7 @@
   "id": "fast-fighting-dcc",
   "title": "FastFighting DCC",
   "description": "Dungeon Crawl Classics (and Xcrawl Classics) support for FastFighting Core: reads dcc characters and monsters (action dice, deed dice and Mighty Deeds, crits and fumbles, Luck and spellburn, spell checks with their results, Lay on Hands and Turn Unholy, a monster's stat line), plays DCC turns and rolls, bleeding out and rolling the body; works from the free system alone and reads the DCC and XCC core books' tables when they're installed; and writes live battles' turns onto dcc actors.",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "authors": [
     {
       "name": "galaara98",
@@ -29,7 +29,7 @@
         "type": "module",
         "manifest": "https://github.com/galaara98/FastFighting/releases/latest/download/module.json",
         "compatibility": {
-          "minimum": "0.2.6"
+          "minimum": "0.3.0"
         }
       }
     ]
@@ -46,7 +46,7 @@
   ],
   "url": "https://github.com/galaara98/FastFighting-DCC",
   "manifest": "https://github.com/galaara98/FastFighting-DCC/releases/latest/download/module.json",
-  "download": "https://github.com/galaara98/FastFighting-DCC/releases/download/v0.2.6/module.zip",
+  "download": "https://github.com/galaara98/FastFighting-DCC/releases/download/v0.3.0/module.zip",
   "bugs": "https://github.com/galaara98/FastFighting-DCC/issues",
   "readme": "https://github.com/galaara98/FastFighting-DCC/blob/main/README.md",
   "license": "LICENSE"
