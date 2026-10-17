@@ -173,6 +173,8 @@ In a live battle, each turn's changes go onto the tokens as the turn is played:
 - the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the party: Hostile);
 - what a creature hands over (or has stolen): coins, or an item, unequipped and out of any container.
 
+A player's damage roll at a creature FastFighting runs is applied at once or put before the GM in the Battle Vantage. **Apply players' damage** is greyed out while the dcc system's Auto-apply damage to target is on, as the system applies it then.
+
 Rewind takes one turn back; Rewind This Encounter, all of it.
 
 ## Settings

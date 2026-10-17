@@ -1,13 +1,16 @@
 /**
- * DCC write-back: a live battle's turn written onto a token's actor, and what a creature gives up handed over, each
- * returning undo records; and what a fight changes on a creature, in words, for the core's planner.
+ * DCC write-back: a live battle's turn written onto a token's actor, a player's damage card applied, and what a
+ * creature gives up handed over, each returning undo records; and what a fight changes on a creature, in words, for
+ * the core's planner.
  *
  * Undo record shape (consumed by the core's Rewind Turn and Rewind This Encounter):
  *   { tokenUuid, actorUuid, actorUpdate, itemUpdates: [{id, update}], createdItems: [id], deletedItems: [data],
- *     createdEffects: [id], tokenUpdate, createdActors, createdTokens, deletedTokens, statuses: [{id, active}], combatant }
+ *     createdEffects: [id], tokenUpdate, createdActors, createdTokens, deletedTokens, statuses: [{id, active}], combatant,
+ *     statusesBefore: [id] }
  */
 import { MODULE_ID, STATUS, commonOutcome, statusesOf, statusEntry, toggleStatus, undoRecord, payFrom, handOverItem } from "./core.js";
 import { t, conditionName } from "./words.js";
+import { damageOf } from "./read-turn.js";
 
 const abilityName = k => ({ str: t("Ability.str"), agl: t("Ability.agl"), sta: t("Ability.sta") }[k] ?? k);
 
@@ -263,6 +266,49 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
   }
   if ( Object.keys(update).length ) await actor.update(update);
   return undo;
+}
+
+/* -------------------------------------------- */
+/*  Players' damage                             */
+/* -------------------------------------------- */
+
+/** The DCC Quality of Life module: while it's active, the dcc system's own combat automation stands down. */
+const QOL = "dcc-qol";
+
+/**
+ * The dcc system's own setting that applies a hit's damage to its target (players' hits too, through the GM), by its
+ * name, while it's on; else null. Inert while dcc-qol is active, and dcc-qol's own setting isn't known here: null.
+ */
+export function systemAppliesDamage() {
+  if ( game.modules?.get?.(QOL)?.active ) return null;
+  try {
+    return game.settings.get("dcc", "autoApplyDamage") ? game.i18n.localize("DCC.SettingAutoApplyDamage") : null;
+  } catch ( err ) {
+    return null;
+  }
+}
+
+/**
+ * A card's damage (read-turn.js damageOf) applied to a token the dcc system's way: its actor's applyDamage (healing as
+ * the system's Apply Healing does it, times -1), times `multiplier`, rounded down, damage at least 1. Returns undo
+ * records: the hit points as they were, and the combatant's defeated (the system's auto-applied dead status marks it);
+ * a status the system adds along the way (dead, dying) comes off by the record's statusesBefore.
+ * @returns {Promise<object[]>}
+ */
+export async function applyDccDamage(message, tokenDoc, { multiplier = 1 } = {}) {
+  const dealt = damageOf(message);
+  const actor = tokenDoc?.actor;
+  if ( !dealt || typeof actor?.applyDamage !== "function" || !(multiplier > 0) ) return [];
+  const healing = dealt.kind === "healing";
+  const scaled = Math.floor(dealt.amount * multiplier);
+  const amount = healing ? scaled : Math.max(1, scaled);
+  if ( !(amount > 0) ) return [];
+  const undo = undoRecord(tokenDoc, actor);
+  undo.actorUpdate["system.attributes.hp.value"] = Number(actor.system?.attributes?.hp?.value) || 0;
+  const combatant = game.combat?.getCombatantsByToken?.(tokenDoc)?.[0];
+  if ( combatant ) undo.combatant = { uuid: combatant.uuid, defeated: !!combatant.defeated };
+  await actor.applyDamage(amount, healing ? -1 : 1);
+  return [undo];
 }
 
 /* -------------------------------------------- */

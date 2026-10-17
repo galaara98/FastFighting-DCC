@@ -29,6 +29,14 @@ describe("a player's turn read from the dcc system's cards", () => {
     expect(events[0]).toMatchObject({ targetId: "C", degree: 2, ranged: true, launched: true, damage: 4 });
   });
 
+  it("credits a plain card's inline damage roll to the hit", () => {
+    const [e] = readDccTurn([
+      card({ flags: { isToHit: true, hasTarget: true, hitsTarget: true, targetUuid: "Scene.s.Token.tokB" }, rolls: [roll(15, 12)] }),
+      card({ rolls: [roll(5, 5)], flavor: "Damage" })
+    ], context);
+    expect(e.damage).toBe(5);
+  });
+
   it("tells a critical, a fumble and a miss apart", () => {
     const at = flags => readDccTurn([card({ flags: { isToHit: true, hasTarget: true, targetUuid: "Scene.s.Token.tokB", ...flags }, rolls: [roll(10, 10)] })], context)[0];
     expect(at({ hitsTarget: true, isCrit: true }).degree).toBe(3);

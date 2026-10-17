@@ -78,6 +78,8 @@ The adapter also gives `label` ("DCC", or "DCC / XCC" with the xcc module on), `
 
 `commitDccChanges` writes hit points, Luck, spellburn (Strength, then Stamina, then Agility, none below 3), Stamina lost to bleeding out, the ability lost when a body is found alive, disapproval, `system.class.tooCuteUsed`, Fleeting Luck or Mojo by this turn's change, statuses, death (and the combatant defeated), the fled hidden, a Surrendered effect, and spells lost (`system.lost`). With the dcc system's Death Clock on (`enableDeathClock`), `liveOwnership` returns `{recovery: true}` and the system marks the dying, counts their rounds and scars the saved itself. `commitDccConcession` pays in DCC's coins or hands over one item, unequipped and out of any container. Every write returns an undo record for Rewind and Rewind This Encounter; its shape is at the top of commit.js.
 
+Players' damage (API 19): `damageCard` (read-turn.js `readDccDamage`: an attack's damage roll, a Roll Damage button's or inline damage roll at its attack's target, a roll typed `[healing]`), `applyDamageCard` (commit.js `applyDccDamage`: the actor's `applyDamage`, the HP and combatant defeated in the undo record) and `appliesPlayerDamage` (the system's `autoApplyDamage`, unless dcc-qol is active).
+
 ## Personality (traits.js)
 
 A player character starts from the core's `PC_BASELINE`, the usual hero at level 3 (`USUAL_LEVEL`), and each part moves it, shown in the trait's reason:

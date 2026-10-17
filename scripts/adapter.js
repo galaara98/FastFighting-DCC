@@ -17,8 +17,8 @@ import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
 import { deriveDccTraits, speaksCommon, monsterKind } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
-import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, conditionsOf, statusFor, statusName, sheetConditions } from "./commit.js";
-import { readDccTurn } from "./read-turn.js";
+import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, conditionsOf, statusFor, statusName, sheetConditions, applyDccDamage, systemAppliesDamage } from "./commit.js";
+import { readDccTurn, readDccDamage } from "./read-turn.js";
 import { loreBoost } from "./lore.js";
 import { dccHints, dccTactics } from "./auto.js";
 import { t, saysWord } from "./words.js";
@@ -998,6 +998,25 @@ export class DccAdapter extends SystemAdapter {
   /** A player's turn, read from the dcc system's cards (read-turn.js). */
   readTurn(messages, context) {
     return readDccTurn(messages, context);
+  }
+
+  /**
+   * API 19. A card's damage, as the dcc system marks it (read-turn.js readDccDamage): an attack's, a stray shot's, a
+   * Roll Damage button's or inline damage roll's (at its attack's target), or a roll typed healing.
+   */
+  damageCard(message, { ids = {} } = {}) {
+    const scene = game.scenes?.get?.(message?.speaker?.scene) ?? globalThis.canvas?.scene ?? null;
+    return readDccDamage(message, { ids, messages: game.messages?.contents ?? [], scene });
+  }
+
+  /** API 19. A card's damage applied the dcc system's way (commit.js applyDccDamage), with its undo records. */
+  async applyDamageCard(message, token, { multiplier = 1 } = {}) {
+    return applyDccDamage(message, token, { multiplier });
+  }
+
+  /** API 19. The dcc system's Auto-apply damage, by its name, while it's on (commit.js systemAppliesDamage). */
+  appliesPlayerDamage() {
+    return systemAppliesDamage();
   }
 
   describeOutcome(spec, final) {
