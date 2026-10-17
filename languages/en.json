@@ -19,7 +19,7 @@
     "Settings": {
       "loreBoost": {
         "Name": "Lore-Collector advantage",
-        "Hint": "How much likelier a Lore-Collector's rolls are to succeed against a foe it sized up (an Intelligence check that worked), through its next turn. Default 2.25×. Past about 1.75×, only long shots gain more."
+        "Hint": "How much likelier a Lore-Collector's rolls against a foe are after it sizes that foe up. Default 2.25×."
       },
       "tiedStopsSpells": {
         "Name": "Tied up stops spells",
