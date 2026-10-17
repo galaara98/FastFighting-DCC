@@ -479,6 +479,13 @@ export function statLine(text) {
   return out;
 }
 
+/** What a stat line (statLine) says harms it not at all, half and double, as the engine's iwr: {immune, resist, weak}. */
+export const iwrIn = line => ({
+  immune: [...(line?.immune ?? [])],
+  resist: Object.fromEntries((line?.resist ?? []).map(k => [k, 1])),
+  weak: Object.fromEntries((line?.weak ?? []).map(k => [k, 1]))
+});
+
 /** Hit dice as a level ("4d12" -> 4, "6d12+5" -> 6) and their size (12). */
 export function hitDice(hd) {
   const m = String(hd ?? "").match(/(\d*)d(\d+)/i);

@@ -292,16 +292,18 @@ export function systemAppliesDamage() {
  * A card's damage (read-turn.js damageOf) applied to a token the dcc system's way: its actor's applyDamage (healing as
  * the system's Apply Healing does it, times -1), times `multiplier`, rounded down, damage at least 1. Returns undo
  * records: the hit points as they were, and the combatant's defeated (the system's auto-applied dead status marks it);
- * a status the system adds along the way (dead, dying) comes off by the record's statusesBefore.
+ * a status the system adds along the way (dead, dying) comes off by the record's statusesBefore. `amount`: what it
+ * deals this target where the caller has reckoned it (damage-roll.js harmTo: a spell's damage, the target's stat line
+ * counted), dealt as it is: nothing at 0.
  * @returns {Promise<object[]>}
  */
-export async function applyDccDamage(message, tokenDoc, { multiplier = 1 } = {}) {
+export async function applyDccDamage(message, tokenDoc, { multiplier = 1, amount: reckoned = null } = {}) {
   const dealt = damageOf(message);
   const actor = tokenDoc?.actor;
   if ( !dealt || typeof actor?.applyDamage !== "function" || !(multiplier > 0) ) return [];
   const healing = dealt.kind === "healing";
   const scaled = Math.floor(dealt.amount * multiplier);
-  const amount = healing ? scaled : Math.max(1, scaled);
+  const amount = Number.isFinite(reckoned) && !healing ? reckoned : healing ? scaled : Math.max(1, scaled);
   if ( !(amount > 0) ) return [];
   const undo = undoRecord(tokenDoc, actor);
   undo.actorUpdate["system.attributes.hp.value"] = Number(actor.system?.attributes?.hp?.value) || 0;

@@ -10,7 +10,7 @@
  */
 import { SystemAdapter, parseFormula, part, hasWords, plainText, englishWords } from "./core.js";
 import { dccRules } from "./rules.js";
-import { plain, statLine, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn } from "./text.js";
+import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn } from "./text.js";
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
 import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
@@ -24,6 +24,7 @@ import { dccHints, dccTactics } from "./auto.js";
 import { t, saysWord, harmOf } from "./words.js";
 import { rollDccStrike } from "./strike-roll.js";
 import { rollDccSave, rollDccCheck } from "./check-roll.js";
+import { spellTier, rollDccDamage, harmTo } from "./damage-roll.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
@@ -324,14 +325,8 @@ export class DccAdapter extends SystemAdapter {
     const actor = tokenDoc.actor;
     if ( !this.canHandle(actor) ) return null;
     const sys = actor.system;
-    const pc = actor.type === "Player";
+    const { pc, line, cls, kind, hd, level, dice } = this.#caster(actor);
     if ( pc ) await this.#loadAugurs();
-    const line = statLine(sys.details?.notes?.value ?? "");
-    const cls = pc ? this.#classOf(actor) : null;
-    const kind = archetype(cls);
-    const hd = hitDice(sys.attributes?.hitDice?.value);
-    const level = pc ? (Number(sys.details?.level?.value) || 0) : Math.max(Number(sys.details?.level?.value) || 0, hd.level);
-    const dice = actionDice(this.#actionDiceText(sys));
     const luck = Number(sys.abilities?.lck?.value) || 0;
     const luckMod = Number(sys.abilities?.lck?.mod) || 0;
 
@@ -378,7 +373,7 @@ export class DccAdapter extends SystemAdapter {
     }
 
     const derived = this.deriveTraits(actor, { line, casts: actions.some(a => a.casting), level });
-    const immune = [...line.immune];
+    const iwr = iwrIn(line);
     // Grappling (opposed attack rolls): its attack bonus and the better of Strength and Agility; a monster's, its best
     // melee attack's bonus and its Hit Dice in their place.
     const grapple = pc ? flatOf(sys.details?.attackBonus) + Math.max(Number(sys.abilities?.str?.mod) || 0, Number(sys.abilities?.agl?.mod) || 0)
@@ -415,7 +410,7 @@ export class DccAdapter extends SystemAdapter {
       acrobatics: pc && kind.acrobat ? { mod: flatOf(sys.skills?.acrobatics?.value) + (Number(sys.abilities?.agl?.mod) || 0) } : undefined,
       fumble,
       // (A stat line's half and double damage; and the weak spot a Puzzle-Maniac goes for: harm it guards less well.)
-      iwr: { immune, resist: Object.fromEntries((line.resist ?? []).map(k => [k, 1])), weak: Object.fromEntries((line.weak ?? []).map(k => [k, 1])), exploit: weakSpot(Object.fromEntries((line.resist ?? []).map(k => [k, 1]))) },
+      iwr: { ...iwr, exploit: weakSpot(iwr.resist) },
       grapple,
       // Mending of its own, from its stat line (or its entry in a book): regeneration, healing each round (#mending).
       regen: mending?.regen ?? undefined,
@@ -478,6 +473,20 @@ export class DccAdapter extends SystemAdapter {
   }
 
   /* -------------------------------------------- */
+
+  /**
+   * Who it is as its actions are built (and a spell's results read again: its caster level): a player's character or
+   * not, its stat line, class, Hit Dice, level and action dice.
+   */
+  #caster(actor) {
+    const sys = actor.system;
+    const pc = actor.type === "Player";
+    const line = statLine(sys.details?.notes?.value ?? "");
+    const cls = pc ? this.#classOf(actor) : null;
+    const hd = hitDice(sys.attributes?.hitDice?.value);
+    const level = pc ? (Number(sys.details?.level?.value) || 0) : Math.max(Number(sys.details?.level?.value) || 0, hd.level);
+    return { pc, line, cls, kind: archetype(cls), hd, level, dice: actionDice(this.#actionDiceText(sys)) };
+  }
 
   /**
    * The class: the sheet's own record of it, else the sheet chosen for this actor or token (a pregen whose class
@@ -734,29 +743,35 @@ export class DccAdapter extends SystemAdapter {
   }
 
   /** Spells it knows (and hasn't lost today), cast with a spell check. */
-  async #spells(actor, { pc, kind, level, dice, line }) {
+  async #spells(actor, caster) {
     const out = [];
-    const sys = actor.system;
     const spells = actor.itemTypes?.spell ?? actor.items.filter(i => i.type === "spell");
     for ( const item of spells ) {
       if ( item.system.lost ) continue;
-      const book = await this.#tables.spell(item);
-      if ( !book?.rows?.length ) continue;
-      const check = item.system.spellCheck ?? {};
-      let mod = flatOf(check.value) + flatOf(check.penalty) + flatOf(check.otherBonus);
-      // A monster's sheet often keeps the default; its stat line says what it really casts at.
-      if ( !pc && Number.isFinite(line.spellCheck) && (Number(sys.class?.spellCheck) || 1) === 1 ) mod = line.spellCheck;
-      const action = spellAction({
-        id: `${actor.id}.${item.id}`, name: item.name, level: Number(item.system.level || book.level) || 1, rows: book.rows, mod,
-        faces: actionDice(check.die)[0] ?? dice[0] ?? 20,
-        // A cleric casts as a cleric whatever the item was left at (a stat-block importer leaves the default).
-        mode: kind?.cleric ? "cleric" : (book.mode ?? item.system.config?.castingMode ?? "wizard"),
-        disapproval: sys.class?.disapproval, monster: !pc, casterLevel: level,
-        save: item.system.save || book.save || "", rangeText: item.system.range || book.range || ""
-      });
-      if ( action ) out.push({ ...action, itemId: item.id, spell: true });
+      const action = await this.#spell(actor, item, caster);
+      if ( action ) out.push(action);
     }
     return out;
+  }
+
+  /** One spell as an action, from its results table (spells.js spellAction); null where it can't be read or does nothing. */
+  async #spell(actor, item, { pc, kind, level, dice, line }) {
+    const sys = actor.system;
+    const book = await this.#tables.spell(item);
+    if ( !book?.rows?.length ) return null;
+    const check = item.system.spellCheck ?? {};
+    let mod = flatOf(check.value) + flatOf(check.penalty) + flatOf(check.otherBonus);
+    // A monster's sheet often keeps the default; its stat line says what it really casts at.
+    if ( !pc && Number.isFinite(line.spellCheck) && (Number(sys.class?.spellCheck) || 1) === 1 ) mod = line.spellCheck;
+    const action = spellAction({
+      id: `${actor.id}.${item.id}`, name: item.name, level: Number(item.system.level || book.level) || 1, rows: book.rows, mod,
+      faces: actionDice(check.die)[0] ?? dice[0] ?? 20,
+      // A cleric casts as a cleric whatever the item was left at (a stat-block importer leaves the default).
+      mode: kind?.cleric ? "cleric" : (book.mode ?? item.system.config?.castingMode ?? "wizard"),
+      disapproval: sys.class?.disapproval, monster: !pc, casterLevel: level,
+      save: item.system.save || book.save || "", rangeText: item.system.range || book.range || ""
+    });
+    return action ? { ...action, itemId: item.id, spell: true } : null;
   }
 
   /** A cleric's Lay on Hands and Turn Unholy, from their tables (or rough versions without them). */
@@ -998,9 +1013,13 @@ export class DccAdapter extends SystemAdapter {
     return readDccDamage(message, { ids, messages: game.messages?.contents ?? [], scene });
   }
 
-  /** API 19. A card's damage applied the dcc system's way (commit.js applyDccDamage), with its undo records. */
+  /**
+   * API 19. A card's damage applied the dcc system's way (commit.js applyDccDamage), with its undo records. A spell's
+   * damage card of this helper's (rollDamage) deals each target its share as the engine reckons it, its stat line's
+   * immunities, half and double damage counted (damage-roll.js harmTo).
+   */
   async applyDamageCard(message, token, { multiplier = 1 } = {}) {
-    return applyDccDamage(message, token, { multiplier });
+    return applyDccDamage(message, token, { multiplier, amount: harmTo(message, token?.actor, multiplier) });
   }
 
   /** API 19. The dcc system's Auto-apply damage, by its name, while it's on (commit.js systemAppliesDamage). */
@@ -1030,6 +1049,26 @@ export class DccAdapter extends SystemAdapter {
     const actor = token?.actor;
     const kind = actor?.type === "Player" ? archetype(this.#classOf(actor)) : {};
     return rollDccCheck(token, { ...options, kind });
+  }
+
+  // (No useAction: the actions it's asked for here are spells, Lay on Hands, Help and XCC's Not in the Face. A spell or
+  // Lay on Hands shows on its check's results card (rollCheck); the dcc system has no card for Help or for an item that
+  // rolls nothing, and Not in the Face is a toggle on the XCC sheet. A monster's breath weapon is a weapon on its sheet,
+  // struck with its own attack card, or words in its stat line. Offered, it would only stop a turn to say so.)
+
+  /**
+   * API 19. A spell's damage, at the result its check reached, rolled the dcc system's way once for all it catches, its
+   * Damage card in the chat (damage-roll.js rollDccDamage); null for anything else (the engine's dice).
+   */
+  async rollDamage(token, { action, secret = false } = {}) {
+    const actor = token?.actor;
+    const at = spellTier(actor, action);
+    const item = at ? actor.items?.get?.(at.itemId) : null;
+    if ( item?.type !== "spell" ) return null;
+    const spell = await this.#spell(actor, item, this.#caster(actor));
+    const tier = spell?.tiers?.[at.tier];
+    if ( !tier?.damage?.length ) return null;
+    return rollDccDamage(token, { name: item.name, damage: tier.damage, repeat: tier.repeat, secret });
   }
 
   describeOutcome(spec, final) {
