@@ -337,6 +337,12 @@ const STOPS = [
   { re: /\bregenerat\w*\b[^.;]*?\b(?:except|but not|save for|other than|not)\s+(?:against\s+|from\s+|by\s+)?([a-z ,'-]+)/g },
   { re: /\bregenerat\w*\b[^.;]*?\b(?:stopped|prevented|halted|suppressed|negated|blocked)\s+(?:only\s+)?by\s+([a-z ,'-]+)/g }
 ];
+/**
+ * The most of a sentence (up to a full stop or semicolon) these are read in: well past any of the books'. Read a
+ * sentence at a time, they cost little however long the text; a longer "sentence" isn't one of theirs, and isn't read.
+ */
+const SENTENCE_MOST = 2000;
+
 /** Words that go with a list of kinds of harm ("fire or acid damage"). */
 const KIND_JOINERS = new Set(["and", "or", "damage", "attacks", "magical", "by"]);
 /** Is this part of a phrase only kinds of harm ("acid or cold")? */
@@ -381,10 +387,12 @@ export function mendingIn(text) {
   if ( each ) {
     const dice = dicePart(each[1]);
     if ( dice ) {
+      // (Sentence by sentence, those that speak of it: none of these crosses a full stop or a semicolon.)
+      const said = t.split(/[.;]/).filter(x => x.length <= SENTENCE_MOST && x.includes("regenerat"));
       const stoppedBy = new Set();
-      for ( const { re, before } of STOPS ) for ( const m of t.matchAll(re) ) for ( const k of kindsNamed(m[1], before) ) stoppedBy.add(k);
+      for ( const { re, before } of STOPS ) for ( const x of said ) for ( const m of x.matchAll(re) ) for ( const k of kindsNamed(m[1], before) ) stoppedBy.add(k);
       // (It regenerates even the round it's killed: a last burst that may lift it again.)
-      const burst = /\bregenerat[^.;]*\b(?:including|even)\b[^.;]*\b(?:killed|slain|dies|death|dead)\b/.test(t);
+      const burst = said.some(x => /\bregenerat[^.;]*\b(?:including|even)\b[^.;]*\b(?:killed|slain|dies|death|dead)\b/.test(x));
       out.regen = { amount: Math.max(1, Math.round(meanPart(dice))), dice, stoppedBy: [...stoppedBy], burst };
     }
   }

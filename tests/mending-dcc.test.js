@@ -35,6 +35,13 @@ describe("what a creature's words say it mends each round", () => {
     expect(mendingIn(words).regen).toMatchObject({ amount: 3, burst: true, stoppedBy: ["acid"] });
   });
 
+  test("long words a player wrote (a character's Notes) are read a sentence at a time, at once", () => {
+    const start = Date.now();
+    expect(statLine(`Regenerates 1 hp per round. ${"the troll, from which it does not ".repeat(3000)}`).regen).toMatchObject({ amount: 1, stoppedBy: [] });
+    expect(statLine(`Regenerates 1d8 hp per round ${"regenerating even ".repeat(3000)}`).regen).toMatchObject({ burst: false });
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+
   test("regeneration only named (how much is in the book), and a regeneration that isn't of its hit points", () => {
     expect(mendingIn("SP stench, regeneration, immune to critical hits, vulnerable to fire")).toEqual({ regen: null, fastHealing: null, named: true });
     expect(mendingIn("SP regeneration of lost heads, heal 1 hp/round")).toEqual({ regen: null, fastHealing: 1, named: false });
