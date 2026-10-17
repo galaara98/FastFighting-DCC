@@ -4,6 +4,7 @@
  */
 import { describe, expect, test } from "vitest";
 import { notInTheFace, disrespect, drawAgro, wrestling } from "../scripts/adapter.js";
+import { grappleAction } from "../scripts/moves.js";
 import { dccRules } from "../scripts/rules.js";
 import { archetype } from "../scripts/classes.js";
 import { parseFormula } from "../scripts/core.js";
@@ -100,6 +101,13 @@ describe("XCC class actions", () => {
     expect(wrestling(shield, { firstDie: 20, crit })).toEqual([]);
     const worn = actor({ trainingDie: "d5" }, { itemTypes: { armor: [{ name: "Shield", type: "armor", system: { equipped: true, fumbleDie: "1d8" } }] } });
     expect(wrestling(worn, { firstDie: 20, crit })).toHaveLength(1);
+  });
+
+  test("its name is the Athlete's own; everyone else's grapple is still a Grapple", () => {
+    const [w] = wrestling(actor({ trainingDie: "d5" }), { firstDie: 20, crit });
+    expect(w.name).toBe(game.i18n.localize("FFDCC.Wrestling"));
+    expect(grappleAction("pc", 2).name).toBe(game.i18n.localize("FFDCC.Grapple"));
+    expect(w.name).not.toBe(grappleAction("pc", 2).name);
   });
 
   test("in a fight: the Athlete grabs what it wrestles; the Acrobat rolls to get clear, and only a miss draws the blows", () => {

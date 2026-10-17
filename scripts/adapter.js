@@ -182,7 +182,7 @@ export function wrestling(actor, { firstDie, crit }) {
   const training = Number(/d(\d+)/.exec(String(sys.class?.trainingDie ?? ""))?.[1]) || undefined;
   const heavy = (actor.itemTypes?.armor ?? []).some(a => a.system.equipped && Number(a.system.checkPenalty) <= -4);
   const range = Number(sys.class?.grappleCritRange) || 20;
-  return [{ id: `${actor.id}.wrestle`, name: xccWord("XCC.Athlete.Grapple", "FFDCC.Grapple"), kind: "strike", cost: 1, bonus: str, melee: true, reach: 5,
+  return [{ id: `${actor.id}.wrestle`, name: xccWord("XCC.Athlete.Grapple", "FFDCC.Wrestling"), kind: "strike", cost: 1, bonus: str, melee: true, reach: 5,
     damage: [parseFormula(str ? `1d4${str > 0 ? "+" : "-"}${Math.abs(str)}` : "1d4", "bludgeoning")], deedDie: training,
     critOn: heavy ? 99 : (range < 20 ? range : undefined), crit, effects: [{ kind: "grabbed" }],
     // (Bare hands: nothing to knock away, but both to wrestle with.)
