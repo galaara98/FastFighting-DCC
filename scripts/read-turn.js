@@ -6,12 +6,11 @@
  *   - A Personality check: words, for the GM to confirm (whether it was talk at all, at whom and how well).
  * Each event says whether it's `sure`.
  */
+import { tokenIdIn as tokenIdOf } from "./core.js";
 
 /** A flag on a dcc card, as the system wrote it ("dcc.isToHit"), however it was stored. */
 const flag = (m, key) => m.flags?.dcc?.[key] ?? m.flags?.[`dcc.${key}`];
 
-/** The token id inside a uuid ("Scene.x.Token.y.Actor.z"), or null. */
-const tokenIdOf = uuid => (typeof uuid === "string" && uuid.includes("Token.") ? uuid.split("Token.").pop().split(".")[0] : null);
 /** The actor id at the end of a world actor's uuid ("Actor.z"), or null. */
 const actorIdOf = uuid => (typeof uuid === "string" && uuid.startsWith("Actor.") ? uuid.split(".")[1] : null);
 
