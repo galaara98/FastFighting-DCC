@@ -59,7 +59,7 @@ const worthOf = i => Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(i?
  * A natural attack (a bite, claws, a slam): what its name says, by the language file's words (FFDCC.Words.Natural;
  * DCC's weapons say nothing else of it), when nothing could be paid for it (a punch dagger, a sword called Sting, are
  * bought). It's no weapon in hand: nothing to knock away, and no hand needed free, unless it's a hand itself (claws, a
- * fist: FFDCC.Words.NaturalHand). {natural: true, hands}, or {} for a weapon.
+ * fist, not a claw or a pincer: FFDCC.Words.NaturalHand). {natural: true, hands}, or {} for a weapon.
  */
 export function naturalOf(name, worth = 0) {
   if ( worth > 0 || !saysWord("Natural", name) ) return {};
