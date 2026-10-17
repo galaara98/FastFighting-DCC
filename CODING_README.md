@@ -83,6 +83,8 @@ Players' damage (API 19): `damageCard` (read-turn.js `readDccDamage`: an attack'
 
 Strikes (API 19): `rollStrike` (strike-roll.js `rollDccStrike`), every strike in a turn FastFighting plays and a reaction's: the weapon the strike's id names, through the actor's `rollWeaponAttack` with no dialog and the user's target set to the strike's target for the roll (theirs put back), read off the card in the `dcc.rollWeaponAttack` hook; the card is marked `dcc.damageApplied` and loses its `dcc.FleetingLuckEffect`, so the system's Auto-apply damage and Fleeting Luck leave it to FastFighting; `secret` puts it in the GMs' mode (`ChatMessage.applyMode`). A critical whose row multiplies the blow or rolls more damage returns `card: null`, so the core deals the sum rather than applying the attack card's own damage.
 
+Surprise (API 19): `rules.surprise` (rules.js, the planner's Follow System): a side with hidden tokens lying in wait gets a surprise round (`by`, `round`).
+
 ## Personality (traits.js)
 
 A player character starts from the core's `PC_BASELINE`, the usual hero at level 3 (`USUAL_LEVEL`), and each part moves it, shown in the trait's reason:

@@ -32,7 +32,7 @@
  * In a grapple the bigger of the two adds its size's edge: twice the other's size, +4; three times, +8; four, +16.
  * A fall (shoved off a ledge) is 1d6 for each 10 feet.
  */
-import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition, parseFormula, samplePart, rollD20 } from "./core.js";
+import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition, parseFormula, samplePart, rollD20, hiddenSides } from "./core.js";
 import { t } from "./words.js";
 import { leftBehind } from "./commit.js";
 import { tiedStopsSpells } from "./tied.js";
@@ -152,6 +152,14 @@ const ESCAPE_DC = 15;
 const SHEET_HOLDS = Object.freeze({ held: Object.freeze({ dc: ESCAPE_DC, others: "check" }), grabbed: Object.freeze({ dc: ESCAPE_DC, others: null }) });
 
 export const dccRules = {
+  /**
+   * Surprise as DCC has it (the planner's Follow System): those lying in wait as it starts (a side with hidden tokens)
+   * get a surprise round, the others none.
+   */
+  surprise(run) {
+    const by = hiddenSides(run);
+    return by.length ? { by, round: true } : null;
+  },
   id: "dcc",
 
   /* Turn ------------------------------------------------------------------ */
