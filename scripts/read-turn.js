@@ -11,13 +11,13 @@
 import { tokenIdIn as tokenIdOf, parseTypedFormula } from "./core.js";
 
 /** A flag on a dcc card, as the system wrote it ("dcc.isToHit"), however it was stored. */
-const flag = (m, key) => m.flags?.dcc?.[key] ?? m.flags?.[`dcc.${key}`];
+export const flag = (m, key) => m.flags?.dcc?.[key] ?? m.flags?.[`dcc.${key}`];
 
 /** The actor id at the end of a world actor's uuid ("Actor.z"), or null. */
 const actorIdOf = uuid => (typeof uuid === "string" && uuid.startsWith("Actor.") ? uuid.split(".")[1] : null);
 
 /** The natural roll of the action die (a d20, or whatever die the dice chain gave). */
-function naturalOf(m, roll) {
+export function naturalOf(m, roll) {
   const n = flag(m, "libResult")?.natural;
   return Number.isFinite(n) ? n : (roll?.dice?.[0]?.total ?? null);
 }

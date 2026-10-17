@@ -23,6 +23,7 @@ import { loreBoost } from "./lore.js";
 import { dccHints, dccTactics } from "./auto.js";
 import { t, saysWord, harmOf } from "./words.js";
 import { rollDccStrike } from "./strike-roll.js";
+import { rollDccSave, rollDccCheck } from "./check-roll.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
@@ -1013,6 +1014,22 @@ export class DccAdapter extends SystemAdapter {
    */
   async rollStrike(token, options = {}) {
     return rollDccStrike(token, options);
+  }
+
+  /** API 19. A save rolled the dcc system's way, its card in the chat (check-roll.js rollDccSave): Fortitude, Reflex or Will. */
+  async rollSave(token, options = {}) {
+    return rollDccSave(token, options);
+  }
+
+  /**
+   * API 19. A check rolled the dcc system's way, its card in the chat (check-roll.js rollDccCheck): a spell check, a
+   * cleric's Lay on Hands or Turn Unholy, Personality for words, a thief's, halfling's or Acrobat's skill; null where
+   * the system has no roll for it. A character's class says which skills it has (as for its spec).
+   */
+  async rollCheck(token, options = {}) {
+    const actor = token?.actor;
+    const kind = actor?.type === "Player" ? archetype(this.#classOf(actor)) : {};
+    return rollDccCheck(token, { ...options, kind });
   }
 
   describeOutcome(spec, final) {

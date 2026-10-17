@@ -175,7 +175,7 @@ In a live battle, each turn's changes go onto the tokens as the turn is played:
 
 A player's damage roll at a creature FastFighting runs is applied at once or put before the GM in the Battle Vantage. **Apply players' damage** is greyed out while the dcc system's Auto-apply damage to target is on, as the system applies it then.
 
-A free attack FastFighting plays is rolled from the sheet as the dcc system's own attack card, damage and crit included; FastFighting applies its damage, not the system.
+Every attack FastFighting plays, a free attack too, is rolled from the sheet as the dcc system's own attack card, damage and crit included; FastFighting applies its damage, not the system. Saves in the turns it plays are rolled from the sheet too, and so are the checks the system has a roll for: spell checks (with the spell's results card), Lay on Hands, Turn Unholy, Personality for words, a thief's Hide in Shadows and Pick Pockets, a halfling's Sneak and Hide, and an Acrobat's Acrobatics. FastFighting counts the spell lost, the disapproval and the Fleeting Luck, not the system.
 
 Rewind takes one turn back; Rewind This Encounter, all of it.
 
