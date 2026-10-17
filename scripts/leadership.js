@@ -4,6 +4,7 @@
  * system keeps no rank; or a cleric of the side's faith) and experience (level or hit dice).
  * Pure.
  */
+import { signedNumber } from "./core.js";
 import { t, saysWord } from "./words.js";
 
 /**
@@ -16,7 +17,7 @@ export function rankDccLeaders(entries) {
     if ( !e ) continue;
     const reasons = [];
     let score = (e.personality ?? 0) + Math.floor((e.level ?? 0) / 3);
-    if ( e.personality ) reasons.push(t("Lead.Personality", { n: `${e.personality >= 0 ? "+" : ""}${e.personality}` }));
+    if ( e.personality ) reasons.push(t("Lead.Personality", { n: signedNumber(e.personality) }));
     if ( saysWord("Title", e.name) ) {
       score += 3;
       reasons.push(t("Lead.Title"));

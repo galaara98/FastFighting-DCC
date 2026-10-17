@@ -12,11 +12,15 @@ import { wordList } from "../scripts/words.js";
 import { dccRules } from "../scripts/rules.js";
 import { readFileSync } from "fs";
 
-/** A reader in another language, with Foundry's English to fall back on (game.i18n._fallback): the module's en.json. */
+/**
+ * A reader in another language, with Foundry's English to fall back on (game.i18n._fallback): the module's en.json.
+ * For every test here: the core reads each word list once (its wordList), as Foundry has its languages before then.
+ */
 function withEnglish() {
   game.i18n._fallback = JSON.parse(readFileSync(new URL("../languages/en.json", import.meta.url), "utf8"));
   globalThis.foundry = { utils: { getProperty: (o, key) => key.split(".").reduce((x, k) => x?.[k], o) } };
 }
+beforeEach(withEnglish);
 /** A word of a list that a stat line can carry (plain letters): English's, at least. */
 const plainWord = key => wordList(key).find(w => /^[a-z]+$/.test(w));
 
@@ -146,10 +150,7 @@ describe("sizing a foe up, and creeping up on one", () => {
 });
 
 describe("what the system's data says, and a name where it says nothing", () => {
-  beforeEach(() => {
-    world();
-    withEnglish();
-  });
+  beforeEach(() => world());
   const npc = (notes, table = "M", items = []) => sheet({ type: "NPC", items, system: { details: { level: { value: 0 }, alignment: "n", notes: { value: notes } },
     attributes: { hp: { value: 10, max: 10 }, hitDice: { value: "2d8" }, speed: { value: "30'" }, init: { value: "+0" }, ac: { value: 12 }, critical: { table, die: "1d6" } } } });
 

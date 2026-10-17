@@ -6,20 +6,10 @@
  *   { tokenUuid, actorUuid, actorUpdate, itemUpdates: [{id, update}], createdItems: [id], deletedItems: [data],
  *     createdEffects: [id], tokenUpdate, createdActors, createdTokens, deletedTokens, statuses: [{id, active}], combatant }
  */
-import { MODULE_ID, STATUS, commonOutcome } from "./core.js";
+import { MODULE_ID, STATUS, commonOutcome, statusesOf, statusEntry, toggleStatus, undoRecord, payFrom, handOverItem } from "./core.js";
 import { t, conditionName } from "./words.js";
 
 const abilityName = k => ({ str: t("Ability.str"), agl: t("Ability.agl"), sta: t("Ability.sta") }[k] ?? k);
-
-/**
- * The statuses on a dcc actor, read from its effects: the dcc system applies effects its own way and leaves
- * actor.statuses empty.
- */
-export function statusesOf(actor) {
-  const out = new Set(actor?.statuses ?? []);
-  for ( const e of actor?.effects ?? [] ) if ( !e.disabled ) for ( const s of e.statuses ?? [] ) out.add(s);
-  return out;
-}
 
 /* -------------------------------------------- */
 /*  Statuses and conditions                     */
@@ -65,27 +55,18 @@ export function leftBehind(base, conds) {
   return BROUGHT.filter(k => (Number(base?.[k]) || 0) > 0 && !SHEET_STATUSES.some(s => s.key && s.also?.includes(k) && on(s.key)));
 }
 
-/** The status the token palette has under this id (the dcc system's, or XCC's in its place), or null. */
-function paletteStatus(id) {
-  const all = globalThis.CONFIG?.statusEffects;
-  if ( !all ) return null;
-  // (Walked through, not Object.values: XCC's palette can hold an id twice, and that throws.)
-  for ( const s of Array.isArray(all) ? all : Object.values(all) ) if ( s?.id === id ) return s;
-  return null;
-}
-
 /**
- * The status an engine condition is written as, where the palette has one; null for a condition the sheet can't
- * carry (the core keeps it).
+ * The status an engine condition is written as, where the token palette has one (the dcc system's, or XCC's in its
+ * place: the core's statusEntry); null for a condition the sheet can't carry (the core keeps it).
  */
 export function statusFor(key) {
   const entry = SHEET_STATUSES.find(s => s.key === key);
-  return entry && paletteStatus(entry.id) ? entry.id : null;
+  return entry && statusEntry(entry.id) ? entry.id : null;
 }
 
 /** Every engine condition a dcc sheet carries here: written as its status and read back as the same. */
 export function sheetConditions() {
-  return SHEET_STATUSES.filter(s => s.key && paletteStatus(s.id)).map(s => s.key);
+  return SHEET_STATUSES.filter(s => s.key && statusEntry(s.id)).map(s => s.key);
 }
 
 /** The engine's conditions a dcc actor's statuses say, each with what it brings (SHEET_STATUSES). */
@@ -102,15 +83,9 @@ export function conditionsOf(actor) {
 /** The system's name for the status a condition is written as, in the table's language; null for none. */
 export function statusName(key) {
   const id = statusFor(key);
-  const name = id ? paletteStatus(id)?.name ?? paletteStatus(id)?.label : null;
+  const name = id ? statusEntry(id)?.name ?? statusEntry(id)?.label : null;
   return name ? game.i18n.localize(name) : null;
 }
-
-const emptyRecord = (tokenDoc, actor) => ({
-  tokenUuid: tokenDoc?.uuid ?? null, actorUuid: actor.uuid, actorUpdate: {}, itemUpdates: [], createdItems: [], deletedItems: [], createdEffects: [],
-  tokenUpdate: null, createdActors: [], createdTokens: [], deletedTokens: [], statuses: [],
-  statusesBefore: [...statusesOf(actor)]
-});
 
 /** Luck and spellburn spent, by the numbers. */
 function spent(spec, final, key) {
@@ -118,19 +93,6 @@ function spent(spec, final, key) {
   if ( !Number.isFinite(start) ) return 0;
   return Math.max(0, start - (final.resources?.[key] ?? start));
 }
-
-/**
- * Whose side the token is on now, when words (or a quarrel) changed it: won over (switched sides), talked
- * out of the fight (it takes no side now), or a neutral that turned on the party. Null when nothing changed.
- * @returns {"friendly"|"hostile"|"neutral"|null}
- */
-export function sideChange(final) {
-  if ( final.swayed === "switched" ) return final.side === "friendly" ? "friendly" : "hostile";
-  if ( final.side !== "neutralParty" || final.status === STATUS.DEAD ) return null;
-  if ( final.against?.includes("friendly") ) return "hostile";
-  return final.swayed === "neutral" ? "neutral" : null;
-}
-const DISPOSITIONS = { friendly: "FRIENDLY", hostile: "HOSTILE", neutral: "NEUTRAL" };
 
 /** Human-readable list of what a fight changes on a creature, for the planner's summary. */
 export function describeDccOutcome(spec, final) {
@@ -159,13 +121,6 @@ export function describeDccOutcome(spec, final) {
   return lines;
 }
 
-/** A status on or off, and how to put it back in the undo record. Nothing for none (a condition the sheet can't carry). */
-async function setStatus(actor, id, active, undo, { overlay = false } = {}) {
-  if ( !id || statusesOf(actor).has(id) === active ) return;
-  await actor.toggleStatusEffect(id, { active, overlay });
-  undo.statuses.push({ id, active: !active, overlay });
-}
-
 /** Whether the dcc system's own Death Clock counts a dying character's rounds (its Enhanced Combat setting). */
 export function deathClockOn() {
   try {
@@ -179,12 +134,13 @@ export function deathClockOn() {
  * A live battle: one turn's changes (the core's engine/changes.js) written onto a token. Hit points; Luck and
  * spellburn spent this turn; bleeding out and being saved from it (where the dcc system's Death Clock is on, it marks
  * the dying, counts their rounds and scars the saved itself); disapproval, Fleeting Luck and spells lost, by what this
- * turn changed (options.before); statuses set and lifted; a death, running, surrendering, a change of side.
+ * turn changed (options.before); statuses set and lifted (the core's toggleStatus: nothing for a condition the sheet
+ * can't carry); a death, running, surrendering. (A change of side: the core sets the token's disposition itself.)
  * @returns {Promise<object>} an undo record (its shape at the top of this file)
  */
 export async function commitDccChanges(tokenDoc, spec, changes, final, options = {}) {
   const actor = tokenDoc.actor;
-  const undo = emptyRecord(tokenDoc, actor);
+  const undo = undoRecord(tokenDoc, actor);
   const update = {};
   const set = (path, value) => {
     const before = foundry.utils.getProperty(actor, path);
@@ -245,42 +201,42 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
   // Statuses first, HP last (a status change and an HP change at once can overwrite each other on unlinked tokens).
   if ( !dead && (changes.fell || changes.status?.to === STATUS.DOWN) ) {
     // (Bleeding out: the Death Clock starts itself when the hit points reach 0.)
-    if ( final.stable ) await setStatus(actor, "unconscious", true, undo);
-    else if ( !clock ) await setStatus(actor, "dying", true, undo);
-    await setStatus(actor, "prone", true, undo);
+    if ( final.stable ) await toggleStatus(actor, "unconscious", true, undo);
+    else if ( !clock ) await toggleStatus(actor, "dying", true, undo);
+    await toggleStatus(actor, "prone", true, undo);
   } else if ( !dead && changes.stable?.to && final.status === STATUS.DOWN ) {
     // (No longer bleeding: out, and the clock stopped.)
-    await setStatus(actor, "dying", false, undo);
-    await setStatus(actor, "unconscious", true, undo);
+    await toggleStatus(actor, "dying", false, undo);
+    await toggleStatus(actor, "unconscious", true, undo);
   }
   if ( changes.revived ) {
     // (Healed: the Death Clock lifts its own Dying.)
-    if ( !clock ) await setStatus(actor, "dying", false, undo);
-    await setStatus(actor, "unconscious", false, undo);
+    if ( !clock ) await toggleStatus(actor, "dying", false, undo);
+    await toggleStatus(actor, "unconscious", false, undo);
   }
   if ( found ) {
     // (Not dead after all: up again, groggy, and back in the fight's tracker.)
-    await setStatus(actor, "dead", false, undo, { overlay: true });
-    if ( final.status === STATUS.STANDING ) await setStatus(actor, "groggy", true, undo);
+    await toggleStatus(actor, "dead", false, undo, { overlay: true });
+    if ( final.status === STATUS.STANDING ) await toggleStatus(actor, "groggy", true, undo);
     const combatant = game.combat?.getCombatantsByToken?.(tokenDoc)?.[0];
     if ( combatant?.defeated ) {
       await combatant.update({ defeated: false });
       undo.combatant = { uuid: combatant.uuid, defeated: true };
     }
   }
-  if ( changes.prone && !dead && !changes.fell ) await setStatus(actor, "prone", !!changes.prone.to, undo);
+  if ( changes.prone && !dead && !changes.fell ) await toggleStatus(actor, "prone", !!changes.prone.to, undo);
   if ( changes.conditions && !dead ) {
     // Each condition set or cleared, as its status (statusFor): on or off. Not prone (changes.prone, above), nor
     // unconscious when this turn's fall, steadying or revival has already said (above).
     const said = k => k === "prone" || (k === "unconscious" && !!(changes.fell || changes.revived || changes.stable?.to));
-    for ( const k of Object.keys(changes.conditions.set ?? {}) ) if ( !said(k) ) await setStatus(actor, statusFor(k), true, undo);
-    for ( const k of changes.conditions.cleared ?? [] ) if ( !said(k) ) await setStatus(actor, statusFor(k), false, undo);
+    for ( const k of Object.keys(changes.conditions.set ?? {}) ) if ( !said(k) ) await toggleStatus(actor, statusFor(k), true, undo);
+    for ( const k of changes.conditions.cleared ?? [] ) if ( !said(k) ) await toggleStatus(actor, statusFor(k), false, undo);
   }
   if ( changes.died ) {
     // (Dead: no longer dying, nor merely out.)
-    await setStatus(actor, "dying", false, undo);
-    await setStatus(actor, "unconscious", false, undo);
-    await setStatus(actor, "dead", true, undo, { overlay: true });
+    await toggleStatus(actor, "dying", false, undo);
+    await toggleStatus(actor, "unconscious", false, undo);
+    await toggleStatus(actor, "dead", true, undo, { overlay: true });
     const combatant = game.combat?.getCombatantsByToken?.(tokenDoc)?.[0];
     if ( combatant && !combatant.defeated ) {
       await combatant.update({ defeated: true });
@@ -298,11 +254,6 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
     }]);
     if ( effect ) undo.createdEffects.push(effect.id);
   }
-  const side = changes.side ? sideChange(final) : null;
-  if ( side ) {
-    undo.tokenUpdate = { ...(undo.tokenUpdate ?? {}), disposition: tokenDoc.disposition };
-    await tokenDoc.update({ disposition: CONST.TOKEN_DISPOSITIONS[DISPOSITIONS[side]] });
-  }
   // Spells lost to a failed check this turn stay lost for the day.
   for ( const id of (s.lost ?? []).filter(id => !(was.lost ?? []).includes(id)) ) {
     const item = actor.items.get(spec.actions.find(a => a.id === id)?.itemId);
@@ -318,31 +269,8 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
 /*  Giving something up                         */
 /* -------------------------------------------- */
 
+/** DCC's coins, each with its worth in copper, smallest first (the core's payFrom). */
 const COINS = [["cp", 1], ["sp", 10], ["ep", 50], ["gp", 100], ["pp", 1000]];
-
-/** Pay `amount` copper from a purse: small coins first, breaking a bigger coin (and taking change) when needed. */
-export function payFrom(currency, amount) {
-  const purse = Object.fromEntries(COINS.map(([k]) => [k, Number(currency?.[k]) || 0]));
-  let owed = amount;
-  for ( const [k, v] of COINS ) {
-    const n = Math.min(purse[k], Math.floor(owed / v));
-    purse[k] -= n;
-    owed -= n * v;
-  }
-  if ( owed > 0 ) {
-    const coin = COINS.find(([k, v]) => purse[k] > 0 && v >= owed);
-    if ( !coin ) return null;
-    purse[coin[0]] -= 1;
-    let change = coin[1] - owed;
-    for ( const [k, v] of [...COINS].reverse() ) {
-      if ( v >= coin[1] ) continue;
-      const n = Math.floor(change / v);
-      purse[k] += n;
-      change -= n * v;
-    }
-  }
-  return purse;
-}
 
 /** Copper as coins a pocket would hold: gold, silver, copper. */
 function coinsFor(copper) {
@@ -357,43 +285,28 @@ export async function commitDccConcession(giverDoc, receiverDoc, concession) {
   const records = [];
   if ( concession.kind === "money" ) {
     const before = { ...giver.system.currency };
-    const paid = payFrom(before, concession.amount);
+    const paid = payFrom(before, concession.amount, COINS);
     if ( !paid ) return [];
-    const giverUndo = emptyRecord(giverDoc, giver);
+    const giverUndo = undoRecord(giverDoc, giver);
     giverUndo.actorUpdate["system.currency"] = before;
     await giver.update({ "system.currency": paid });
     records.push(giverUndo);
     if ( receiver ) {
       const got = { ...receiver.system.currency };
       const add = coinsFor(concession.amount);
-      const receiverUndo = emptyRecord(receiverDoc, receiver);
+      const receiverUndo = undoRecord(receiverDoc, receiver);
       receiverUndo.actorUpdate["system.currency"] = got;
       await receiver.update({ "system.currency": { ...got, gp: (Number(got.gp) || 0) + add.gp, sp: (Number(got.sp) || 0) + add.sp, cp: (Number(got.cp) || 0) + add.cp } });
       records.push(receiverUndo);
     }
     return records;
   }
-  const item = giver.items.get(concession.item?.id);
-  if ( !item ) return [];
-  const giverUndo = emptyRecord(giverDoc, giver);
-  const data = item.toObject();
-  delete data._id;
-  data.system.quantity = 1;
+  // (One of it, the core's way.)
+  return handOverItem(giverDoc, receiverDoc, concession.item?.id, { prepare: unpacked });
+}
+
+/** An item handed over, as the receiver gets it: not equipped, out of any container. */
+function unpacked(data) {
   data.system.equipped = false;
   if ( "container" in data.system ) data.system.container = null;
-  if ( (item.system.quantity ?? 1) > 1 ) {
-    giverUndo.itemUpdates.push({ id: item.id, update: { "system.quantity": item.system.quantity } });
-    await item.update({ "system.quantity": item.system.quantity - 1 });
-  } else {
-    giverUndo.deletedItems.push(item.toObject());
-    await item.delete();
-  }
-  records.push(giverUndo);
-  if ( receiver ) {
-    const receiverUndo = emptyRecord(receiverDoc, receiver);
-    const [created] = await receiver.createEmbeddedDocuments("Item", [data]);
-    if ( created ) receiverUndo.createdItems.push(created.id);
-    records.push(receiverUndo);
-  }
-  return records;
 }

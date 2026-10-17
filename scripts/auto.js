@@ -2,8 +2,7 @@
  * What DCC says about a character, for the one time FastFighting sets it up by itself (the core's
  * foundry/auto-config.js): the playstyles that fit it and its own answers to the tactics questions ("Let this character
  * decide"), from its class (the class sheet's id: DCC's and XCC's), its level, its weapons, its alignment, its Luck,
- * and a monster's stat line and Will; and the sheet's HTML as plain text, for its biography's keywords (the adapter's
- * biography). Pure (its words through the language files).
+ * and a monster's stat line and Will. Pure (its words through the language files).
  */
 import { listItems, signedNumber } from "./core.js";
 import { archetype } from "./classes.js";
@@ -226,9 +225,4 @@ function creatureTactics(f, set) {
     set("expect", { kind: "" }, why);
     set("consumables", "avoid", why);
   }
-}
-
-/** Text from the sheet's HTML. */
-export function plainText(html) {
-  return String(html ?? "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, "\"").replace(/\s+/g, " ").trim();
 }

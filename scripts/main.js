@@ -10,7 +10,7 @@ import { registerTiedStopsSpells } from "./tied.js";
 export const MODULE_ID = "fast-fighting-dcc";
 
 /** The core API this helper is written against (older cores have no api.version: that is 1). */
-const NEEDS_API = 17;
+const NEEDS_API = 18;
 
 /**
  * The last translation module we knew of for this game system, by language: in a language other than English, this
@@ -37,9 +37,9 @@ Hooks.once("fastFighting.init", api => {
     return;
   }
   api.registerAdapter("dcc", DccAdapter, { priority: 10, source: MODULE_ID });
-  api.adviseTranslation?.(MODULE_ID, game.system.title, KNOWN_TRANSLATIONS);
+  api.adviseTranslation(MODULE_ID, game.system.title, KNOWN_TRANSLATIONS);
   // Words kept in English for now, while the system isn't translated (hardcoded-toEN.json).
-  api.keepEnglish?.(MODULE_ID);
+  api.keepEnglish(MODULE_ID);
 });
 
 Hooks.once("ready", () => {

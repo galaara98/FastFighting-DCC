@@ -641,8 +641,6 @@ export const dccRules = {
     };
   },
 
-  secondsPerRound: 10,
-
   storyDamageType(type) {
     return STORY_TYPES[type] ?? type;
   }

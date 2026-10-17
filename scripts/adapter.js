@@ -8,7 +8,7 @@
  * results, Lay on Hands and Turn Unholy (see tables.js); without them, crits add the crit die, deeds and the
  * cleric's skills use rough built-in versions, and spells it can't read are left out.
  */
-import { SystemAdapter, parseFormula, parseTypedFormula, part, hasWords } from "./core.js";
+import { SystemAdapter, parseFormula, parseTypedFormula, part, hasWords, plainText, englishWords } from "./core.js";
 import { dccRules } from "./rules.js";
 import { plain, statLine, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn } from "./text.js";
 import { classId, archetype } from "./classes.js";
@@ -20,8 +20,8 @@ import { rankDccLeaders } from "./leadership.js";
 import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, conditionsOf, statusFor, statusName, sheetConditions } from "./commit.js";
 import { readDccTurn } from "./read-turn.js";
 import { loreBoost } from "./lore.js";
-import { dccHints, dccTactics, plainText } from "./auto.js";
-import { t, saysWord, englishWords } from "./words.js";
+import { dccHints, dccTactics } from "./auto.js";
+import { t, saysWord } from "./words.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
@@ -726,7 +726,7 @@ export class DccAdapter extends SystemAdapter {
   async #crit(sys, weapon, mod) {
     const id = String(weapon?.system?.critTable || sys.attributes?.critical?.table || "M").trim();
     const dieText = String(weapon?.system?.critDie || sys.attributes?.critical?.die || "1d4");
-    const die = parseFormula(/^\d/.test(dieText) ? dieText : `1${dieText}`);
+    const die = parseFormula(dieText);
     const rows = await this.#tables.crit(id);
     if ( rows?.length ) return { die, mod, rows, table: id };
     return { die, mod: 0, rows: [{ lo: -Infinity, hi: Infinity, damage: [{ ...die, type: "untyped" }] }], table: id, guessed: true };

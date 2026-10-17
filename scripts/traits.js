@@ -16,7 +16,7 @@
  * save and its alignment; then what else its stat line says (immune to fear, a demon or devil) and whatever ability
  * scores it does have move it from there. The mindless never change.
  */
-import { clamp, listItems, traitsFromParts, signedNumber, PC_BASELINE, TRAITS } from "./core.js";
+import { clamp, traitsFromParts, partsOf, signedNumber, PC_BASELINE } from "./core.js";
 import { archetype } from "./classes.js";
 import { t, saysWord } from "./words.js";
 
@@ -102,9 +102,6 @@ export function augurLean(keys = [], mod = 0) {
   return null;
 }
 
-/** Parts from a leaning ({trait: n}), with the reason they're shown with. */
-const partsOf = (lean, why, scale = 1) => Object.entries(lean ?? {}).map(([trait, n]) => ({ trait, n: n * scale, why }));
-
 /** Parts from its ability modifiers. */
 function abilityParts(mods = {}, names = {}) {
   const parts = [];
@@ -173,9 +170,6 @@ export function pcParts(d) {
   if ( d.inParty === false ) add("loyal", NO_PARTY, t("Reason.NoParty"));
   return parts;
 }
-
-/** A trait's reason with more after it (the parts that moved it). */
-const joinReasons = (first, more) => Object.fromEntries(TRAITS.map(k => [k, listItems([first[k], more[k]].filter(Boolean))]));
 
 /** The kinds of creature the system files as people (by the crit table it gives them): they have words. */
 const PEOPLE = ["humanoid", "giant", "dragon", "demon"];
@@ -301,6 +295,7 @@ export function deriveDccTraits(d) {
   const immune = new Set(d.immune ?? []);
   if ( !d.undead && immune.has("frightened") ) parts.push({ trait: "brave", n: 10, why: t("Reason.ImmuneFear") });
   if ( d.unholy ) parts.push({ trait: "selfish", n: 8, why: t("Reason.Fiend") });
-  const built = traitsFromParts(base, flags.fearless ? parts.filter(p => p.trait !== "brave") : parts, { min: 0, max: 100 });
-  return { traits: built.traits, flags, reasons: joinReasons(reasons, built.reasons) };
+  // (Each trait's reason first, then the parts that moved it.)
+  const built = traitsFromParts(base, flags.fearless ? parts.filter(p => p.trait !== "brave") : parts, { lead: reasons, min: 0, max: 100 });
+  return { traits: built.traits, flags, reasons: built.reasons };
 }

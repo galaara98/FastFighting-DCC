@@ -7,7 +7,7 @@
  * What can't be read is left out, never guessed into something it isn't.
  * Pure: no Foundry globals.
  */
-import { parseFormula, part, meanPart, listJoin, listItems, localize } from "./core.js";
+import { parseFormula, part, meanPart, listJoin, listItems, localize, signedNumber } from "./core.js";
 import { harmKinds } from "./moves.js";
 // (Its texts are `t` here: this module's words are `say`.)
 import { t as say } from "./words.js";
@@ -42,7 +42,7 @@ export function dicePart(term, type = "untyped") {
   const t = String(term ?? "").trim().toLowerCase();
   if ( NUMBER_WORDS[t] ) return part([], NUMBER_WORDS[t], type);
   if ( !/\d/.test(t) ) return null;
-  const p = parseFormula(t.replace(/^d/, "1d"), type);
+  const p = parseFormula(t, type);
   return p.dice.length || p.flat ? p : null;
 }
 
@@ -219,8 +219,7 @@ export function outcomeIn(text, { casterLevel = 0, defaultRounds = 1 } = {}) {
 
 /** Bonuses and penalties in words ("-2 to attacks, +1 AC"; "" for none). */
 export function modsWords(mods = {}) {
-  const signed = n => `${n > 0 ? "+" : ""}${n}`;
-  return listItems(["attack", "ac", "saves", "damage"].filter(k => mods[k]).map(k => say(`Mods.${k}`, { n: signed(mods[k]) })));
+  return listItems(["attack", "ac", "saves", "damage"].filter(k => mods[k]).map(k => say(`Mods.${k}`, { n: signedNumber(mods[k]) })));
 }
 
 /** The core's word for an outcome it can't say more about ("affected"). */

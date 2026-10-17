@@ -2,7 +2,7 @@
  * Words for the table, in its language: this module's (FFDCC in languages/). The words are in the language files,
  * never here. (What the DCC books say, their tables' rows, is read in whatever language the installed books are.)
  */
-import { localize, hasWords } from "./core.js";
+import { localize, hasWords, wordList as coreWordList, saysWord as coreSaysWord } from "./core.js";
 
 /** This module's words. */
 export const t = (key, data = null) => localize(`FFDCC.${key}`, data);
@@ -14,35 +14,14 @@ export const t = (key, data = null) => localize(`FFDCC.${key}`, data);
 export const conditionName = (key, other = null) => (hasWords(`FFDCC.Cond.${key}`) ? t(`Cond.${key}`) : other ?? key);
 
 /**
- * Foundry's English for a key when the reader's language is another (its fallback, as Foundry itself reads it); null
- * when the reader's language is English, or there's none.
- */
-export function englishWords(key) {
-  const text = globalThis.foundry?.utils?.getProperty?.(globalThis.game?.i18n?._fallback ?? {}, key);
-  return typeof text === "string" ? text : null;
-}
-
-/** The words of a list in the language file (split at commas; anything but letters and digits trimmed), lower case. */
-const listed = text => String(text ?? "").split(",").map(w => w.trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").toLowerCase()).filter(Boolean);
-
-/**
  * One of this module's word lists (FFDCC.Words.<key>), in the reader's language and in English too: a name may be in
- * either, as a book is often read untranslated (as the core reads its keywords). Empty when there's none.
+ * either, as a book is often read untranslated (the core's wordList). Empty when there's none.
  */
-export function wordList(key) {
-  const id = `FFDCC.Words.${key}`;
-  return [...new Set([...(hasWords(id) ? listed(localize(id)) : []), ...listed(englishWords(id))])];
-}
-
-const escaped = w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+export const wordList = key => coreWordList(`FFDCC.Words.${key}`);
 
 /**
  * Does this text (a name, where the system says nothing else) hold one of a word list's words, whole, in any case?
  * @param {string} key    the list (FFDCC.Words.<key>)
  * @param {string} text
  */
-export function saysWord(key, text) {
-  const words = wordList(key);
-  if ( !words.length || !text ) return false;
-  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${words.map(escaped).join("|")})(?![\\p{L}\\p{N}])`, "iu").test(String(text));
-}
+export const saysWord = (key, text) => coreSaysWord(wordList(key), text);
