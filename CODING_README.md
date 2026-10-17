@@ -28,12 +28,13 @@ When new work needs something the core can't handle in a close-enough way with w
 | `tables.js` | `DccTables`: finds the books' tables at run time, each read once a session (below). |
 | `commit.js` | Live write-back, concessions, the planner's outcome lines; the status mapping. |
 | `read-turn.js` | A player's turn read from the dcc system's chat cards (`dcc.isToHit` and the rest): attacks, damage, Personality checks, each marked `sure` or not. |
+| `reaction.js` | A reaction's strike rolled as the dcc system's attack card (`rollReaction`). |
 | `traits.js` | Personality defaults (below). Pure. |
 | `auto.js` | Setting a character up by itself: `dccHints` (playstyles), `dccTactics` ("Let this character decide"). Pure. |
 | `leadership.js` | `rankDccLeaders`: Personality, a title (`FFDCC.Words.Title`), a cleric, level or Hit Dice. |
 | `moves.js` | Help, Grapple and Hide actions; weak spots from a stat line's resistances. |
 | `lore.js`, `tied.js` | The two settings. |
-| `words.js` | `t(key)` for `FFDCC.*`, `conditionName`, and the word lists (`wordList`, `saysWord`, over the core's). |
+| `words.js` | `t(key)` for `FFDCC.*`, `conditionName`, the word lists (`wordList`, `saysWord`, over the core's), and `harmOf` (a weapon's damage kinds, by its formula and name). |
 
 ## Recognising things
 
@@ -79,6 +80,8 @@ The adapter also gives `label` ("DCC", or "DCC / XCC" with the xcc module on), `
 `commitDccChanges` writes hit points, Luck, spellburn (Strength, then Stamina, then Agility, none below 3), Stamina lost to bleeding out, the ability lost when a body is found alive, disapproval, `system.class.tooCuteUsed`, Fleeting Luck or Mojo by this turn's change, statuses, death (and the combatant defeated), the fled hidden, a Surrendered effect, and spells lost (`system.lost`). With the dcc system's Death Clock on (`enableDeathClock`), `liveOwnership` returns `{recovery: true}` and the system marks the dying, counts their rounds and scars the saved itself. `commitDccConcession` pays in DCC's coins or hands over one item, unequipped and out of any container. Every write returns an undo record for Rewind and Rewind This Encounter; its shape is at the top of commit.js.
 
 Players' damage (API 19): `damageCard` (read-turn.js `readDccDamage`: an attack's damage roll, a Roll Damage button's or inline damage roll at its attack's target, a roll typed `[healing]`), `applyDamageCard` (commit.js `applyDccDamage`: the actor's `applyDamage`, the HP and combatant defeated in the undo record) and `appliesPlayerDamage` (the system's `autoApplyDamage`, unless dcc-qol is active).
+
+Reactions (API 19): `rollReaction` (reaction.js `rollDccReaction`): the weapon the strike's id names, through the actor's `rollWeaponAttack` with no dialog and the user's target set to the strike's target for the roll (theirs put back), read off the card in the `dcc.rollWeaponAttack` hook; the card is marked `dcc.damageApplied` and loses its `dcc.FleetingLuckEffect`, so the system's Auto-apply damage and Fleeting Luck leave it to FastFighting.
 
 ## Personality (traits.js)
 

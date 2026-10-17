@@ -23,7 +23,7 @@ function naturalOf(m, roll) {
 }
 
 /** One of a card's rolls by the dcc system's mark on it ("dcc.isDamageRoll"). */
-const rollMarked = (m, key) => (m.rolls ?? []).find(r => r?.options?.[key] || r?.options?.dcc?.[key.slice(4)]);
+export const rollMarked = (m, key) => (m.rolls ?? []).find(r => r?.options?.[key] || r?.options?.dcc?.[key.slice(4)]);
 
 /**
  * The flavor the dcc system gives an attack card's inline damage roll (its DAMAGE_INLINE_FLAVOR). A mark, not words:
@@ -122,6 +122,21 @@ export function readDccDamage(message, { ids = {}, messages = [], scene = null }
 }
 
 /**
+ * An attack card's verdict, as the dcc system marks it: {degree: 3 a critical hit, 2 a hit, 1 a miss, 0 a fumble,
+ * natural, total, known (the card says whether it hit: its target's AC was read)}. A critical hits, unless its die's
+ * range needs a hit too.
+ * @param {ChatMessage} m
+ */
+export function attackOf(m) {
+  const roll = m.rolls?.[0] ?? null;
+  const known = flag(m, "hitsTarget") !== undefined && flag(m, "hitsTarget") !== null;
+  const fumble = !!flag(m, "isFumble");
+  const crit = !!flag(m, "isCrit") && (!flag(m, "critNeedsHit") || !!flag(m, "hitsTarget"));
+  const hit = !fumble && (crit || !!flag(m, "hitsTarget"));
+  return { degree: crit ? 3 : hit ? 2 : fumble ? 0 : 1, natural: naturalOf(m, roll), total: roll?.total ?? null, known };
+}
+
+/**
  * @param {ChatMessage[]} messages  the cards made during the turn, oldest first
  * @param {object} context          {tokenId, actorId, ids: {tokenId: battle id}, actors: {actorId: battle id}}
  * @returns {object[]} engine log events, each with `sure`
@@ -137,18 +152,16 @@ export function readDccTurn(messages, { tokenId, actorId = null, ids = {}, actor
       // (At no one the card names: nothing to tell.)
       const target = whom(flag(m, "targetUuid"));
       if ( !target ) continue;
-      const known = flag(m, "hitsTarget") !== undefined && flag(m, "hitsTarget") !== null;
-      const fumble = !!flag(m, "isFumble");
-      // (A critical hits, unless its die's range needs a hit too.)
-      const crit = !!flag(m, "isCrit") && (!flag(m, "critNeedsHit") || !!flag(m, "hitsTarget"));
-      const hit = !fumble && (crit || !!flag(m, "hitsTarget"));
+      const { degree, natural, total, known } = attackOf(m);
+      const crit = degree === 3;
+      const hit = degree >= 2;
       const melee = flag(m, "isMelee") !== false;
       const weapon = m.system?.weaponId ? globalThis.game?.actors?.get?.(m.system.actorId ?? "")?.items?.get?.(m.system.weaponId) : null;
       const thrown = !melee && !!weapon?.system?.thrown;
       const damage = rollMarked(m, "dcc.isDamageRoll");
       events.push({
-        type: "attack", targetId: target, action: m.system?.weaponName ?? "", degree: crit ? 3 : hit ? 2 : fumble ? 0 : 1,
-        natural: naturalOf(m, roll), total: roll?.total ?? null, dc: null, margin: 0, melee, ranged: !melee, launched: !melee && !thrown, thrown,
+        type: "attack", targetId: target, action: m.system?.weaponName ?? "", degree,
+        natural, total, dc: null, margin: 0, melee, ranged: !melee, launched: !melee && !thrown, thrown,
         damage: hit && damage ? Math.max(1, Number(damage.total) || 0) : 0, crit, sure: known
       });
     } else if ( laterDamage(m) ) {

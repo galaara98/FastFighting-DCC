@@ -8,7 +8,7 @@
  * results, Lay on Hands and Turn Unholy (see tables.js); without them, crits add the crit die, deeds and the
  * cleric's skills use rough built-in versions, and spells it can't read are left out.
  */
-import { SystemAdapter, parseFormula, parseTypedFormula, part, hasWords, plainText, englishWords } from "./core.js";
+import { SystemAdapter, parseFormula, part, hasWords, plainText, englishWords } from "./core.js";
 import { dccRules } from "./rules.js";
 import { plain, statLine, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn } from "./text.js";
 import { classId, archetype } from "./classes.js";
@@ -21,7 +21,8 @@ import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession
 import { readDccTurn, readDccDamage } from "./read-turn.js";
 import { loreBoost } from "./lore.js";
 import { dccHints, dccTactics } from "./auto.js";
-import { t, saysWord } from "./words.js";
+import { t, saysWord, harmOf } from "./words.js";
+import { rollDccReaction } from "./reaction.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
@@ -36,19 +37,6 @@ const deedOf = toHit => {
   const m = String(toHit ?? "").match(/(?:^|[+\s])\d*d(\d+)/i);
   return m ? Number(m[1]) : null;
 };
-
-/** The kinds of harm a weapon's name can say it does, the first that fits first. */
-const HARMS = ["piercing", "bludgeoning", "slashing"];
-
-/**
- * A weapon's damage: the kind its formula names; where it names none (DCC's weapons don't say whether they cut, pierce
- * or crush), the kind its name says (the language file's words, FFDCC.Words.Damage), else untyped. A blow the system
- * marks as subdual is a subdual blow (the action says so), not a kind of harm.
- */
-function harmOf(formula, name) {
-  const named = HARMS.find(k => saysWord(`Damage.${k}`, name)) ?? "untyped";
-  return parseTypedFormula(formula).map(p => (["untyped", "subdual"].includes(p.type) ? { ...p, type: named } : p));
-}
 
 const MODES = ["fly", "swim", "climb", "burrow"];
 const COPPER = { pp: 1000, ep: 50, gp: 100, sp: 10, cp: 1 };
@@ -1017,6 +1005,14 @@ export class DccAdapter extends SystemAdapter {
   /** API 19. The dcc system's Auto-apply damage, by its name, while it's on (commit.js systemAppliesDamage). */
   appliesPlayerDamage() {
     return systemAppliesDamage();
+  }
+
+  /**
+   * API 19. A reaction's strike rolled the dcc system's way, its card in the chat (reaction.js rollDccReaction): the
+   * weapon's attack at its target, and a hit's damage as rolled; null where the strike isn't a weapon on the sheet.
+   */
+  async rollReaction(token, { action, target } = {}) {
+    return rollDccReaction(token, { action, target });
   }
 
   describeOutcome(spec, final) {
