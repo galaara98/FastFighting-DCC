@@ -210,6 +210,32 @@ export function speaksCommon({ pc = false, kind = null, name = "", mindless = fa
 }
 
 /**
+ * An ability modifier on DCC's scale (-3 to +3, scores 3 to 18) as the core's hidden aptitude (0 to 4, 2 the middle):
+ * -3 is 0, -2 and -1 are 1, +0 is 2, +1 and +2 are 3, +3 is 4.
+ */
+export function aptitudeBand(mod) {
+  const m = Math.round(Number(mod) || 0);
+  return m <= -3 ? 0 : m < 0 ? 1 : m === 0 ? 2 : m <= 2 ? 3 : 4;
+}
+
+/**
+ * What a creature is like, on the core's hidden scale (spec.aptitudes, core API 23), from its abilities: smart its
+ * Intelligence, strong its Strength, fast its Agility, wise and charismatic both its Personality (DCC's one score for
+ * both). A creature's stat line has no abilities, so only its wits where its sheet has them: none for the mindless, an
+ * animal's for a beast; the rest left out.
+ * @param {{pc?: boolean, mods?: Record<string, number>, mindless?: boolean, beast?: boolean}} d
+ */
+export function aptitudesOf({ pc = false, mods = {}, mindless = false, beast = false } = {}) {
+  if ( pc ) {
+    const per = aptitudeBand(mods.per);
+    return { smart: aptitudeBand(mods.int), strong: aptitudeBand(mods.str), fast: aptitudeBand(mods.agl), wise: per, charismatic: per };
+  }
+  if ( mindless ) return { smart: 0 };
+  if ( beast ) return { smart: 1 };
+  return Number.isFinite(Number(mods.int)) ? { smart: aptitudeBand(mods.int) } : {};
+}
+
+/**
  * Does it fight as an animal (the core's spec.animalistic)? A beast (deriveDccTraits: its name, unless it's one of the
  * people), or a creature of animal wits, Intelligence 11 or less where its sheet says, that speaks no language. Never
  * a mindless one, never a character.

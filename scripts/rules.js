@@ -32,9 +32,9 @@
  * In a grapple the bigger of the two adds its size's edge: twice the other's size, +4; three times, +8; four, +16.
  * A fall (shoved off a ledge) is 1d6 for each 10 feet.
  */
-import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition, parseFormula, samplePart, rollD20, hiddenSides } from "./core.js";
+import { DOWNED_MODELS, STATUS, MORALE, bestReactionStrike, behaviorOf, dropCondition, parseFormula, samplePart, rollCheck, hiddenSides, hiddenFrom } from "./core.js";
 import { t } from "./words.js";
-import { leftBehind } from "./commit.js";
+import { leftBehind } from "./statuses.js";
 import { tiedStopsSpells } from "./tied.js";
 import { holdsWeapon } from "./deeds.js";
 
@@ -94,7 +94,10 @@ function employerOf(run, u) {
 function lastBurst(c, overflow, rng) {
   const regen = c.spec.regen;
   if ( !regen?.burst || c.regenStopped ) return;
+  // (Its dice, a table roll a live battle shows: the core's recording rng.)
+  const at = rng && regen.dice ? rng.mark?.() : undefined;
   const burst = rng && regen.dice ? samplePart(regen.dice, rng) : Number(regen.amount) || 0;
+  if ( at !== undefined ) rng.record(at, { by: c, kind: "healing", label: t("Rolls.Regeneration"), total: burst, parts: [regen.dice] });
   if ( burst <= (Number(overflow) || 0) ) c.regenStopped = true;
 }
 
@@ -112,11 +115,16 @@ function conditionsOn(u, kind, action = null) {
   return n;
 }
 
-/** A morale check: a d20 and its Will (and the rest: morale's mod) against MORALE_DC, and the words for the log. */
-function moraleCheck(run, why, mod) {
+/**
+ * A morale check: a d20 and its Will (and the rest: morale's mod) against MORALE_DC, and the words for the log. `by`
+ * rolls it: a table roll a live battle shows.
+ */
+function moraleCheck(run, why, mod, by = null) {
+  const at = run.rng.mark?.();
   const natural = run.rng.die(20);
   const total = natural + mod;
   const holds = total >= MORALE_DC;
+  if ( at !== undefined ) run.rng.record(at, { by, kind: "check", label: t("Rolls.Morale"), mod, total, natural, dc: MORALE_DC, degree: holds ? 2 : 1 });
   const said = { text: t("Morale", { why: t(`MoraleWhy.${why}`), natural, mod: signed(mod), total, dc: MORALE_DC, result: t(holds ? "MoraleHolds" : "MoraleBreaks") }),
     data: { trigger: why, natural, total, dc: MORALE_DC, holds } };
   return { holds, said };
@@ -203,15 +211,19 @@ export const dccRules = {
     return 99;
   },
   /**
-   * A shot into a melee that missed: half the time it strays toward a random friend of the shooter's engaged with the
-   * target. Returns that friend, or null.
+   * A shot into a melee that missed: half the time (a d2) it strays toward a random friend of the shooter's engaged with
+   * the target (a die of as many). Returns that friend, or null. A table roll a live battle shows.
    */
   strayShot(run, u, target, action) {
     if ( action?.melee ) return null;
     const friends = [...(target.adjacent ?? [])].map(id => run.byId.get(id))
       .filter(o => o && o !== u && o.side === u.side && o.status === STATUS.STANDING);
-    if ( !friends.length || !run.rng.chance(0.5) ) return null;
-    return run.rng.pick(friends);
+    if ( !friends.length ) return null;
+    const at = run.rng.mark?.();
+    const strays = run.rng.die(2) === 1;
+    const friend = strays ? friends[run.rng.die(friends.length) - 1] : null;
+    if ( at !== undefined ) run.rng.record(at, { by: u, target: friend ?? null, kind: "other", label: t("Rolls.Stray") });
+    return friend;
   },
   /**
    * The start of a turn: where it set out from (for a charge), its charge's opening closed, and an action spent on a
@@ -267,7 +279,7 @@ export const dccRules = {
     if ( g.broke && u.dccRallied !== g.breaks ) {
       if ( !rally.again ) return MORALE.ROUT;
       u.moraleAgainOf = rally.again;
-      const again = moraleCheck(run, "rallied", mod);
+      const again = moraleCheck(run, "rallied", mod, u);
       if ( again.holds ) u.dccRallied = g.breaks;
       return { result: again.holds ? MORALE.HOLD : MORALE.ROUT, said: again.said };
     }
@@ -284,7 +296,7 @@ export const dccRules = {
       g.hurt = true;
     }
     if ( !trigger ) return MORALE.HOLD;
-    const { holds, said } = moraleCheck(run, trigger, mod);
+    const { holds, said } = moraleCheck(run, trigger, mod, u);
     if ( !holds ) {
       g.broke = true;
       g.breaks = (g.breaks ?? 0) + 1;
@@ -310,7 +322,8 @@ export const dccRules = {
     const work = who.spec.escapeWork;
     if ( !edge || !Number.isFinite(work?.mod) || !Number.isFinite(hold.dc) ) return null;
     const mod = work.mod + edge;
-    const roll = rollD20(dccRules, run.rng, mod, hold.dc, { kind: "check", faces: work.faces ?? 20 });
+    // (The engine's die, a table roll a live battle shows: the core's rollCheck records it.)
+    const roll = rollCheck(dccRules, run.rng, mod, hold.dc, { kind: "check", faces: work.faces ?? 20, by: who, target: grabber, what: "escape" });
     return { success: roll.degree >= 2, degree: roll.degree, natural: roll.natural, mod, total: roll.total, dc: hold.dc };
   },
   /** Hiding takes not having a foe beside it. */
@@ -484,7 +497,10 @@ export const dccRules = {
   /** A dead character's friends reach the body: a Luck check (d20 at or under Luck) says they were only unconscious. */
   recoverBody(u, rng) {
     const luck = u.resources?.luck ?? u.spec.luck ?? 0;
+    // (The Luck check and the d3 for what it loses: table rolls a live battle shows.)
+    const at = rng.mark?.();
     const roll = rng.die(20);
+    if ( at !== undefined ) rng.record(at, { by: u, kind: "check", what: "body", total: roll, natural: roll, degree: roll <= luck ? 2 : 1 });
     // (An XCC Dungeon Hottie: too cute to die, for a point of Luck, once a level.)
     const cute = roll > luck && u.spec.tooCute && !u.tooCuteUsed && luck >= 1;
     if ( cute ) {
@@ -496,11 +512,17 @@ export const dccRules = {
     u.hp = 1;
     u.bleed = null;
     u.dying = 0;
+    const lossAt = rng.mark?.();
     u.bodyRecovered = ABILITY_LOSS[rng.die(3) - 1];
+    if ( lossAt !== undefined ) rng.record(lossAt, { by: u, kind: "other", what: "body" });
     return cute ? t("Body.TooCute", { roll, luck }) : t("Body.Alive", { roll, luck });
   },
-  persistentFlatCheck(rng) {
-    return rng.d20() >= 11;
+  /** Ending persistent damage: a d20, 11 or better (a flat check a live battle shows). */
+  persistentFlatCheck(rng, { unit = null } = {}) {
+    const at = rng.mark?.();
+    const natural = rng.d20();
+    if ( at !== undefined ) rng.record(at, { by: unit, kind: "flat", what: "persistentEnd", total: natural, natural, dc: 11, degree: natural >= 11 ? 2 : 1 });
+    return natural >= 11;
   },
 
   /* What's typical, by level (hit dice) ------------------------------------ */
@@ -515,7 +537,8 @@ export const dccRules = {
   modifiers: {
     /** Down, helpless or flanked, or caught by one hidden: open to a thief's backstab and an easy hit. */
     exposed({ target, flanked, attacker }) {
-      return !!(target.prone || flanked || has(target, "incapacitated") || has(target, "blinded") || has(target, "stunned") || has(attacker, "hidden"));
+      // (Hidden from the one it strikes: the core's hiddenFrom, one found by a Seek since it hid sees it.)
+      return !!(target.prone || flanked || has(target, "incapacitated") || has(target, "blinded") || has(target, "stunned") || (attacker && target && hiddenFrom(target, attacker)));
     },
     /** A charger, until its next turn: -2 AC; and what its conditions do to its AC (blinded, slowed, hidden). */
     defense({ target }) {
@@ -653,3 +676,14 @@ export const dccRules = {
     return STORY_TYPES[type] ?? type;
   }
 };
+
+/**
+ * The same rules on one of the planner's background workers (the core's API 22: adapter.workerRules), where no world
+ * setting can be read: the world's "tied up stops spells" given as data, the rest as they are.
+ * @param {{tiedStopsSpells?: boolean}} [data]
+ */
+export function dccRulesFor(data = {}) {
+  const own = Object.getOwnPropertyDescriptors(dccRules);
+  delete own.tiedStopsSpells;
+  return Object.defineProperties({}, { ...own, tiedStopsSpells: { value: data?.tiedStopsSpells !== false, enumerable: true } });
+}

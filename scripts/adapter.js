@@ -10,12 +10,13 @@
  */
 import { SystemAdapter, parseFormula, part, hasWords, plainText, englishWords } from "./core.js";
 import { dccRules } from "./rules.js";
+import { tiedStopsSpells } from "./tied.js";
 import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn } from "./text.js";
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
 import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
-import { deriveDccTraits, speaksCommon, monsterKind, animalisticOf } from "./traits.js";
+import { deriveDccTraits, speaksCommon, monsterKind, animalisticOf, aptitudesOf } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
 import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, conditionsOf, statusFor, statusName, sheetConditions, applyDccDamage, systemAppliesDamage } from "./commit.js";
 import { readDccTurn, readDccDamage } from "./read-turn.js";
@@ -315,6 +316,14 @@ export class DccAdapter extends SystemAdapter {
     return dccRules;
   }
 
+  /**
+   * The same rules for the planner's background workers (the core's API 22): rules.js and what it imports touch nothing
+   * of Foundry's; the one world setting they read (tied.js) goes along as data (rules.js dccRulesFor).
+   */
+  workerRules() {
+    return { url: new URL("./rules.js", import.meta.url).href, exportName: "dccRulesFor", data: { tiedStopsSpells: tiedStopsSpells() } };
+  }
+
   canHandle(actor) {
     return !!actor && ["Player", "NPC"].includes(actor.type);
   }
@@ -436,6 +445,8 @@ export class DccAdapter extends SystemAdapter {
       flags: { ...derived.flags },
       // (Whether it fights as an animal does: the core's behavior/animal.js.)
       animalistic: animalisticOf({ pc, beast: !!derived.flags.beast, mindless: !!derived.flags.mindless, int: pc ? NaN : Number(sys.abilities?.int?.value), languages: languagesOf(actor, { pc, flags: derived.flags }) }),
+      // (What it's like, on the core's hidden scale: traits.js aptitudesOf. Core API 23.)
+      aptitudes: aptitudesOf({ pc, mods: Object.fromEntries(ABILITIES.map(a => [a, sys.abilities?.[a]?.mod])), mindless: !!derived.flags.mindless, beast: !!derived.flags.beast }),
       diesAtZero: !pc,
       // (Statuses on the token that the fight would feel: commit.js, which writes them too.)
       conditions: conditionsOf(actor),

@@ -6,6 +6,11 @@
     "CoreUntested": "FastFighting DCC hasn't been tried with FastFighting Core API {major}; some things may not work.",
     "NeedsCore": "FastFighting DCC needs the FastFighting module. Enable it in Manage Modules.",
     "Luck": "Luck",
+    "Rolls": {
+      "Morale": "Morale",
+      "Stray": "Stray shot",
+      "Regeneration": "Regeneration"
+    },
     "Spellburn": "Spellburn",
     "IntelligenceCheck": "Intelligence check",
     "Personality": "Personality",

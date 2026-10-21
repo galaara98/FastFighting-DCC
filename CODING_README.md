@@ -9,9 +9,14 @@ How this helper plugs into FastFighting Core, what it hands the core, and how to
 - **`fastFighting.init`:** stays inactive outside a `dcc` world (module.json already limits it to one). Checks the core's API version (below), then `api.registerAdapter("dcc", DccAdapter, { priority: 10, source: MODULE_ID })`, `api.adviseTranslation(MODULE_ID, game.system.title, KNOWN_TRANSLATIONS)` (no translation module known yet) and `api.keepEnglish(MODULE_ID)` (hardcoded-toEN.json).
 - **`ready`:** warns the GM (`FFDCC.NeedsCore`) when the core isn't active.
 
-**The API gate.** The core's API version is `major.bug` (`api.version` "19.0", `api.major` 19, `api.bug` 0). The helper decides compatibility; the core never refuses it. `KNOWN_API` in main.js lists the API majors this helper is known to work with, currently `[19]`. Below the oldest major listed, it doesn't register and tells the GM the core is too old (`FFDCC.CoreTooOld`). On any other major it isn't known to work with, it registers and warns the GM once that it hasn't been tried with that core (`FFDCC.CoreUntested`). When a new core major arrives, test the helper with it and add the major to `KNOWN_API`.
+**The API gate.** The core's API version is `major.bug` (`api.version` "24.0", `api.major` 24, `api.bug` 0). The helper decides compatibility; the core never refuses it. `KNOWN_API` in main.js lists the API majors this helper is known to work with, currently `[24]`. Below the oldest major listed, it doesn't register and tells the GM the core is too old (`FFDCC.CoreTooOld`). On any other major it isn't known to work with, it registers and warns the GM once that it hasn't been tried with that core (`FFDCC.CoreUntested`). When a new core major arrives, test the helper with it and add the major to `KNOWN_API`.
 
 `scripts/core.js` re-exports `../../fast-fighting/scripts/core-api.js`: everything this module takes from the core goes through that one file (both modules sit side by side in `Data/modules`). The tests alias the path to the core repository.
+
+What it takes up of the core since API 19:
+- **20:** hidden from one creature at a time (core-api `hiddenFrom`: `modifiers.exposed`); every die DCC's own rules roll is a table roll a live battle shows (the core's recording rng, `rng.mark` and `rng.record`, or its `rollCheck`): a morale check (`FFDCC.Rolls.Morale`), a stray shot's d2 and die (`FFDCC.Rolls.Stray`, the same draws as `chance(0.5)` and `pick`), a last burst of regeneration (healing), rolling the body (the Luck check and the d3, `what: "body"`), breaking a bigger grabber's grip (`what: "escape"`), persistent damage's end (DC 11).
+- **22:** `workerRules()` gives the planner's background workers `rules.js`'s `dccRulesFor(data)`, the rules with the world's `tiedStopsSpells` given as data (a worker reads no settings); `rules.js` imports nothing of Foundry's (`statuses.js` holds the status table and `leftBehind`, which `commit.js` re-exports). `tests/workers-dcc.test.js` plays batches on real threads.
+- **23:** `spec.aptitudes` (traits.js `aptitudesOf`: a character's from its modifiers, -3 to +3 banded 0 to 4, Personality both wise and charismatic; a creature only its wits, none when mindless, a beast's, else its Intelligence where its sheet has one).
 
 When new work needs something the core can't handle in a close-enough way with what it already offers, ask for a new core hook rather than forcing a poor fit or working around the core.
 
@@ -36,6 +41,7 @@ When new work needs something the core can't handle in a close-enough way with w
 | `leadership.js` | `rankDccLeaders`: Personality, a title (`FFDCC.Words.Title`), a cleric, level or Hit Dice. |
 | `moves.js` | Help, Grapple and Hide actions; weak spots from a stat line's resistances. |
 | `lore.js`, `tied.js` | The two settings. |
+| `statuses.js` | The dcc system's statuses as the engine's conditions (`SHEET_STATUSES`), and `leftBehind`. Pure. |
 | `words.js` | `t(key)` for `FFDCC.*`, `conditionName`, the word lists (`wordList`, `saysWord`, over the core's), and `harmOf` (a weapon's damage kinds, by its formula and name). |
 
 ## Recognising things

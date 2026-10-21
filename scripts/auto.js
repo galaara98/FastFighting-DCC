@@ -20,7 +20,7 @@ const CLASSES = Object.freeze({
   "zero-level": { fragile: 0.3, chicken: 0.1 }, "0-level": { fragile: 0.3, chicken: 0.1 }, zero: { fragile: 0.3, chicken: 0.1 },
   // XCC's own.
   brawler: { brawler: 0.7 }, "dungeon-hottie": { peoplePleaser: 0.3 }, jammer: { instigator: 0.4 }, gnome: { tank: 0.5 },
-  athlete: { brawler: 0.3, speedRunner: 0.2 }, "sp-acrobat": { speedRunner: 0.3 }
+  athlete: { brawler: 0.3, dps: 0.2 }, "sp-acrobat": { kiter: 0.3 }
 });
 
 /** What an alignment leans toward (l, n, c). */
