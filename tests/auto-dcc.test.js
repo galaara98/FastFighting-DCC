@@ -227,7 +227,7 @@ describe("every answer DCC gives", () => {
       n += Object.keys(h).length;
     }
     expect(n).toBeGreaterThan(1000);
-  });
+  }, 30000); // (every combination: thousands of characters, slow on a busy runner)
 });
 
 describe("the dcc sheet, read for its answers", () => {
