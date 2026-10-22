@@ -7,19 +7,18 @@ import { beforeEach, describe, expect, test } from "vitest";
 import { dccHints, dccTactics } from "../scripts/auto.js";
 import { DccAdapter } from "../scripts/adapter.js";
 import { TACTIC_CHOICES, TACTIC_KEYS } from "../../fast-fighting/scripts/engine/tactics.js";
-import { validLet, validMotive } from "../../fast-fighting/scripts/foundry/auto-config.js";
+import { validLet } from "../../fast-fighting/scripts/foundry/auto-config.js";
 import { text } from "./foundry-i18n.js";
 import { wordList } from "../scripts/words.js";
 
 /** The answers, without their reasons. */
 const values = hints => Object.fromEntries(Object.entries(hints).map(([k, v]) => [k, v.value]));
 
-/** Every answer is one the core takes (one of its question's choices; an offer or expectation as the survey stores one), with a reason. */
+/** Every answer is one the core takes (one of its question's choices), with a reason. (An offer or expectation: the core ignores those now.) */
 function expectFair(hints, actions = []) {
   const spec = { actions: actions.map(id => ({ id })) };
   for ( const [k, { value, why }] of Object.entries(hints) ) {
-    if ( ["offer", "expect"].includes(k) ) expect([k, validMotive(k, value)]).toEqual([k, true]);
-    else {
+    if ( !["offer", "expect"].includes(k) ) {
       expect(TACTIC_KEYS).toContain(k);
       if ( k !== "preferredAction" ) expect(TACTIC_CHOICES[k]).toContain(value);
       expect([k, validLet(k, value, spec)]).toEqual([k, true]);
