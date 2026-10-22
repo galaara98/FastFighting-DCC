@@ -10,7 +10,7 @@ FastFighting Core knows no game's rules. It offers a large but fixed set of opti
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
-- **Requires:** FastFighting Core 0.6.1 or later (API 24)
+- **Requires:** FastFighting Core 0.6.1 or later (API 24 or 25; verified with 0.7.0)
 
 ## Installation
 
