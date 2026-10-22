@@ -471,6 +471,8 @@ export class DccAdapter extends SystemAdapter {
         },
         resolve: defenses.wil - (Math.floor(level / 2) + 1),
         languages: languagesOf(actor, { pc, flags: derived.flags }),
+        // (Telepathy, or every language its sheet says: it talks with anyone who has a language. FFDCC.Words.AnyLanguage.)
+        anyLanguage: (!derived.flags.mindless && saysWord("AnyLanguage", String(sys.details?.languages ?? ""))) || undefined,
         mindless: !!derived.flags.mindless
       },
       // A thief's skills; anyone else's an untrained check (a d10, and Agility), as the rules have it for skills.

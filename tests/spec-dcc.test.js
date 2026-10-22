@@ -201,6 +201,10 @@ describe("what the system's data says, and a name where it says nothing", () => 
     const listed = npc(line, "M");
     listed.system.details.languages = "Common, Goblin";
     expect((await adapter.toCombatantSpec(token(listed))).social.languages).toEqual(["common", "goblin"]);
+    expect((await adapter.toCombatantSpec(token(listed))).social.anyLanguage).toBeUndefined();
+    // (Telepathy, or every language: it talks with anyone who has a language, the core's anyLanguage.)
+    listed.system.details.languages = "Demonic, telepathy";
+    expect((await adapter.toCombatantSpec(token(listed))).social.anyLanguage).toBe(true);
     // Where the crit table says nothing of words, its name: one the language file says speaks, not a beast; with a
     // table the system doesn't file, any but a beast; never the mindless, whatever its table.
     const named = (name, table) => Object.assign(npc(line, table), { name });
