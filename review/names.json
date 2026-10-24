@@ -1,0 +1,20 @@
+{
+  "checked": { "dcc": "0.70.74", "xcc": "0.5.6" },
+  "names": {
+    "dcc": {
+      "card flags": ["isToHit", "isFriendlyFire", "hitsTarget", "isFumble", "isCrit", "critNeedsHit", "isMelee", "targetUuid", "twoWeaponFumble", "damageApplied", "isDamageRoll", "RollType", "libResult", "FleetingLuckEffect", "isAbilityCheck", "LuckBurn", "luckBurnFor", "luckBurnBonus", "critResult", "damageRoll", "weaponId", "weaponName"],
+      "roll types": ["SavingThrow", "AbilityCheck", "SkillCheck", "SpellCheck", "Damage"],
+      "hooks and options": ["dcc.rollWeaponAttack", "abilityLogged", "showModifierDialog", "spellItem"],
+      "settings": ["strictCriticalHits", "autoApplyDamage", "enableDeathClock", "enableFleetingLuck", "fleetingLuckValue", "enableAbilityScoreLog"],
+      "CONFIG.DCC": ["currencyValue", "monsterCriticalHits", "abilityLogTypes", "abilities", "saves", "alignments"],
+      "data fields": ["critRange", "fumbleRange", "critTable", "critDie", "attackBonusWeapon", "backstabDamage", "otherMod", "sheetClass", "partyMembers", "abilityLog", "currency", "quantity", "equipped", "hitDice", "actionDice", "luckDie", "disapproval", "spellCheck", "twoWeaponPrimary", "twoWeaponSecondary", "twoWeaponCritRule", "subdual", "thrown", "melee"],
+      "actor methods": ["rollWeaponAttack", "rollSavingThrow", "rollAbilityCheck", "rollSkillCheck", "rollSpellCheck", "applyDamage"],
+      "language keys": ["DCC.ChatContextDamage", "DCC.ChatContextHealing", "DCC.TwoWeaponCritNone", "DCC.RollsDamageWith", "DCC.HideInShadows", "DCC.SneakAndHide", "DCC.FleetingLuck", "DCC.SettingAutoApplyDamage", "DCC.HitPoints"]
+    },
+    "xcc": {
+      "flags and fields": ["mojo", "briberyExpert", "tooCuteUsed"],
+      "statuses": ["disrespected", "agro", "grappled", "slowed"],
+      "language keys": ["XCC.Status.Disrespected", "XCC.Status.Agro", "XCC.Jammer.Disrespect", "XCC.Gnome.DrawAgro", "XCC.MojoTitle", "XCC.Jammer.ChosenWeapon"]
+    }
+  }
+}

@@ -1,0 +1,92 @@
+name: System watch
+
+# Weekly: is there a dcc or xcc release newer than the ones review/names.json was last checked against? Then look for
+# every system name the helper relies on in that release's source (tools/watch.mjs) and open one issue for those
+# versions. For the coders only: nothing here is in the module.
+
+on:
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report only, no issue"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: system-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Which releases
+        id: which
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          latest() { gh api "repos/foundryvtt-dcc/$1/releases/latest" --jq .tag_name | sed 's/^v//'; }
+          DCC=$(latest dcc)
+          XCC=$(latest xcc)
+          CHECKED_DCC=$(node -p 'require("./review/names.json").checked.dcc')
+          CHECKED_XCC=$(node -p 'require("./review/names.json").checked.xcc')
+          for v in "$DCC" "$XCC"; do
+            if ! printf '%s' "$v" | grep -Eq '^[0-9]+(\.[0-9]+)+$'; then echo "Not a version: '$v'" | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; fi
+          done
+          RUN=no
+          if [ "$DCC" != "$CHECKED_DCC" ] || [ "$XCC" != "$CHECKED_XCC" ] || [ "$EVENT" = "workflow_dispatch" ]; then RUN=yes; fi
+          echo "dcc=$DCC" >> "$GITHUB_OUTPUT"
+          echo "xcc=$XCC" >> "$GITHUB_OUTPUT"
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
+          echo "dcc $DCC (checked $CHECKED_DCC), xcc $XCC (checked $CHECKED_XCC); checking: $RUN" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Fetch their source
+        if: steps.which.outputs.run == 'yes'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DCC: ${{ steps.which.outputs.dcc }}
+          XCC: ${{ steps.which.outputs.xcc }}
+        run: |
+          gh api "repos/foundryvtt-dcc/dcc/zipball/v$DCC" > dcc.zip
+          gh api "repos/foundryvtt-dcc/xcc/zipball/v$XCC" > xcc.zip
+          mkdir dcc-src xcc-src
+          unzip -q dcc.zip -d dcc-src
+          unzip -q xcc.zip -d xcc-src
+
+      - name: Look for every name
+        if: steps.which.outputs.run == 'yes'
+        env:
+          DCC: ${{ steps.which.outputs.dcc }}
+          XCC: ${{ steps.which.outputs.xcc }}
+        run: |
+          mkdir out
+          node tools/watch.mjs --dcc dcc-src --xcc xcc-src --versions "dcc $DCC, xcc $XCC" --out out/report.md --issue out/issue.md
+          cat out/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      # One issue for those versions: none if one of that title is there already, open or closed.
+      - name: Open the issue
+        if: steps.which.outputs.run == 'yes' && !inputs.dry_run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE=$(head -n 1 out/issue.md | sed 's/^# //')
+          if gh issue list -R "$GITHUB_REPOSITORY" --state all --limit 200 --search "\"$TITLE\" in:title" --json title --jq '.[].title' | grep -Fxq "$TITLE"; then
+            echo "Already there: $TITLE" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$TITLE" --body-file out/issue.md | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
