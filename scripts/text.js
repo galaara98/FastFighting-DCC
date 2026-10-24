@@ -597,7 +597,24 @@ export function saveVsIn(text) {
 }
 
 /** A stat line's specials one by one: split at commas and semicolons outside brackets. */
-const clausesOf = text => plain(text).split(/[;,](?![^(]*\))/).map(c => c.trim()).filter(Boolean);
+function clausesOf(text) {
+  // (One pass, counting brackets: a long note read at once.)
+  const out = [];
+  let depth = 0;
+  let from = 0;
+  const t = plain(text);
+  for ( let i = 0; i < t.length; i++ ) {
+    const c = t[i];
+    if ( c === "(" ) depth++;
+    else if ( c === ")" ) depth = Math.max(0, depth - 1);
+    else if ( (c === ";" || c === ",") && !depth ) {
+      out.push(t.slice(from, i));
+      from = i + 1;
+    }
+  }
+  out.push(t.slice(from));
+  return out.map(c => c.trim()).filter(Boolean);
+}
 
 /**
  * Auras a special describes with their save and what a failure does ("stench (DC 12 Fort or -2 to attacks)", "fear
