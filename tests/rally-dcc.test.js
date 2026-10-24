@@ -105,3 +105,33 @@ describe("a rally, in DCC's morale", () => {
     expect(dccRules.morale(run, h2)).toBe(MORALE.ROUT);
   });
 });
+
+describe("a precision shot (a missile weapon's deed)", () => {
+  test("from the book's table only, for missile attacks; none without one", () => {
+    const shot = deedsFrom({ precision: [{ range: [3, 4], text: "The foe is pinned and must spend a round pulling free: -2 to attacks next round." }] }).find(d => d.id === "precision");
+    expect(shot).toMatchObject({ ranged: true, maneuver: "precision" });
+    expect(shot.tiers[0].outcome.mods.attack).toBe(-2);
+    expect(deedsFrom(null).some(d => d.id === "precision")).toBe(false);
+  });
+});
+
+describe("a pushback, by the book's rows", () => {
+  test("how far (feet, half the warrior's speed, a few feet) and how big a foe, by the warrior's token; none named, the built-in", () => {
+    const rows = [
+      { range: [3, 3], text: "A creature the same size as the warrior is pushed back a few feet." },
+      { range: [4, 4], text: "A creature the same size as the warrior is pushed back a distance equal to half the warrior's movement." },
+      { range: [5, 5], text: "A creature up to twice the size of the warrior is knocked down and thrown up to 10 feet away." },
+      { range: [6, 99], text: "The warrior pushes back a crowd of foes." }
+    ];
+    const push = deedsFrom({ push: rows }, { speed: 30, body: 5 }).find(d => d.id === "push");
+    expect(push.tiers.map(x => [x.min, x.outcome.move.feet, x.outcome.maxBody, !!x.outcome.conditions?.prone])).toEqual([[3, 5, 5, false], [4, 15, 5, false], [5, 10, 10, true]]);
+    const built = deedsFrom(null).find(d => d.id === "push");
+    expect(deedsFrom({ push: [rows[3]] }).find(d => d.id === "push").tiers).toEqual(built.tiers);
+  });
+
+  test("a foe too big for the row isn't pushed", () => {
+    const outcome = { move: { kind: "push", feet: 5 }, maxBody: 5 };
+    expect(dccRules.isImmune({ spec: { position: { size: 10 } } }, { onSave: [outcome] })).toBe(true);
+    expect(dccRules.isImmune({ spec: { position: { size: 5 } } }, { onSave: [outcome] })).toBe(false);
+  });
+});

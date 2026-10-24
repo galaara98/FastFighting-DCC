@@ -48,7 +48,7 @@ Two weapons set up as the primary hand and the off hand attack together for one 
 
 Anyone whose attack bonus is a die (warriors, dwarves) rolls it with every attack, adding it to the roll and the damage, and first declares the deed that would help most: trip, blinding attack, disarm, pushback, defensive maneuver or rallying maneuver, each one of the core's maneuvers riding the blow. It lands on a hit with a 3 or more on the deed die, doing more the higher the die shows: a trip knocks the foe down; a pushback shoves it back 5 feet, or 10 on a 5 or more.
 
-Deeds come from the world's Mighty Deed tables, else rough built-in versions. A pushback always uses the built-in distances, because a book's pushback rows measure by the warrior's movement and the foe's size. Warriors push where the push does harm (over a drop, into a hazard) and trip or blind on open ground.
+Deeds come from the world's Mighty Deed tables, else rough built-in versions. A book's pushback rows are measured by the warrior: how far (so many feet, half its movement, a few feet) and how big a foe (as big as its token, or twice), and a foe too big isn't moved; a row that names no distance leaves the built-in one. With a missile weapon, a precision shot does what the book's table says (there's no built-in version). Warriors push where the push does harm (over a drop, into a hazard) and trip or blind on open ground.
 
 A rally follows the world's rally table: so much to friends' morale checks, a second check for a hireling whose group has broken, and a bonus that waits on a kill or a crit (the friend's own, or the warrior's, as the row says). Without a table, friends nearby get a better next swing, more, and farther, at a higher deed.
 
@@ -200,9 +200,7 @@ It sets two of FastFighting's: **Max rounds** (4 to 12, 10 at first: DCC's fight
 
 - What the book's disarm rows do to claws and teeth.
 - The book's spell duel tables, with momentum and phlogiston disturbance (the checks are compared instead).
-- A book's pushback rows (the built-in distances stand in).
 - Bones broken in a fall (on a roll of 6).
-- Precision shots (a Mighty Deed).
 - The Jammer's Lionize (its table is the XCC book's) and the Half-Orc's Wild Attack.
 - Consumables in a fight.
 

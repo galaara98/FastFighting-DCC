@@ -110,7 +110,7 @@ export class DccTables {
           const name = String(originalName(e) ?? e.name ?? "");
           if ( !/^deed\b/i.test(name) ) continue;
           const kind = /trip|throw/i.test(name) ? "trip" : /blind/i.test(name) ? "blind" : /disarm/i.test(name) ? "disarm" : /defen/i.test(name) ? "defend"
-            : /rally/i.test(name) ? "rally" : null;
+            : /rally/i.test(name) ? "rally" : /precision|shot/i.test(name) ? "precision" : null;
           if ( !kind || out[kind] ) continue;
           out[kind] = rowsOf(await pack.getDocument(e._id));
         }

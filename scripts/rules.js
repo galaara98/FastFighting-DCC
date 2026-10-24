@@ -613,6 +613,9 @@ export const dccRules = {
     // Turn Unholy: only the unholy, and only up to so many hit dice.
     if ( action.turns && (!target.spec.unholy || (Number(target.spec.level) || 0) > action.turns) ) return true;
     const outcomes = [...(action.onSave ?? []), ...(action.onHit ?? []), action.outcome].filter(o => o && !o.self);
+    // (Too big to push: a pushback row's size limit, its warrior's token across times so much, deeds.js pushTier.)
+    const across = Number(target.spec.position?.size);
+    if ( outcomes.length && outcomes.every(o => o.move && Number(o.maxBody) > 0 && across > o.maxBody) ) return true;
     const keys = [...new Set(outcomes.flatMap(o => Object.keys(o.conditions ?? {})))];
     const alias = { incapacitated: ["asleep", "paralyzed", "unconscious"], controlled: ["charm"], frightened: ["fear"] };
     // (Nothing in hand to knock away: claws, fangs and horns can't be disarmed, by a deed or a crit.)

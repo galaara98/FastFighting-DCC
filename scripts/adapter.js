@@ -413,7 +413,9 @@ export class DccAdapter extends SystemAdapter {
       wil: flatOf(sys.saves?.wil?.value)
     };
 
-    const deeds = deedOf(sys.details?.attackBonus) ? deedsFrom(await this.#tables.deeds()) : null;
+    // (A pushback row measures by the warrior: its speed, and its token across, in feet, as the core's spec.position has it.)
+    const body = (Number(tokenDoc.width) || 1) * (Number(tokenDoc.parent?.grid?.distance) || 5);
+    const deeds = deedOf(sys.details?.attackBonus) ? deedsFrom(await this.#tables.deeds(), { speed: speeds.walk, body }) : null;
     const { actions, shieldBash, freeAttack } = await this.#actions(actor, { pc, kind, level, dice, luckMod, line, deeds: !!deeds });
     const resources = {};
     const boosts = [];

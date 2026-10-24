@@ -34,9 +34,12 @@ const kinds = () => ({
   trip: { id: "trip", maneuver: "trip", label: t("Deed.Trip"), melee: true, condition: { prone: 1 }, label2: t("Deed.KnockedDown"), leans: ["hinders"] },
   blind: { id: "blind", maneuver: "blindFoe", label: t("Deed.Blind"), leans: ["hinders"] },
   disarm: { id: "disarm", maneuver: "disarm", label: t("Deed.Disarm"), melee: true, condition: { disarmed: 1 }, label2: t("Deed.Disarmed"), leans: ["hinders"], vs: [ARMED] },
-  push: { id: "push", maneuver: "shove", label: t("Deed.Pushback"), melee: true, builtInOnly: true },
+  push: { id: "push", maneuver: "shove", label: t("Deed.Pushback"), melee: true, push: true },
   defend: { id: "defend", maneuver: "defend", label: t("Deed.Defend"), self: true, guard: true },
-  rally: { id: "rally", maneuver: "rally", label: t("Deed.Rally"), allies: 10, leans: ["rally"] }
+  rally: { id: "rally", maneuver: "rally", label: t("Deed.Rally"), allies: 10, leans: ["rally"] },
+  // (A missile weapon's deed: what the book's precision shot table says it does to the foe. Only from a table: there's
+  // no rough built-in version.)
+  precision: { id: "precision", maneuver: "precision", label: t("Deed.Precision"), ranged: true, leans: ["hinders"], tableOnly: true }
 });
 
 /** Rough versions for when no book's tables are installed. */
@@ -60,25 +63,28 @@ const builtIn = () => {
 /**
  * The deeds a creature can try.
  * @param {Record<string, {range, text}[]>|null} tables  the world's deed tables by kind, if any
+ * @param {object} [warrior]   what a pushback row measures by: {speed (feet), body (its token's size, feet)}
  * @returns {object[]} deeds for spec.deeds (see the core's riders.js)
  */
-export function deedsFrom(tables) {
+export function deedsFrom(tables, warrior = {}) {
   const out = [];
   const fallback = builtIn();
   for ( const [kind, base] of Object.entries(kinds()) ) {
-    const rows = base.builtInOnly ? null : tables?.[kind];
-    let tiers = rows?.length ? rows.map(r => tierFrom(base, r)).filter(Boolean) : [];
-    if ( !tiers.length ) tiers = fallback[kind].map(tier => ({ ...tier, outcome: { ...tier.outcome } }));
-    out.push({ id: base.id, maneuver: base.maneuver, label: base.label, melee: base.melee, leans: base.leans, guard: base.guard, vs: base.vs, tiers: tiers.sort((a, b) => a.min - b.min) });
+    const rows = tables?.[kind];
+    let tiers = rows?.length ? rows.map(r => tierFrom(base, r, warrior)).filter(Boolean) : [];
+    if ( !tiers.length && !base.tableOnly ) tiers = fallback[kind].map(tier => ({ ...tier, outcome: { ...tier.outcome } }));
+    if ( !tiers.length ) continue;
+    out.push({ id: base.id, maneuver: base.maneuver, label: base.label, melee: base.melee, ranged: base.ranged, leans: base.leans, guard: base.guard, vs: base.vs, tiers: tiers.sort((a, b) => a.min - b.min) });
   }
   return out;
 }
 
 /** One deed table row as a tier: what it does to the foe (or, for a defensive deed, for the warrior). */
-function tierFrom(base, row) {
+function tierFrom(base, row, warrior = {}) {
   const min = Number(row.range?.[0]);
   if ( !Number.isFinite(min) ) return null;
   if ( base.allies ) return rallyTier(base, row, min);
+  if ( base.push ) return pushTier(row, min, warrior);
   const read = outcomeIn(row.text, { defaultRounds: 1 });
   let outcome = read ? { ...read } : null;
   delete outcome?.slay;
@@ -99,6 +105,28 @@ function tierFrom(base, row) {
 const MORALE_BONUS = [/([+-]\s*\d+)\s*(?:bonus\s+|penalty\s+)?(?:to|on)\s+(?:(?:their|its|his|her|all|any)\s+)?morale\b/, /([+-]\s*\d+)\s+morale\b/];
 /** "Those that failed a morale check get a second check", "reroll a failed morale check", "recover their wits". */
 const MORALE_AGAIN = /\b(?:second|another|new|fresh)\s+(?:morale\s+)?(?:check|save|roll)\b|\bre-?roll\w*\b[^.;]*\bmorale\b|\brecover\w*\s+(?:their|its|his|her)\s+(?:wits|nerve|courage)\b/;
+
+/**
+ * A pushback row as a tier, measured by the warrior as the rows do: how far ("up to 10 feet", "half the warrior's
+ * movement", "a few feet": 5) and how big a foe ("the same size as the warrior", "up to twice their size"), the most
+ * a foe's token can be across (maxBody, feet: rules.js isImmune) where the warrior's own token is known; knocked down
+ * too where it says so. Null for a row that names no distance (one that throws back a crowd: the built-in stands).
+ */
+function pushTier(row, min, { speed = 30, body = null } = {}) {
+  const words = plain(row.text).toLowerCase();
+  const feet = Number(words.match(/(\d+)\s*(?:feet|ft\.?|')/)?.[1])
+    || (/\bhalf (?:the warrior's|its|his|her|their) (?:movement|speed|move)\b/.test(words) ? Math.floor((Number(speed) || 30) / 2 / 5) * 5 : 0)
+    || (/\ba few feet\b/.test(words) ? 5 : 0);
+  if ( !feet ) return null;
+  const times = /\bthree times\b/.test(words) ? 3 : /\btwice\b/.test(words) ? 2 : 1;
+  const down = /\bknock\w* (?:\w+ )?down\b|\bprone\b/.test(words);
+  const outcome = {
+    move: { kind: "push", feet }, rounds: 1, label: down ? t("Deed.ThrownDown") : t("Deed.PushedBack"),
+    ...(down ? { conditions: { prone: 1 } } : {}),
+    ...(Number(body) > 0 ? { maxBody: times * Number(body) } : {})
+  };
+  return { min, outcome };
+}
 
 /** A sentence that waits on a kill or a crit: "if the warrior slays its foe ...", "allies who slay a foe gain ...". */
 const waitsOn = s => /\b(?:if|when|once|who|that|after)\b/i.test(s) && /\b(?:kill\w*|slay\w*|slain|crit\w*|critical)\b/i.test(s);

@@ -79,7 +79,8 @@
       "AfterKill": "{what} once they kill a foe",
       "AfterCrit": "{what} once they score a crit",
       "AfterKillTheirs": "{what} once the warrior kills a foe",
-      "AfterCritTheirs": "{what} once the warrior scores a crit"
+      "AfterCritTheirs": "{what} once the warrior scores a crit",
+      "Precision": "Precision shot"
     },
     "Bleed": {
       "Dies": "bleeds out and dies",
