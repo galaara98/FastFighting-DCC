@@ -75,7 +75,11 @@
       "Rallied": "rallied ({what})",
       "Lent": "{n} {stat}",
       "Morale": "{n} to morale checks",
-      "MoraleAgain": "a second morale check"
+      "MoraleAgain": "a second morale check",
+      "AfterKill": "{what} once they kill a foe",
+      "AfterCrit": "{what} once they score a crit",
+      "AfterKillTheirs": "{what} once the warrior kills a foe",
+      "AfterCritTheirs": "{what} once the warrior scores a crit"
     },
     "Bleed": {
       "Dies": "bleeds out and dies",
@@ -224,6 +228,7 @@
     "Given": "{action} → {target} ({effect})",
     "GivenWaits": "{action} → {target} ({effect}): not applied, the table settles it.",
     "Rend": "Rend",
-    "Constrict": "Constrict"
+    "Constrict": "Constrict",
+    "DamageWord": "damage"
   }
 }

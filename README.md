@@ -50,7 +50,7 @@ Anyone whose attack bonus is a die (warriors, dwarves) rolls it with every attac
 
 Deeds come from the world's Mighty Deed tables, else rough built-in versions. A pushback always uses the built-in distances, because a book's pushback rows measure by the warrior's movement and the foe's size. Warriors push where the push does harm (over a drop, into a hazard) and trip or blind on open ground.
 
-A rally follows the world's rally table: so much to friends' morale checks, and a second check for a hireling whose group has broken. Without a table, friends nearby get a better next swing, more, and farther, at a higher deed.
+A rally follows the world's rally table: so much to friends' morale checks, a second check for a hireling whose group has broken, and a bonus that waits on a kill or a crit (the friend's own, or the warrior's, as the row says). Without a table, friends nearby get a better next swing, more, and farther, at a higher deed.
 
 ### Crits and fumbles: the core's outcomes
 
@@ -201,7 +201,6 @@ It sets two of FastFighting's: **Max rounds** (4 to 12, 10 at first: DCC's fight
 - What the book's disarm rows do to claws and teeth.
 - The book's spell duel tables, with momentum and phlogiston disturbance (the checks are compared instead).
 - A book's pushback rows (the built-in distances stand in).
-- A rally bonus that waits on a kill or a crit, and a rally that only steadies nerves (the core can't weigh it yet).
 - Bones broken in a fall (on a roll of 6).
 - Precision shots (a Mighty Deed).
 - The Jammer's Lionize (its table is the XCC book's) and the Half-Orc's Wild Attack.

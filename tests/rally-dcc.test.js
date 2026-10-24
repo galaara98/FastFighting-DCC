@@ -1,6 +1,6 @@
 /**
  * A rallying deed, by the world's rally table where it has one (else the built-in rough version): what each row does
- * for the warrior's friends who see it. The bonuses it lends outright (not one that waits on a kill or a crit), so much
+ * for the warrior's friends who see it. The bonuses it lends outright, or once a kill or a crit is scored, so much
  * to their morale checks, and a second check for one whose group has broken, which DCC's morale plays: made, it holds
  * while the rest run. The rows here are made up for the tests, in DCC's style; no book's text is quoted.
  */
@@ -21,10 +21,14 @@ const ROWS = [
 ];
 
 describe("a rally table's rows", () => {
-  test("a second check, so much to morale checks; no bonus that waits on a kill; a row that's only 'as above' leaves the one below it", () => {
+  test("a second check, so much to morale checks; a bonus that waits on the warrior's kill; a row that's only 'as above' leaves the one below it", () => {
     const rally = deedsFrom({ rally: ROWS }).find(d => d.id === "rally");
     expect(rally.maneuver).toBe("rally");
-    expect(rally.tiers.map(x => [x.min, x.outcome.mods, x.outcome.allies])).toEqual([[3, { moraleAgain: 1 }, 10], [4, { morale: 1 }, 10], [5, { morale: 1 }, 10]]);
+    expect(rally.tiers.map(x => [x.min, x.outcome.mods, x.outcome.allies])).toEqual([[3, { moraleAgain: 1 }, 10], [4, { morale: 1 }, 10], [5, { morale: 1, attack: 1 }, 10]]);
+    expect(rally.tiers[2].outcome).toMatchObject({ armedBy: "kill", armedFrom: "source" });
+    expect(rally.tiers[1].outcome.armedBy).toBeUndefined();
+    const theirs = deedsFrom({ rally: [{ range: [3, 99], text: "Allies who slay a foe this round gain +2 to attack rolls." }] }).find(d => d.id === "rally");
+    expect(theirs.tiers[0].outcome).toMatchObject({ mods: { attack: 2 }, armedBy: "kill", armedFrom: "bearer" });
     expect(rally.tiers[0].outcome.label).toBe(text("FFDCC.Deed.Rallied", { what: text("FFDCC.Deed.MoraleAgain") }));
     expect(rally.tiers[1].outcome.label).toBe(text("FFDCC.Deed.Rallied", { what: text("FFDCC.Deed.Morale", { n: "+1" }) }));
   });

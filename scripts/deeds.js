@@ -100,16 +100,24 @@ const MORALE_BONUS = [/([+-]\s*\d+)\s*(?:bonus\s+|penalty\s+)?(?:to|on)\s+(?:(?:
 /** "Those that failed a morale check get a second check", "reroll a failed morale check", "recover their wits". */
 const MORALE_AGAIN = /\b(?:second|another|new|fresh)\s+(?:morale\s+)?(?:check|save|roll)\b|\bre-?roll\w*\b[^.;]*\bmorale\b|\brecover\w*\s+(?:their|its|his|her)\s+(?:wits|nerve|courage)\b/;
 
+/** A sentence that waits on a kill or a crit: "if the warrior slays its foe ...", "allies who slay a foe gain ...". */
+const waitsOn = s => /\b(?:if|when|once|who|that|after)\b/i.test(s) && /\b(?:kill\w*|slay\w*|slain|crit\w*|critical)\b/i.test(s);
+/** The words for a bonus that waits, by what it waits on and whose. */
+const AFTER = {
+  kill: { bearer: "Deed.AfterKill", source: "Deed.AfterKillTheirs" },
+  crit: { bearer: "Deed.AfterCrit", source: "Deed.AfterCritTheirs" }
+};
+
 /**
  * A rally row as a tier: what it does for the warrior's friends who see it, those near enough (more, and farther, at a
- * higher deed). The bonuses it lends them outright (to attacks, saves or AC: not one that waits on a kill or a crit,
- * which the deed can't wait for), and its say on their nerve, which DCC's morale plays (rules.js morale): so much to
+ * higher deed). The bonuses it lends them outright (to attacks, saves or AC), or once a kill or a crit is scored (its
+ * friend's own, or the warrior's: armedBy, armedFrom), and its say on their nerve, which DCC's morale plays (rules.js morale): so much to
  * their morale checks (mods.morale), a second check for any whose nerve has broken (mods.moraleAgain). Null when it
  * does none of these (a row that only says "as above" leaves the one below it to stand).
  */
 function rallyTier(base, row, min) {
   const words = plain(row.text);
-  const sure = words.split(/(?<=[.!?;])\s+/).filter(s => !/\b(?:if|unless)\b/i.test(s)).join(" ");
+  const sure = words.split(/(?<=[.!?;])\s+/).filter(s => !/\b(?:if|unless)\b/i.test(s) && !waitsOn(s)).join(" ");
   const read = outcomeIn(sure, { defaultRounds: 1 });
   const lent = Object.fromEntries(Object.entries(read?.mods ?? {}).filter(([k, v]) => ["attack", "saves", "ac"].includes(k) && v > 0));
   const said = Object.entries(lent).map(([k, v]) => t("Deed.Lent", { n: `+${v}`, stat: k === "ac" ? t("Ac") : k === "attack" ? t("Attack") : t("Saves") }));
@@ -125,6 +133,22 @@ function rallyTier(base, row, min) {
     mods.moraleAgain = 1;
     said.push(t("Deed.MoraleAgain"));
   }
+  // (A bonus that waits on a kill or a crit, "if they kill a foe, +2 to attacks", and nothing else lent outright: it
+  // works once one scores it: the friend itself ("allies who slay a foe"), else the warrior ("if the warrior slays its
+  // foe"). Core API 29, armedBy and armedFrom.)
+  let armedBy = null;
+  let armedFrom = null;
+  if ( !Object.keys(lent).length ) {
+    const waits = words.split(/(?<=[.!?;])\s+/).find(waitsOn);
+    const later = waits ? outcomeIn(waits, { defaultRounds: 1 }) : null;
+    const after = Object.fromEntries(Object.entries(later?.mods ?? {}).filter(([k, v]) => ["attack", "saves", "ac", "damage"].includes(k) && v > 0));
+    if ( Object.keys(after).length ) {
+      armedBy = /\bcrit\w*|\bcritical\b/i.test(waits) ? "crit" : "kill";
+      armedFrom = /\b(?:all(?:y|ies)|they|followers?|friends?|hirelings?)\b[^.;]*\b(?:kill|slay|slain|crit)/i.test(waits) ? "bearer" : "source";
+      Object.assign(mods, after);
+      said.push(t(AFTER[armedBy][armedFrom], { what: listItems(Object.entries(after).map(([k, v]) => t("Deed.Lent", { n: `+${v}`, stat: k === "ac" ? t("Ac") : k === "attack" ? t("Attack") : k === "damage" ? t("DamageWord") : t("Saves") }))) }));
+    }
+  }
   if ( !said.length ) return null;
-  return { min, outcome: { mods, rounds: read?.rounds ?? 1, label: t("Deed.Rallied", { what: listItems(said) }), allies: base.allies * Math.max(1, Math.floor(min / 3)) } };
+  return { min, outcome: { mods, rounds: read?.rounds ?? 1, label: t("Deed.Rallied", { what: listItems(said) }), allies: base.allies * Math.max(1, Math.floor(min / 3)), ...(armedBy ? { armedBy, armedFrom } : {}) } };
 }
