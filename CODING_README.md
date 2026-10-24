@@ -5,17 +5,20 @@ How this helper plugs into FastFighting Core, what it hands the core, and how to
 ## Plugging into the core
 
 `scripts/main.js`:
-- **`init`:** registers the two world settings, `loreBoost` (lore.js, the core's `numberSetting`: 1.25 to 3, step 0.05, default 2.25) and `tiedStopsSpells` (tied.js, Boolean, default on).
+- **`init`:** registers the world setting `tiedStopsSpells` (tied.js, Boolean, default on).
 - **`fastFighting.init`:** stays inactive outside a `dcc` world (module.json already limits it to one). Checks the core's API version (below), then `api.registerAdapter("dcc", DccAdapter, { priority: 10, source: MODULE_ID })`, `api.adviseTranslation(MODULE_ID, game.system.title, KNOWN_TRANSLATIONS)` (no translation module known yet) and `api.keepEnglish(MODULE_ID)` (hardcoded-toEN.json).
-- **`ready`:** warns the GM (`FFDCC.NeedsCore`) when the core isn't active.
+- **`ready`:** warns the GM (`FFDCC.NeedsCore`) when the core isn't active, and moves a value set on this module's old `loreBoost` setting to the core's (lore-move.js; temporary, until 0.10.0: tests/temporary/lore-move.test.js).
 
-**The API gate.** The core's API version is `major.bug` (`api.version` "25.0", `api.major` 25, `api.bug` 0). The helper decides compatibility; the core never refuses it. `KNOWN_API` in main.js lists the API majors this helper is known to work with, currently `[24, 25]`. Below the oldest major listed, it doesn't register and tells the GM the core is too old (`FFDCC.CoreTooOld`). On any other major it isn't known to work with, it registers and warns the GM once that it hasn't been tried with that core (`FFDCC.CoreUntested`). When a new core major arrives, test the helper with it and add the major to `KNOWN_API`.
+**The API gate.** The core's API version is `major.bug` (`api.version` "28.0", `api.major` 28, `api.bug` 0). The helper decides compatibility; the core never refuses it. `KNOWN_API` in main.js lists the API majors this helper is known to work with, currently `[24, 25, 26, 27, 28]`. Below the oldest major listed, it doesn't register and tells the GM the core is too old (`FFDCC.CoreTooOld`). On any other major it isn't known to work with, it registers and warns the GM once that it hasn't been tried with that core (`FFDCC.CoreUntested`). When a new core major arrives, test the helper with it and add the major to `KNOWN_API`.
 
 `scripts/core.js` re-exports `../../fast-fighting/scripts/core-api.js`: everything this module takes from the core goes through that one file (both modules sit side by side in `Data/modules`). The tests alias the path to the core repository.
 
 What it takes up of the core since API 19:
 - **20:** hidden from one creature at a time (core-api `hiddenFrom`: `modifiers.exposed`); every die DCC's own rules roll is a table roll a live battle shows (the core's recording rng, `rng.mark` and `rng.record`, or its `rollCheck`): a morale check (`FFDCC.Rolls.Morale`), a stray shot's d2 and die (`FFDCC.Rolls.Stray`, the same draws as `chance(0.5)` and `pick`), a last burst of regeneration (healing), rolling the body (the Luck check and the d3, `what: "body"`), breaking a bigger grabber's grip (`what: "escape"`), persistent damage's end (DC 11).
 - **22:** `workerRules()` gives the planner's background workers `rules.js`'s `dccRulesFor(data)`, the rules with the world's `tiedStopsSpells` given as data (a worker reads no settings); `rules.js` imports nothing of Foundry's (`statuses.js` holds the status table and `leftBehind`, which `commit.js` re-exports). `tests/workers-dcc.test.js` plays batches on real threads.
+- **26:** deals (goods.js): `takeGoods`, `putGoods`, `goodsOf`, `dropValuables` (an NPC sheet that is only a pile, flagged `fast-fighting.pile`: DCC has no loot actor), `commitConcession` through take and put (as many as the concession's `count`), `mainCoin` (gold), `skillsOf` (Personality, Strength, then each sheet skill with a value; XCC's `briberyExpert` a way to persuade), `giveables`; `valuables` with `quantity` and `worn`; coins at `CONFIG.DCC.currencyValue` (pp 10000, ep 1000), a worth written as dice its mean (`amountOf`); `supportsLoot`. check-roll.js rolls a deal's check (`bribe`, `extort`, `scare`, `toll`): the player's pick, else Bribery expert or Personality for a bribe, the better of Personality and Strength for a demand.
+- **27:** food (food.js): `appetite`, `meatFor`, `isFood`, from the stat line, the crit table's kind and `FFDCC.Words.Beast`, `Bite`, `NoFlesh` and `Rations`; meat portions by token size; `pileContents`.
+- **28:** `settingDefaults()`: Max rounds 4 to 12 (10), Lore-Collector advantage 2.25 in this module's words; `sizeUp` carries no `boost` (a fight has the core's value).
 - **23:** `spec.aptitudes` (traits.js `aptitudesOf`: a character's from its modifiers, -3 to +3 banded 0 to 4, Personality both wise and charismatic; a creature only its wits, none when mindless, a beast's, else its Intelligence where its sheet has one).
 
 When new work needs something the core can't handle in a close-enough way with what it already offers, ask for a new core hook rather than forcing a poor fit or working around the core.
@@ -31,7 +34,9 @@ When new work needs something the core can't handle in a close-enough way with w
 | `spells.js` | Spells, Lay on Hands and Turn Unholy as engine actions with a spell check; one kind per spell (healing, control, damage with a save, damage, blessing). |
 | `text.js` | Reads table rows and a monster's stat line into engine terms (damage, saves, conditions, mods, mending, immunities, hit dice, action dice). Pure. |
 | `tables.js` | `DccTables`: finds the books' tables at run time, each read once a session (below). |
-| `commit.js` | Live write-back, concessions, the planner's outcome lines; the status mapping. |
+| `commit.js` | Live write-back, the planner's outcome lines; the status mapping. |
+| `goods.js` | Deals, piles and money (API 26-27): goods on and off a sheet, DCC's own pile, what a pile holds, a player's checks and offers; DCC's coin values. |
+| `food.js` | Food (API 27): who eats what, the meat a body leaves, rations by name. |
 | `read-turn.js` | A player's turn read from the dcc system's chat cards (`dcc.isToHit` and the rest): attacks, damage, Personality checks, each marked `sure` or not. |
 | `strike-roll.js` | A strike rolled as the dcc system's attack card (`rollStrike`): a live battle's turns and reactions. |
 | `check-roll.js` | Saves and checks rolled as the dcc system's cards (`rollSave`, `rollCheck`): a live battle's turns. |
@@ -40,7 +45,8 @@ When new work needs something the core can't handle in a close-enough way with w
 | `auto.js` | Setting a character up by itself: `dccHints` (playstyles), `dccTactics` ("Let this character decide"). Pure. |
 | `leadership.js` | `rankDccLeaders`: Personality, a title (`FFDCC.Words.Title`), a cleric, level or Hit Dice. |
 | `moves.js` | Help, Grapple and Hide actions; weak spots from a stat line's resistances. |
-| `lore.js`, `tied.js` | The two settings. |
+| `tied.js` | The module's setting. |
+| `lore-move.js` | Temporary: the old Lore-Collector setting's value moved to the core's. |
 | `statuses.js` | The dcc system's statuses as the engine's conditions (`SHEET_STATUSES`), and `leftBehind`. Pure. |
 | `words.js` | `t(key)` for `FFDCC.*`, `conditionName`, the word lists (`wordList`, `saysWord`, over the core's), and `harmOf` (a weapon's damage kinds, by its formula and name). |
 
@@ -49,14 +55,14 @@ When new work needs something the core can't handle in a close-enough way with w
 DCC items carry no slugs or identifiers, so:
 - **a class** is the class sheet's id: `system.details.sheetClass` (written the first time the sheet opens: "Warrior", "blaster", "sp-acrobat", "xcc-dwarf"), else the sheet chosen (`flags.core.sheetClass`, such as `dcc.DCCActorSheetWarrior`, for a pregen never opened), else the class name (classes.js);
 - **a spell's results** are the table its item names (`system.results`), else the same spell by name in an installed book's spell packs (`spellKey`: "Neutralize Poison/Disease" is "Neutralize Poison or Disease"), else any results table of that name;
-- **natural attacks, damage kinds, beasts, the mindless, cunning minds, titles and who speaks Common** go by name, through the word lists in `languages/en.json` (`FFDCC.Words.*`, each matched in the reader's language and in English): `Natural` and `NaturalHand` (a natural attack, and one that needs its hand), `Damage.piercing`, `.bludgeoning`, `.slashing`, `Beast`, `Mindless`, `Clever`, `Title`, `SpeaksCommon`. A natural attack that cost anything was bought, so it isn't one. The un-dead are also mindless when their notes say a `Mindless` word.
+- **natural attacks, damage kinds, beasts, the mindless, cunning minds, titles and who speaks Common** go by name, through the word lists in `languages/en.json` (`FFDCC.Words.*`, each matched in the reader's language and in English): `Natural` and `NaturalHand` (a natural attack, and one that needs its hand), `Damage.piercing`, `.bludgeoning`, `.slashing`, `Beast`, `Mindless`, `Clever`, `Title`, `SpeaksCommon`, and for food `Bite`, `NoFlesh`, `Rations`. A natural attack that cost anything was bought, so it isn't one. The un-dead are also mindless when their notes say a `Mindless` word.
 
 ## The CombatantSpec
 
 Beyond the core's usual fields, `toCombatantSpec` sets:
 - `actionDice` (the first die also on `escapeWork.faces` when it isn't a d20), `deeds` (deeds.js, when the attack bonus is a die), `shieldBash` (a dwarf's) and `freeAttack` (an armed Brawler's), both a bonus action;
 - `boosts`: `fleeting` (Fleeting Luck on the player's `flags.dcc.fleetingLuckValue`, or XCC's Mojo on the actor's `flags.xcc.mojo`; at most 20 counted), `luck` (`keep` up to 6; `per` 2 for a halfling; `faces` the thief's luck die; `allies` and `range` 30 for a halfling; `recovers` for a thief or halfling) and `spellburn` (for a caster that loses spells, from Strength, Agility and Stamina above 8);
-- `sizeUp: {mod: Int, dc: 10, boost: loreBoost()}` (none for the mindless), `critAgainst` (a PC's Luck modifier), `diesAtZero` (any non-PC);
+- `sizeUp: {mod: Int, dc: 10}` (none for the mindless), `critAgainst` (a PC's Luck modifier), `diesAtZero` (any non-PC);
 - `grapple` (attack bonus + the better of Strength and Agility; a monster's best melee bonus + Hit Dice), `escapeWork: {mod: grapple}`, `escapeDC: 10 + grapple`;
 - `firstAid` (a PC: binding the wound), `fumble` (a PC's fumble die and table), `tooCute` (a Dungeon Hottie not yet saved this level), `acrobatics` (an Acrobat or Half-Elf), `reactions` (a Brawler's Toughness, a passive reduction on melee hits), `regen` and `fastHealing` (a monster's mending; `regen.burst` for a troll's);
 - `iwr` with `exploit` (the weak spot), `social` (Personality pitches; intimidate takes the better of Personality and Strength; resisted at 10 + Will, deceive 10 + the better of Will and Intelligence, theft 10 + the better of Reflex and Intelligence), `theft` and `doorWork` (a thief's skills, else a PC's d10 and Agility), `initiative: {mod, die, stealth}`, `senses.lowlight` (infravision), `shield: null` (a DCC shield is in the AC), `conditions` (from the token's statuses), `creatureTraits` (`undead` or `humanoid`, and `armed` with a weapon in hand).
@@ -85,7 +91,7 @@ The adapter also gives `label` ("DCC", or "DCC / XCC" with the xcc module on), `
 
 `SHEET_STATUSES` maps dcc statuses to engine conditions one for one, written and read back: `prone`, `stun` stunned, `paralysis` paralyzed, `sleep` asleep, `unconscious` (those three also incapacitated), `blind` blinded, `deaf` deafened, `silence` silenced, `fear` frightened, `restrain` held (also immobilized), `slowed` (XCC's palette), `disarmed` (the dcc system's), `invisible`, `poison` poisoned, `grappled` grabbed (also immobilized). A status missing from the palette isn't carried (`sheetCarries`), and the core keeps it. `conditionChoices` lists the sheet's conditions, then the core's without its `restrained` (DCC's is held).
 
-`commitDccChanges` writes hit points, Luck, spellburn (Strength, then Stamina, then Agility, none below 3), Stamina lost to bleeding out, the ability lost when a body is found alive, disapproval, `system.class.tooCuteUsed`, Fleeting Luck or Mojo by this turn's change, statuses, death (and the combatant defeated), the fled hidden, a Surrendered effect, and spells lost (`system.lost`). With the dcc system's Death Clock on (`enableDeathClock`), `liveOwnership` returns `{recovery: true}` and the system marks the dying, counts their rounds and scars the saved itself. `commitDccConcession` pays in DCC's coins or hands over one item, unequipped and out of any container. Every write returns an undo record for Rewind and Rewind This Encounter; its shape is at the top of commit.js.
+`commitDccChanges` writes hit points, Luck, spellburn (Strength, then Stamina, then Agility, none below 3), Stamina lost to bleeding out, the ability lost when a body is found alive, disapproval, `system.class.tooCuteUsed`, Fleeting Luck or Mojo by this turn's change, statuses, death (and the combatant defeated), the fled hidden, a Surrendered effect, and spells lost (`system.lost`). With the dcc system's Death Clock on (`enableDeathClock`), `liveOwnership` returns `{recovery: true}` and the system marks the dying, counts their rounds and scars the saved itself. `commitConcession` (goods.js) pays in DCC's coins, change made, or hands over as many of a thing as agreed, set aside and out of any container. Every write returns an undo record for Rewind and Rewind This Encounter; its shape is at the top of commit.js.
 
 Players' damage (API 19): `damageCard` (read-turn.js `readDccDamage`: an attack's damage roll, a Roll Damage button's or inline damage roll at its attack's target, a roll typed `[healing]`), `applyDamageCard` (commit.js `applyDccDamage`: the actor's `applyDamage`, times the multiplier, rounded down, damage at least 1; in a turn FastFighting plays, a strike's or a spell's card deals exactly the core's `amount`, the engine's sum after the target's stat line's immunities, half and double damage and its share of a save's, nothing at 0, as the system's `applyDamage` counts no resistances; the HP and combatant defeated in the undo record) and `appliesPlayerDamage` (the system's `autoApplyDamage`, unless dcc-qol is active).
 
@@ -112,7 +118,7 @@ A monster: what its stat line says it is (the walking dead, a construct, a spell
 
 ## Set up by itself
 
-`dccHints` (auto.js), by the class sheet's id, adds playstyle leanings: a Warrior Brawler and Tank; a Dwarf Tank and Relentless; a Thief (and each Specialist but the Acrobat) Thief, a little Wallflower; a Halfling Wallflower; an Elf or Wizard Un-Mundane and Lore-Collector; a Cleric or Messenger Enabler; a 0-level Fragile, a little Chicken. XCC: a Brawler Brawler; a Dungeon Hottie People-Pleaser; a Jammer Instigator; a Gnome Tank; an Athlete Brawler and Speed-Runner; an Acrobat Speed-Runner. Lawful leans Moralist; Chaotic, Cruel and Wildcard. A stat line: the un-dead and the mindless Relentless, demons and devils Cruel, beasts Brawler.
+`dccHints` (auto.js), by the class sheet's id, adds playstyle leanings: a Warrior Brawler and Tank; a Dwarf Tank and Relentless; a Thief (and each Specialist but the Acrobat) Thief, a little Wallflower; a Halfling Wallflower; an Elf or Wizard Un-Mundane and Lore-Collector; a Cleric or Messenger Enabler; a 0-level Fragile, a little Chicken. XCC: a Brawler Brawler; a Dungeon Hottie People-Pleaser; a Jammer Instigator; a Gnome Tank; an Athlete Brawler and DPS; an Acrobat Kiter. Lawful leans Moralist; Chaotic, Cruel and Wildcard. A stat line: the un-dead and the mindless Relentless, demons and devils Cruel, beasts Brawler.
 
 ### Let this character decide
 

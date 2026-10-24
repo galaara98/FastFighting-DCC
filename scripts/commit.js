@@ -1,6 +1,6 @@
 /**
- * DCC write-back: a live battle's turn written onto a token's actor, a player's damage card applied, and what a
- * creature gives up handed over, each returning undo records; and what a fight changes on a creature, in words, for
+ * DCC write-back: a live battle's turn written onto a token's actor, and a player's damage card applied, each returning
+ * undo records (what a creature gives up is goods.js's); and what a fight changes on a creature, in words, for
  * the core's planner.
  *
  * Undo record shape (consumed by the core's Rewind Turn and Rewind This Encounter):
@@ -8,7 +8,7 @@
  *     createdEffects: [id], tokenUpdate, createdActors, createdTokens, deletedTokens, statuses: [{id, active}], combatant,
  *     statusesBefore: [id] }
  */
-import { MODULE_ID, STATUS, commonOutcome, statusesOf, statusEntry, toggleStatus, undoRecord, payFrom, handOverItem } from "./core.js";
+import { MODULE_ID, STATUS, commonOutcome, statusesOf, statusEntry, toggleStatus, undoRecord } from "./core.js";
 import { t, conditionName } from "./words.js";
 import { damageOf } from "./read-turn.js";
 import { SHEET_STATUSES, leftBehind } from "./statuses.js";
@@ -274,50 +274,4 @@ export async function applyDccDamage(message, tokenDoc, { multiplier = 1, amount
   if ( combatant ) undo.combatant = { uuid: combatant.uuid, defeated: !!combatant.defeated };
   await actor.applyDamage(amount, healing ? -1 : 1);
   return [undo];
-}
-
-/* -------------------------------------------- */
-/*  Giving something up                         */
-/* -------------------------------------------- */
-
-/** DCC's coins, each with its worth in copper, smallest first (the core's payFrom). */
-const COINS = [["cp", 1], ["sp", 10], ["ep", 50], ["gp", 100], ["pp", 1000]];
-
-/** Copper as coins a pocket would hold: gold, silver, copper. */
-function coinsFor(copper) {
-  return { gp: Math.floor(copper / 100), sp: Math.floor((copper % 100) / 10), cp: copper % 10 };
-}
-
-/** Hand over what a creature was talked out of (or had stolen): coins, or one item. Returns undo records. */
-export async function commitDccConcession(giverDoc, receiverDoc, concession) {
-  const giver = giverDoc?.actor;
-  if ( !giver ) return [];
-  const receiver = receiverDoc?.actor ?? null;
-  const records = [];
-  if ( concession.kind === "money" ) {
-    const before = { ...giver.system.currency };
-    const paid = payFrom(before, concession.amount, COINS);
-    if ( !paid ) return [];
-    const giverUndo = undoRecord(giverDoc, giver);
-    giverUndo.actorUpdate["system.currency"] = before;
-    await giver.update({ "system.currency": paid });
-    records.push(giverUndo);
-    if ( receiver ) {
-      const got = { ...receiver.system.currency };
-      const add = coinsFor(concession.amount);
-      const receiverUndo = undoRecord(receiverDoc, receiver);
-      receiverUndo.actorUpdate["system.currency"] = got;
-      await receiver.update({ "system.currency": { ...got, gp: (Number(got.gp) || 0) + add.gp, sp: (Number(got.sp) || 0) + add.sp, cp: (Number(got.cp) || 0) + add.cp } });
-      records.push(receiverUndo);
-    }
-    return records;
-  }
-  // (One of it, the core's way.)
-  return handOverItem(giverDoc, receiverDoc, concession.item?.id, { prepare: unpacked });
-}
-
-/** An item handed over, as the receiver gets it: not equipped, out of any container. */
-function unpacked(data) {
-  data.system.equipped = false;
-  if ( "container" in data.system ) data.system.container = null;
 }

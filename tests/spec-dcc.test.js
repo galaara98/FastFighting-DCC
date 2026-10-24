@@ -1,7 +1,7 @@
 /**
  * What a dcc sheet gives the core, where fairness is at stake: Fleeting Luck and Mojo counted within reason (a player
  * owns the flag that holds them), what a character could hand over in a fight (the weapons and shield in its hands,
- * not the armor it wears), sizing a foe up (not for the mindless), and creeping up for an ambush (a thief's Sneak
+ * what it carries, the armor it wears), sizing a foe up (not for the mindless), and creeping up for an ambush (a thief's Sneak
  * Silently); and what the system's data says, its name only where that says nothing: a weapon's harm, a shield bash, who
  * speaks Common. The characters and creatures here are made up for the tests; the field paths are the dcc system's own.
  */
@@ -96,7 +96,7 @@ describe("Fleeting Luck and Mojo, counted within reason", () => {
 describe("what a character could hand over in a fight", () => {
   beforeEach(() => world());
 
-  test("the weapons and shield in its hands, what it carries; never the armor it wears", () => {
+  test("the weapons and shield in its hands, what it carries put away, and the armor it wears", () => {
     const actor = sheet({
       items: [
         item("sword", "weapon", { equipped: true, ...gp(10) }),
@@ -112,7 +112,8 @@ describe("what a character could hand over in a fight", () => {
     const v = valuablesOf(actor);
     expect(v.wielded.map(i => i.id).sort()).toEqual(["round", "sword"]);
     expect(v.stowed.map(i => i.id).sort()).toEqual(["dagger", "gem", "spare"]);
-    expect(v.wielded.find(i => i.id === "round")).toEqual({ id: "round", name: "Round thing", value: 1000, category: "armor" });
+    expect(v.worn.map(i => i.id)).toEqual(["mail"]);
+    expect(v.wielded.find(i => i.id === "round")).toEqual({ id: "round", name: "Round thing", value: 1000, quantity: 1, category: "armor" });
   });
 
   test("a shield is the armor with no fumble die, not one called a shield", () => {

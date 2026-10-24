@@ -236,6 +236,18 @@ describe("the other checks, by what they're for", () => {
     expect(checkFor(character().actor, { purpose: "talk", action: { id: null, name: "intimidate" } })).toEqual({ how: "ability", id: "per" });
   });
 
+  test("a deal: the check the player picked; else a bribe is Bribery expert (XCC), or Personality, and a demand the better of Personality and Strength", () => {
+    const strong = character({ system: { abilities: { str: { mod: 2 }, per: { mod: 1 } } } }).actor;
+    expect(checkFor(strong, { purpose: "bribe" })).toEqual({ how: "ability", id: "per" });
+    expect(checkFor(strong, { purpose: "extort" })).toEqual({ how: "ability", id: "str" });
+    expect(checkFor(strong, { purpose: "toll", skill: "per" })).toEqual({ how: "ability", id: "per" });
+    const briber = character({ system: { skills: { briberyExpert: { value: "+3", ability: "int" }, forgeDocument: { value: "" } } } }).actor;
+    expect(checkFor(briber, { purpose: "bribe" })).toEqual({ how: "skill", id: "briberyExpert" });
+    expect(checkFor(briber, { purpose: "scare" })).toEqual({ how: "ability", id: "per" });
+    // (A skill with nothing in it isn't one to roll: the deal's own check instead.)
+    expect(checkFor(briber, { purpose: "bribe", skill: "forgeDocument" })).toEqual({ how: "skill", id: "briberyExpert" });
+  });
+
   test("Hide: a thief's Hide in Shadows, a halfling's Sneak and Hide; anyone else's (untrained), or nothing in the skill, null", () => {
     const hide = { purpose: "aid", action: { id: "actA.hide", name: "" } };
     const { actor } = character({ system: { skills: { hideInShadows: { value: "+5" }, sneakAndHide: { value: "+3" } } } });

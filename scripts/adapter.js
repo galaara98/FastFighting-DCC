@@ -18,9 +18,10 @@ import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
 import { deriveDccTraits, speaksCommon, monsterKind, animalisticOf, aptitudesOf } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
-import { commitDccChanges, deathClockOn, describeDccOutcome, commitDccConcession, conditionsOf, statusFor, statusName, sheetConditions, applyDccDamage, systemAppliesDamage } from "./commit.js";
+import { commitDccChanges, deathClockOn, describeDccOutcome, conditionsOf, statusFor, statusName, sheetConditions, applyDccDamage, systemAppliesDamage } from "./commit.js";
 import { readDccTurn, readDccDamage } from "./read-turn.js";
-import { loreBoost } from "./lore.js";
+import { dccAppetite, dccMeatFor, dccIsFood } from "./food.js";
+import { worthOf, copperOf, coinValues, stowed, takeDccGoods, putDccGoods, dccGoodsOf, dropDccValuables, dccPileContents, dccSkillsOf, dccGiveables } from "./goods.js";
 import { dccHints, dccTactics } from "./auto.js";
 import { t, saysWord, harmOf } from "./words.js";
 import { rollDccStrike } from "./strike-roll.js";
@@ -42,9 +43,6 @@ const deedOf = toHit => {
 };
 
 const MODES = ["fly", "swim", "climb", "burrow"];
-const COPPER = { pp: 1000, ep: 50, gp: 100, sp: 10, cp: 1 };
-/** What an item is worth, in copper (its value in each coin). */
-const worthOf = i => Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(i?.system?.value?.[k]) || 0) * v, 0);
 
 /**
  * A natural attack (a bite, claws, a slam): what its name says, by the language file's words (FFDCC.Words.Natural;
@@ -277,26 +275,27 @@ function inPartyOf(actor) {
 }
 
 /**
- * What it could be talked (or robbed) out of: coins, what it carries, and the weapons and shield in its hands. Not the
- * armor it wears: that doesn't come off in a fight.
+ * What it could be talked (or robbed) out of: coins, what it carries put away, the weapons and shield in its hands, and
+ * the armor it wears; each with how many and what one is worth (copper). Not a container (all in it would go too).
  */
 export function valuablesOf(actor) {
-  const c = actor.system.currency ?? {};
-  const money = Object.entries(COPPER).reduce((s, [k, v]) => s + (Number(c[k]) || 0) * v, 0);
-  const stowed = [];
+  const stowedThings = [];
   const wielded = [];
+  const worn = [];
   for ( const i of actor.items ) {
     if ( !GOODS.includes(i.type) ) continue;
-    const thing = { id: i.id, name: i.name, value: worthOf(i), category: i.type };
+    const thing = { id: i.id, name: i.name, value: worthOf(i), quantity: Math.max(1, Number(i.system?.quantity ?? 1) || 1), category: i.type };
     if ( !(thing.value > 0) ) continue;
-    if ( !["weapon", "armor"].includes(i.type) || i.system.equipped === false ) stowed.push(thing);
+    if ( stowed(i) ) stowedThings.push(thing);
     else if ( i.type === "weapon" || isShield(i) ) wielded.push(thing);
+    else worn.push(thing);
   }
   return {
-    money,
-    denominations: [{ label: t("Coin.gp"), value: 100 }, { label: t("Coin.sp"), value: 10 }, { label: t("Coin.cp"), value: 1 }],
-    stowed,
-    wielded
+    money: copperOf(actor.system.currency),
+    denominations: Object.entries(coinValues()).sort((a, b) => b[1] - a[1]).map(([key, value]) => ({ key, label: t(`Coin.${key}`), value })),
+    stowed: stowedThings,
+    wielded,
+    worn
   };
 }
 
@@ -434,7 +433,7 @@ export class DccAdapter extends SystemAdapter {
       boosts: boosts.length ? boosts : null,
       // Sizing a foe up (a Lore-Collector): what it can recall or work out, an Intelligence check against DC 10. Not
       // for the mindless (constructs too): nothing in there to work anything out.
-      sizeUp: derived.flags.mindless ? undefined : { mod: Number(sys.abilities?.int?.mod) || 0, dc: 10, label: game.i18n.localize("FFDCC.IntelligenceCheck"), boost: loreBoost() },
+      sizeUp: derived.flags.mindless ? undefined : { mod: Number(sys.abilities?.int?.mod) || 0, dc: 10, label: game.i18n.localize("FFDCC.IntelligenceCheck") },
       luck,
       // A player character's Luck works against a monster's crits.
       critAgainst: pc ? luckMod : 0,
@@ -1091,7 +1090,88 @@ export class DccAdapter extends SystemAdapter {
     return describeDccOutcome(spec, final);
   }
 
+  /* -------------------------------------------- */
+  /*  Deals, piles and money (API 26-27: goods.js) */
+  /* -------------------------------------------- */
+
+  /**
+   * Hand over what a creature gave up (talked out of it, robbed of it, a deal: the core's concession): coins (with change
+   * made), or a thing, as many as it says, from the giver to the receiver (none: gone). Undo records for both sides.
+   */
   async commitConcession(giverDoc, receiverDoc, concession) {
-    return commitDccConcession(giverDoc, receiverDoc, concession);
+    const taken = await takeDccGoods(giverDoc, [concession]);
+    return [...taken.records, ...(receiverDoc?.actor ? await putDccGoods(receiverDoc, taken.goods) : [])];
+  }
+
+  /** The loot settings apply: the fallen leave what they carry (the core's piles). */
+  get supportsLoot() {
+    return true;
+  }
+
+  async takeGoods(tokenDoc, goods) {
+    return takeDccGoods(tokenDoc, goods);
+  }
+
+  async putGoods(tokenDoc, goods) {
+    return putDccGoods(tokenDoc, goods);
+  }
+
+  async goodsOf(tokenDoc) {
+    return dccGoodsOf(tokenDoc);
+  }
+
+  /** A pile on the ground: an NPC that is only a pile, DCC having no loot actor. */
+  async dropValuables(scene, at, goods, options) {
+    return dropDccValuables(scene, at, goods, options);
+  }
+
+  pileContents(tokenDoc) {
+    return dccPileContents(tokenDoc);
+  }
+
+  /** DCC's main coin, the one prices are said in: gold (a team's purse in the planner). */
+  mainCoin() {
+    return { key: "gp", label: t("Coin.gp"), value: coinValues().gp ?? 100 };
+  }
+
+  /** Its checks, for a player's deal: Personality, Strength, and its sheet's skills. */
+  skillsOf(actor) {
+    return dccSkillsOf(actor);
+  }
+
+  /** What a character could hand over in a deal. */
+  giveables(actor) {
+    return dccGiveables(actor);
+  }
+
+  /* -------------------------------------------- */
+  /*  Food (API 27: food.js)                      */
+  /* -------------------------------------------- */
+
+  /** What it eats, and how likely it comes to a fight hungry. */
+  appetite(actor, spec) {
+    return dccAppetite(actor, spec);
+  }
+
+  /** What its body leaves when it dies. */
+  meatFor(actor, spec) {
+    return dccMeatFor(actor, spec);
+  }
+
+  /** Whether a thing can be eaten. */
+  isFood(item) {
+    return dccIsFood(item);
+  }
+
+  /**
+   * The core's settings as DCC has them (API 28): fights are short and deadly, a stalemate after 4 to 12 rounds (10 at
+   * first); and the Lore-Collector's advantage after an Intelligence check, 2.25× at first (it takes the turn, though
+   * deed dice and Luck already swing a fight hard), in this module's words for it.
+   */
+  settingDefaults() {
+    return {
+      maxRounds: { min: 4, max: 12, default: 10 },
+      loreBoost: { default: 2.25, name: "FFDCC.Settings.loreBoost.Name", hint: "FFDCC.Settings.loreBoost.Hint" }
+    };
   }
 }

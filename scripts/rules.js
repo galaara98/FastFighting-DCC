@@ -76,9 +76,9 @@ export function sizeEdge(a, b) {
 const signed = n => (n >= 0 ? `+${n}` : String(n));
 /** The group a creature checks morale with: its side's (a hostile group), or its friend group when it takes no side. */
 const groupOf = u => `${u.homeSide ?? u.side}|${u.spec.group ?? ""}`;
-/** A retainer: a creature on the party's side. */
+/** A retainer: a creature on the Friendlies' side. */
 const retainerOf = (run, u) => u.spec.kind !== "pc" && (u.homeSide ?? u.side) === "friendly";
-/** The employer's Personality: the party's leader's, else the best of its characters'. */
+/** The employer's Personality: the Friendly Team's leader's, else the best of its characters'. */
 function employerOf(run, u) {
   const head = run.byId.get(run.prep.command?.friendly?.[0]?.id);
   if ( head?.spec.kind === "pc" ) return Number(head.spec.personality) || 0;

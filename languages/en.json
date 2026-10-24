@@ -24,7 +24,7 @@
     "Settings": {
       "loreBoost": {
         "Name": "Lore-Collector advantage",
-        "Hint": "How much likelier a Lore-Collector's rolls against a foe are after it sizes that foe up. Default 2.25×."
+        "Hint": "After a successful Intelligence check sizing up a foe, how much likelier a Lore-Collector's rolls against foes of that kind are to succeed, through its next turn."
       },
       "tiedStopsSpells": {
         "Name": "Tied up stops spells",
@@ -175,6 +175,8 @@
       "Nobody": "nobody better"
     },
     "Coin": {
+      "pp": "pp",
+      "ep": "ep",
       "gp": "gp",
       "sp": "sp",
       "cp": "cp"
@@ -206,7 +208,13 @@
         "piercing": "arrow, arrows, bolt, bolts, bow, bows, longbow, shortbow, crossbow, ballista, blowgun, dart, darts, dagger, daggers, knife, knives, spear, spears, lance, javelin, javelins, pike, rapier, trident, pick, gun, revolver, pistol, rifle, bite, bites, fang, fangs, horn, horns, gore, tusk, tusks, sting, stinger, beak, peck",
         "bludgeoning": "club, clubs, mace, maces, hammer, warhammer, maul, flail, staff, quarterstaff, morningstar, blackjack, sap, sling, chain, nunchucks, fist, fists, punch, unarmed, slam, slams, stomp, kick, headbutt, hoof, hooves, trample, tail, tentacle, tentacles, pseudopod, crush, slap, buffet, rock, rocks, stone, stones, boulder, boulders, shield",
         "slashing": "sword, swords, longsword, shortsword, broadsword, cutlass, scimitar, sabre, saber, falchion, axe, axes, handaxe, battleaxe, greataxe, halberd, glaive, polearm, scythe, sickle, blade, blades, claw, claws, talon, talons, rake, slash, whip, mandible, mandibles"
-      }
-    }
+      },
+      "Bite": "bite, bites, fang, fangs, jaws, maw, mandible, mandibles, beak, tusk, tusks",
+      "NoFlesh": "ooze, jelly, slime, pudding, mist, fog, vapor, shadow, ghost, spirit, wraith, spectre, specter, phantom, elemental, golem, statue, automaton, android, servitor, plant, fungus, mold, mould, shrooman",
+      "Rations": "ration, rations, trail rations, provisions, food, bread, cheese, jerky, dried meat, hardtack"
+    },
+    "DroppedGoods": "Dropped goods",
+    "Meat": "Uncooked meat",
+    "MeatHint": "Meat from a fresh kill, raw. A hungry creature may well want it."
   }
 }

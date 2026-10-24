@@ -41,8 +41,8 @@ describe("the core's API major, as this helper sees it", () => {
   });
 
   test("a newer one: it registers, and the GM is told it hasn't been tried with that core", async () => {
-    const { registered, said } = await start(26);
+    const { registered, said } = await start(29);
     expect(registered).toHaveLength(1);
-    expect(said.warn).toEqual([game.i18n.format("FFDCC.CoreUntested", { major: 26 })]);
+    expect(said.warn).toEqual([game.i18n.format("FFDCC.CoreUntested", { major: 29 })]);
   });
 });

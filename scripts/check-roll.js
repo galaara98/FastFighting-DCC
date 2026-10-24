@@ -11,6 +11,10 @@
  *       aid        Hide: a thief's Hide in Shadows, a halfling's Sneak and Hide.
  *       theft      a thief's Pick Pockets.
  *       disengage  XCC's Acrobatics.
+ *       bribe, extort, scare, toll  a deal (the core's behavior/deals.js, API 26): the check the player picked in their
+ *                  deal dialog (`skill`: Personality, Strength, or a skill on the sheet, as goods.js dccSkillsOf
+ *                  offers them); else a bribe is XCC's Bribery expert where the sheet has it, else Personality, and a
+ *                  demand the better of Personality and Strength.
  *     Anything else is the engine's to roll (null): a grapple or breaking free (opposed attack rolls, which the system
  *     doesn't roll), binding a wound (the friend's Luck: homebrew), anyone untrained (the rules' d10), a monster whose
  *     sheet keeps the default spell check while its stat line gives another (the adapter casts at the stat line's).
@@ -61,7 +65,7 @@ const trained = (actor, id) => String(actor.system?.skills?.[id]?.value ?? "").t
  * @param {object} [options.action] {id, name}: the action's id as the adapter gave it; talk's, its kind of pitch
  * @param {object} [options.kind]   the character's class, as classes.js archetype has it ({} for a monster)
  */
-export function checkFor(actor, { purpose, action = null, kind = {} } = {}) {
+export function checkFor(actor, { purpose, action = null, kind = {}, skill: picked = null } = {}) {
   const sys = actor?.system ?? {};
   const prefix = `${actor?.id}.`;
   const own = String(action?.id ?? "").startsWith(prefix) ? String(action.id).slice(prefix.length) : null;
@@ -91,6 +95,17 @@ export function checkFor(actor, { purpose, action = null, kind = {} } = {}) {
       return kind.thief ? skill("pickPockets") : null;
     case "disengage":
       return kind.acrobat ? skill("acrobatics") : null;
+    case "bribe":
+    case "extort":
+    case "scare":
+    case "toll": {
+      if ( ["per", "str"].includes(picked) ) return { how: "ability", id: picked };
+      if ( picked && trained(actor, picked) ) return skill(picked);
+      if ( purpose === "bribe" ) return trained(actor, "briberyExpert") ? skill("briberyExpert") : { how: "ability", id: "per" };
+      const str = Number(sys.abilities?.str?.mod) || 0;
+      const per = Number(sys.abilities?.per?.mod) || 0;
+      return { how: "ability", id: str > per ? "str" : "per" };
+    }
     default:
       return null;
   }
@@ -177,10 +192,11 @@ export async function rollDccSave(token, { save, dc, secret = false } = {}) {
  * @param {number} options.dc        a spell check's: its lowest result's
  * @param {boolean} [options.secret] for the GMs only
  * @param {object} [options.kind]    the character's class (classes.js archetype)
+ * @param {string} [options.skill]   a deal's check, as the player picked it (goods.js dccSkillsOf's key)
  */
-export async function rollDccCheck(token, { purpose, action = null, dc, secret = false, kind = {} } = {}) {
+export async function rollDccCheck(token, { purpose, action = null, dc, secret = false, kind = {}, skill = null } = {}) {
   const actor = token?.actor;
-  const what = actor && Number.isFinite(dc) ? checkFor(actor, { purpose, action, kind }) : null;
+  const what = actor && Number.isFinite(dc) ? checkFor(actor, { purpose, action, kind, skill }) : null;
   const { method, cards } = ROLLERS[what?.how] ?? {};
   if ( !what || typeof actor[method] !== "function" ) return null;
   const options = { showModifierDialog: false };

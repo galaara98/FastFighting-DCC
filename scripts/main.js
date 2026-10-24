@@ -4,7 +4,7 @@
  * through the core's public API.
  */
 import { DccAdapter } from "./adapter.js";
-import { registerLoreBoost } from "./lore.js";
+import { moveLoreBoost } from "./lore-move.js";
 import { registerTiedStopsSpells } from "./tied.js";
 
 export const MODULE_ID = "fast-fighting-dcc";
@@ -14,7 +14,7 @@ export const MODULE_ID = "fast-fighting-dcc";
  * helper. Older than the oldest, it doesn't run (it uses what came since); any other it doesn't know, it runs, and the
  * GM is told it hasn't been tried with that core yet. Add a major once this helper has been tried with it.
  */
-const KNOWN_API = Object.freeze([24, 25]);
+const KNOWN_API = Object.freeze([24, 25, 26, 27, 28]);
 
 /** The core's API major, when it's one this helper doesn't know: the GM is told when the world is ready. */
 let untested = null;
@@ -26,8 +26,6 @@ let untested = null;
 const KNOWN_TRANSLATIONS = {};
 
 Hooks.once("init", () => {
-  // How much a Lore-Collector's sizing a foe up pays off (lore.js).
-  registerLoreBoost();
   // Whether a creature tied up can still cast (tied.js).
   registerTiedStopsSpells();
 });
@@ -53,6 +51,7 @@ Hooks.once("fastFighting.init", api => {
 
 Hooks.once("ready", () => {
   if ( untested !== null && game.user.isGM ) ui.notifications.warn(game.i18n.format("FFDCC.CoreUntested", { major: untested }));
+  moveLoreBoost();
   if ( !game.modules.get("fast-fighting")?.active && game.user.isGM ) {
     ui.notifications.warn(game.i18n.localize("FFDCC.NeedsCore"));
   }

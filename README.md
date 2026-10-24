@@ -10,7 +10,7 @@ FastFighting Core knows no game's rules. It offers a large but fixed set of opti
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
-- **Requires:** FastFighting Core 0.6.1 or later (API 24 or 25; verified with 0.7.0)
+- **Requires:** FastFighting Core 0.8.0 or later (API 28)
 
 ## Installation
 
@@ -100,11 +100,11 @@ A monster's stat line gives its regeneration ("regenerates 1d6 hp per round"; ha
 
 ### Morale: DCC's, in place of the core's
 
-DCC's morale is for creatures; a character's is its player's. A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. Whichever of the group acts next rolls for all: a d20 + its Will against DC 11 (a retainer adds its employer's Personality: the party leader's, else the best in the party). Under, the whole group flees. A warrior's rallying deed can add to the roll, or give one whose group has broken a second check: made, it stays while the rest run. The mindless and the fearless never break. The Statistician shows each roll.
+DCC's morale is for creatures; a character's is its player's. A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. Whichever of the group acts next rolls for all: a d20 + its Will against DC 11 (a retainer adds its employer's Personality: the Friendly Team's leader's, else the best among the Friendlies). Under, the whole group flees. A warrior's rallying deed can add to the roll, or give one whose group has broken a second check: made, it stays while the rest run. The mindless and the fearless never break. The Statistician shows each roll.
 
 ### Sizing a foe up: the core's Lore-Collector
 
-A Lore-Collector with a mind (not the mindless or constructs) sizes a foe up with an Intelligence check against DC 10. When it works, its next rolls against every foe of that sort are far likelier to land, by the **Lore-Collector advantage** setting.
+A Lore-Collector with a mind (not the mindless or constructs) sizes a foe up with an Intelligence check against DC 10. When it works, its rolls against every foe of that sort are far likelier to land through its next turn, by FastFighting's **Lore-Collector advantage** setting.
 
 ### Personality, leadership and talking: the core's traits and standoffs
 
@@ -112,13 +112,19 @@ A player character starts as the usual hero, and its sheet moves each trait a li
 
 DCC has no social skills and keeps no rank, so a leader is someone with Personality, a title in its name (king, thane, captain ...), a cleric's standing, or experience.
 
-A creature persuades, intimidates (with Strength, when better) and deceives with Personality, against Will. A sheet with no languages listed speaks Common if it's a character, one of the people by its crit table (a humanoid's, a giant's, a dragon's or a demon's), or an un-dead or other monster whose name says it speaks (a centaur, a ghoul; never a beast); with a crit table the system doesn't file, anything but a beast or the mindless. To end an argument it can hand over its coins, what it carries, and the weapons and shield in its hands, never the armor it wears.
+A creature persuades, intimidates (with Strength, when better) and deceives with Personality, against Will. A sheet with no languages listed speaks Common if it's a character, one of the people by its crit table (a humanoid's, a giant's, a dragon's or a demon's), or an un-dead or other monster whose name says it speaks (a centaur, a ghoul; never a beast); with a crit table the system doesn't file, anything but a beast or the mindless.
+
+### Money, deals and food
+
+Coins are worth what the system says: a platinum piece 100 gold, an electrum piece 10. A team's cash is in gold. In a deal a creature hands over coins and what it carries put away, as many as agreed, never the weapon in its hand or the armor it wears. A player's deal rolls the check they pick: Personality, Strength, or a skill on the sheet; left to FastFighting, a bribe is Personality (XCC's Bribery expert where the sheet has it) and a demand the better of Personality and Strength. Dropped goods and the fallen's belongings lie in an Item Piles pile when that module is on, else in a pile of DCC's own (an NPC sheet that holds them).
+
+DCC keeps no diet or size, so a beast that bites (by its weapons' names) eats meat, other beasts and the people anything, and the un-dead, constructs and demons nothing. A body leaves meat by its token's size, none for a body of no flesh. Rations are food by name.
 
 ### XCC classes
 
 The Messenger plays as a cleric (holy acts with disapproval, turning the unholy, healing), each Specialist (Acrobat, Commando, Scout, Criminal and the rest) as a thief (backstab, a luck die). Others bring their own:
 - **Brawler:** unarmed, two attacks together on a d16 each (a crit on a natural 16; no fumble on one alone); armed, a free unarmed attack on a d14 once a round besides its own. Its attack bonus, Strength and Luck (when it helps) go on its to-hit and its unarmed damage die. No crits in armor too heavy (a check penalty of -4 or worse).
-- **Dungeon Hottie:** Not in the Face (a round spent defending: its bonus to AC until its next turn); Too Cute to Die (a failed body roll passes for a point of Luck, once a level; Do it For Real Now marks it used).
+- **Dungeon Hottie:** Not in the Face (a round spent defending: its bonus to AC until its next turn); Too Cute to Die (a failed body roll passes for a point of Luck, once a level; a live battle marks it used).
 - **Jammer:** Disrespect, a performance check (Personality, level and Luck) its foe saves against with Will (the DC the check's average), or takes the Jammer's penalty (a step down the dice chain, counted as -2) to attacks, checks and damage for level + Personality rounds.
 - **Gnome:** Draw Agro, the core's taunt: a check (Personality, level, and Luck when it helps) a foe within 60 feet saves against with Will, or spends its next turn going for the gnome or pays a step down the dice chain (two from 5th level) on its rolls against anyone else. Each attack it draws earns the gnome a point of Mojo.
 - **Athlete:** wrestling, a grapple for 1d4 + Strength, not with a shield in hand (the armor with no fumble die). Its training die rolls with it like a deed die, onto the roll and the damage; it has its own crit range (none in armor too heavy), and a hit grabs.
@@ -162,7 +168,7 @@ Tactics answers:
 
 The first time FastFighting sets a character up by itself (see the [core's README](https://github.com/galaara98/FastFighting)), DCC's sheet has its say. The class sheet suggests playstyles (a Warrior Brawler and Tank, a Halfling Wallflower, a Wizard Un-Mundane and Lore-Collector), and so do alignment (Lawful leans Moralist; Chaotic, Cruel and Wildcard) and a monster's stat line (the un-dead Relentless, demons and devils Cruel). Where DCC says something, the sheet answers "Let this character decide" too: a Warrior's Lucky Weapon as its signature attack, a Thief spending Luck freely (it comes back each day), a beast fleeing when hurt. The GM sees each answer and why, in orange under the question. [CODING_README.md](CODING_README.md#set-up-by-itself) lists them all. DCC's fights use no consumables yet, so that answer only shows in the survey.
 
-## Do it For Real Now
+## Live battles
 
 In a live battle, each turn's changes go onto the tokens as the turn is played:
 - hit points; death (and the combatant defeated); the fled hidden; a Surrendered effect on one that gave up;
@@ -170,8 +176,8 @@ In a live battle, each turn's changes go onto the tokens as the turn is played:
 - spells lost for the day, and a cleric's disapproval range;
 - the Stamina lost to bleeding out, or, for a body rolled after the fight and found alive, the ability lost, Groggy, and no longer dead (with the dcc system's Death Clock on, the system marks the dying, counts their rounds and scars the saved itself);
 - statuses put on or taken off, by the fight or by the GM in the Battle Vantage: Prone, Stunned, Paralyzed, Asleep, Unconscious, Blind, Deaf, Silenced, Frightened, Restrained (DCC's held), Invisible, Poisoned, and Disarmed (the dcc system's palette) or Slowed and Grappled (XCC's). Each turn the token's statuses are read back, so one the GM takes off is gone from the fight too. FastFighting keeps what DCC has no status for (turned, hidden, can't move, can't act on its own);
-- the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the party: Hostile);
-- what a creature hands over (or has stolen): coins, or an item, unequipped and out of any container.
+- the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the Friendlies: Hostile);
+- what a creature hands over (or has stolen): coins, or things, as many as the deal says, set aside and out of any container.
 
 A player's damage roll at a creature FastFighting runs is applied at once or put before the GM in the Battle Vantage. **Apply players' damage** is greyed out while the dcc system's Auto-apply damage to target is on, as the system applies it then.
 
@@ -181,7 +187,7 @@ Rewind takes one turn back; Rewind This Encounter, all of it.
 
 ## Settings
 
-- **Lore-Collector advantage** (1.25× to 3×): how much likelier a Lore-Collector's rolls against a foe it has sized up are to succeed, through its next turn. Default 2.25×: sizing up costs the whole turn, but deed dice and Luck already swing a fight hard. Ordinary attacks get all they can by about 1.75×; the rest helps long-shot rolls (a hard AC, a hard talk).
+It sets two of FastFighting's: **Max rounds** (4 to 12, 10 at first: DCC's fights are short and deadly) and **Lore-Collector advantage** (2.25× at first: sizing up costs the whole turn, but deed dice and Luck already swing a fight hard). A value set on this module's old Lore-Collector setting moves there by itself. Its own:
 - **Tied up stops spells** (on by default): the rules don't say which spells need free hands, so this decides for all of them. On, a creature tied up can't cast; off, it can, and may cast instead of struggling against its bonds.
 
 ## Not played
