@@ -5,7 +5,7 @@ How this helper plugs into FastFighting Core, what it hands the core, and how to
 ## Plugging into the core
 
 `scripts/main.js`:
-- **`init`:** registers the world setting `tiedStopsSpells` (tied.js, Boolean, default on).
+- **`init`:** registers the world setting `tiedStopsSpells` (tied.js, Boolean, default on), and starts reading `reading/en.json` (reading.js `loadReading`; `toCombatantSpec` waits for it).
 - **`fastFighting.init`:** stays inactive outside a `dcc` world (module.json already limits it to one). Checks the core's API version (below), then `api.registerAdapter("dcc", DccAdapter, { priority: 10, source: MODULE_ID })`, `api.adviseTranslation(MODULE_ID, game.system.title, KNOWN_TRANSLATIONS)` (no translation module known yet) and `api.keepEnglish(MODULE_ID)` (hardcoded-toEN.json).
 - **`ready`:** warns the GM (`FFDCC.NeedsCore`) when the core isn't active, and moves a value set on this module's old `loreBoost` setting to the core's (lore-move.js; temporary, until 0.10.0: tests/temporary/lore-move.test.js).
 
@@ -35,7 +35,8 @@ When new work needs something the core can't handle in a close-enough way with w
 | `classes.js` | The class id from the sheet, and `archetype(id)` (what a class plainly is: XCC's Messenger a cleric, each `sp-*` Specialist a thief). |
 | `deeds.js` | Mighty Deeds from the world's tables, else built-in tiers; each names the core maneuver it is (`trip`, `blindFoe`, `disarm`, `shove`, `defend`, `rally`). |
 | `spells.js` | Spells, Lay on Hands and Turn Unholy as engine actions with a spell check; one kind per spell (healing, control, damage with a save, damage, blessing). |
-| `text.js` | Reads table rows and a monster's stat line into engine terms (damage, saves, conditions, mods, mending, immunities, hit dice, action dice). Pure. |
+| `text.js` | Reads table rows and a monster's stat line into engine terms (damage, saves, conditions, mods, mending, immunities, hit dice, action dice), by the reading's words and patterns (below), compiled once per reading. Pure. |
+| `reading.js` | The words the books are read by (`reading/en.json`, and the reader's language's `reading/<lang>.json` over it): `loadReading` at startup, `reading`, `currentReading`, `setReading` for tests and tools. |
 | `tables.js` | `DccTables`: finds the books' tables at run time, each read once a session (below). |
 | `commit.js` | Live write-back, the planner's outcome lines; the status mapping. |
 | `cards.js` | FastFighting's own damage cards: the mark, the chat menu's Apply entries hidden on them, `leaveToTable`. |
@@ -152,6 +153,17 @@ Every word this module shows is in `languages/en.json`; the code holds keys, nev
 
 `hardcoded-toEN.json` lists words that stay in English for now, whatever the reader's language: keys of `languages/en.json` (or a group, `"FFDCC.Cond"`) whose translation would contradict a game system that isn't translated yet. It has the date it was last updated (`lastUpdated`) and the list (`keys`), and is edited like the language files. The core applies it (`api.keepEnglish`).
 
+## The reading (reading/en.json)
+
+`reading/en.json` holds the words and patterns text.js reads the books' English by: a monster's stat line, the rows of crit, fumble and spell tables, a rider in a book's entry. text.js holds only what they mean (the engine's conditions, tags and numbers). The word lists for names (`FFDCC.Words.*`, words.js) stay in `languages/en.json`. Its sections:
+- word tables: `numbers` (count words), `saveNames` (to DCC's `frt`, `ref`, `wil`), `damageTypes`, `notDamageTypes` (words before "damage" that aren't a kind of it), `kindJoiners`, `immunities` (a word, or its start, to the engine's tags), `rendCounts`, `entryStopWords`; `movement`, `materials` and `riderTraits` give a pattern for each of the engine's keys;
+- patterns, by reader: `conditions` (by the condition's `FFDCC.Told` key, and `slay`), `outcome`, `saveVs` (by tag), `regenStops` (`[{pattern, before?}]`), `damage`, `rounds`, `targets`, `save`, `mods`, `fumble`, `spell`, `mending`, `statLine`, `auras`, `followUps`, `riders`;
+- `parts`: pieces the patterns share, put in where a pattern says `{level}`, `{hp}`, `{eachRound}` or `{save}`; `wordBreak` splits a phrase into words. `{dice}` and `{formula}` are the code's (dice notation, `1d6`); `{mode}` is a `movement` pattern.
+
+Patterns run on lower-case text (a few, such as `statLine.attack`, in any case); text.js gives the flags. What a pattern captures is named (`(?<dice>...)`, `(?<what>...)`; a name ending in `2` is a second place for it), so a translation may put the words in any order. A pattern that is missing, or doesn't compile, never matches.
+
+**Translating:** copy the file to `reading/<lang>.json` (`de.json`) and change what reads differently; whatever it leaves out is the English. The files are merged section by section (reading.js `mergeReading`): in an object, the translation's entry replaces the English one of that name and adds any new one (so `numbers` reads both languages' words, and a pattern given replaces the English one); a list holds the translation's entries, then the English ones. `tests/reading-dcc.test.js` checks that every pattern compiles.
+
 ## Development
 
 The tests import FastFighting Core from a checkout beside this one (`../FastFighting`; override with `FASTFIGHTING_CORE`, see vitest.config.js):
@@ -162,6 +174,6 @@ npm test
 npm run test:reworded
 ```
 
-`npm run test:reworded` (`vitest run --mode reworded`) runs every test with every word in the language files reworded (accented, in ⟦brackets⟧, placeholders and markup kept: tests/foundry-i18n.js), so no test depends on the wording. `tests/setup.js` gives each test a `game.i18n` that reads this module's and the core's `languages/en.json`.
+`npm run test:reworded` (`vitest run --mode reworded`) runs every test with every word in the language files reworded (accented, in ⟦brackets⟧, placeholders and markup kept: tests/foundry-i18n.js), so no test depends on the wording. `tests/setup.js` gives each test a `game.i18n` that reads this module's and the core's `languages/en.json`, and reads the books by `reading/en.json` (`setReading`), as `tools/coverage.mjs` does.
 
-CI (`.github/workflows/test.yml`) runs both on every push to main and every pull request, with the core checked out beside this repo. Pushing a `v*` tag (`release.yml`) tests, sets `version` and `download` in module.json, zips `module.json`, `scripts`, `languages`, `hardcoded-toEN.json`, `README.md` and `LICENSE`, and publishes the release.
+CI (`.github/workflows/test.yml`) runs both on every push to main and every pull request, with the core checked out beside this repo. Pushing a `v*` tag (`release.yml`) tests, sets `version` and `download` in module.json, zips `module.json`, `scripts`, `languages`, `reading`, `hardcoded-toEN.json`, `README.md` and `LICENSE`, and publishes the release.

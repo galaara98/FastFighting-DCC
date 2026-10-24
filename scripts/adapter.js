@@ -12,6 +12,7 @@ import { SystemAdapter, parseFormula, part, hasWords, plainText, englishWords, s
 import { dccRules } from "./rules.js";
 import { tiedStopsSpells } from "./tied.js";
 import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn, ridersIn, entryRider } from "./text.js";
+import { reading } from "./reading.js";
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
 import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
@@ -381,6 +382,8 @@ export class DccAdapter extends SystemAdapter {
   async toCombatantSpec(tokenDoc) {
     const actor = tokenDoc.actor;
     if ( !this.canHandle(actor) ) return null;
+    // (The words its stat line and the books' tables are read by: loaded at startup, waited for here.)
+    await reading();
     const sys = actor.system;
     const { pc, line, cls, kind, hd, level, dice } = this.#caster(actor);
     if ( pc ) await this.#loadAugurs();

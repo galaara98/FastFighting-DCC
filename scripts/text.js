@@ -5,17 +5,92 @@
  * The free system ships none of these tables; they come from whatever books a world has installed (the DCC and
  * XCC core books, adventures, homebrew). They're read at run time, so nothing of their text lives in this module.
  * What can't be read is left out, never guessed into something it isn't.
+ * The words they're read by, and the patterns, are in reading/en.json (reading.js); here only what they mean.
  * Pure: no Foundry globals.
  */
 import { parseFormula, part, meanPart, listJoin, listItems, localize, signedNumber } from "./core.js";
 import { harmKinds } from "./moves.js";
+import { currentReading } from "./reading.js";
 // (Its texts are `t` here: this module's words are `say`.)
 import { t as say } from "./words.js";
 
-const NUMBER_WORDS = { a: 1, an: 1, one: 1, single: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12 };
-/** "frt", "ref", "wil": DCC's saves. */
-const SAVES = { fort: "frt", fortitude: "frt", ref: "ref", reflex: "ref", will: "wil" };
-const TYPES = { fire: "fire", flame: "fire", cold: "cold", ice: "cold", frost: "cold", acid: "acid", electric: "electricity", electricity: "electricity", electrical: "electricity", lightning: "electricity", holy: "holy", unholy: "unholy", poison: "poison", sonic: "sonic", force: "force" };
+/* -------------------------------------------- */
+/*  The reading                                 */
+/* -------------------------------------------- */
+
+/** The pieces a pattern takes from the code, not the reading: dice notation ({dice} "1d6", "2d4+1", "5"; {formula}). */
+const NOTATION = {
+  dice: "(?<dice>\\d*d\\d+(?:\\s*[+-]\\s*\\d+(?!\\s*d))?|\\d+)",
+  formula: "\\d*d\\d+(?:\\s*[+-]\\s*\\d+(?!\\s*d))?"
+};
+
+/** A pattern from the reading, its {pieces} put in, compiled (one missing or bad never matches). */
+function compile(source, flags, parts) {
+  if ( typeof source !== "string" ) return new RegExp("(?!)", flags);
+  try {
+    return new RegExp(source.replace(/\{([A-Za-z]+)\}/g, (m, k) => (typeof parts[k] === "string" ? `(?:${parts[k]})` : m)), flags);
+  } catch ( err ) {
+    return new RegExp("(?!)", flags);
+  }
+}
+
+/** Each section's patterns compiled with these flags (any it doesn't name, none). */
+const FLAGS = {
+  damage: { equalTo: "g", dealt: "g", loses: "g" },
+  mods: { bonus: "g", ac: "g" },
+  spell: { failure: "i" },
+  statLine: { immune: "g", halfFrom: "g", doubleFrom: "g", attack: "gi", savesAgainst: "g", melee: "i", attackLead: "i", riderLead: "i", riderPlus: "i" },
+  riders: { range: "g" }
+};
+const SECTIONS = ["conditions", "outcome", "saveVs", "damage", "rounds", "targets", "save", "mods", "fumble", "spell", "mending", "statLine", "auras", "followUps", "riders"];
+
+/** A reading's words and its patterns, compiled. */
+function compileReading(words) {
+  const parts = { ...(words.parts ?? {}), ...NOTATION };
+  const out = {
+    numbers: words.numbers ?? {},
+    saveNames: words.saveNames ?? {},
+    damageTypes: words.damageTypes ?? {},
+    notDamageTypes: new Set(words.notDamageTypes ?? []),
+    kindJoiners: new Set(words.kindJoiners ?? []),
+    immunities: words.immunities ?? {},
+    rendCounts: words.rendCounts ?? {},
+    entryStopWords: new Set(words.entryStopWords ?? []),
+    wordBreak: compile(parts.wordBreak, "", parts),
+    materials: Object.entries(words.materials ?? {}).map(([tag, p]) => [tag, compile(p, "", parts)]),
+    riderTraits: Object.entries(words.riderTraits ?? {}).map(([tag, p]) => [tag, compile(p, "", parts)]),
+    // (The attacks as written, their names' capitals kept.)
+    attacksAnyCase: compile(words.statLine?.attacks, "i", parts),
+    regenStops: (words.regenStops ?? []).map(s => ({ re: compile(s?.pattern, "g", parts), before: !!s?.before })),
+    movement: Object.entries(words.movement ?? {}).map(([mode, p]) => {
+      const own = { ...parts, mode: p };
+      return [mode, compile(words.statLine?.moveAfter, "", own), compile(words.statLine?.moveBefore, "", own)];
+    })
+  };
+  // (A section's patterns compiled as they're first asked for; one it hasn't never matches.)
+  for ( const section of SECTIONS ) {
+    const flags = FLAGS[section] ?? {};
+    out[section] = new Proxy({}, { get: (cache, key) => (cache[key] ??= compile(words[section]?.[key], flags[key] ?? "", parts)) });
+  }
+  return out;
+}
+
+/** Each reading compiled once. */
+const compiled = new WeakMap();
+/** The current reading, compiled. */
+function R() {
+  const words = currentReading();
+  if ( !compiled.has(words) ) compiled.set(words, compileReading(words));
+  return compiled.get(words);
+}
+
+/** A named group of a match ("what"), or its second place ("what2"). */
+const got = (m, name) => m?.groups?.[name] ?? m?.groups?.[`${name}2`];
+
+/** A save's name ("fort", "reflex") as DCC's ("frt", "ref", "wil"). */
+const saveOf = word => R().saveNames[word] ?? null;
+
+/* -------------------------------------------- */
 
 /** A table row's words, with Foundry's inline rolls ("[[/roll 1d6]]") and links as plain text. */
 export function plain(text) {
@@ -43,18 +118,17 @@ const sentences = text => plain(text).toLowerCase().split(/(?<=[.!?;])\s+/).filt
 /** A dice term ("1d6", "2d4+1", "d8", "5", "two") as a DamagePart, or null. */
 export function dicePart(term, type = "untyped") {
   const t = String(term ?? "").trim().toLowerCase();
-  if ( NUMBER_WORDS[t] ) return part([], NUMBER_WORDS[t], type);
+  const numbers = R().numbers;
+  if ( numbers[t] ) return part([], numbers[t], type);
   if ( !/\d/.test(t) ) return null;
   const p = parseFormula(t, type);
   return p.dice.length || p.flat ? p : null;
 }
 
-const DICE = "(\\d*d\\d+(?:\\s*[+-]\\s*\\d+(?!\\s*d))?|\\d+)";
-const LEVEL = "(\\s*\\+\\s*(?:caster level|cl|the caster's level|his level|her level|level))?";
-
 /** The damage type a phrase names, if any. */
 function typeIn(words) {
-  for ( const w of String(words ?? "").toLowerCase().split(/[^a-z]+/) ) if ( TYPES[w] ) return TYPES[w];
+  const { wordBreak, damageTypes } = R();
+  for ( const w of String(words ?? "").toLowerCase().split(wordBreak) ) if ( damageTypes[w] ) return damageTypes[w];
   return null;
 }
 
@@ -64,10 +138,11 @@ function typeIn(words) {
  * @returns {object[]} DamageParts (empty if it names none)
  */
 export function damageIn(text, { casterLevel = 0, type = "untyped" } = {}) {
+  const { damage: re, damageTypes, notDamageTypes } = R();
   const out = [];
   for ( const s of sentences(text) ) {
-    if ( /\b(?:heal|heals|healed|restore|restores|cure|cures|regain)/.test(s) ) continue;
-    if ( /\b(?:ally|allies|caster|you)\b[^.]*\b(?:also |is |are )?(?:hit|struck|takes?)\b/.test(s) && !/\b(?:foe|target|opponent|enemy|creature)\b/.test(s) ) continue;
+    if ( re.heals.test(s) ) continue;
+    if ( re.toAllies.test(s) && !re.toFoes.test(s) ) continue;
     const found = [];
     const add = (m, dice, level, perLevel, kind) => {
       if ( found.some(f => m.index < f.end && m.index + m[0].length > f.start) ) return;
@@ -78,13 +153,14 @@ export function damageIn(text, { casterLevel = 0, type = "untyped" } = {}) {
       found.push({ start: m.index, end: m.index + m[0].length });
       out.push(p);
     };
-    for ( const m of s.matchAll(new RegExp(`damage (?:equal to|of) ${DICE}${LEVEL}`, "g")) ) add(m, m[1], m[2]);
-    for ( const m of s.matchAll(new RegExp(`\\+?\\s*${DICE}${LEVEL}\\s+(?:additional |extra |more |bonus |points? of |hit points? of )*(?:([a-z]+) )?(?:points? of )?damage(\\s+per (?:caster )?level)?`, "g")) ) {
-      const kind = m[3] ? TYPES[m[3]] : null;
-      if ( m[3] && !kind && !["damage", "additional", "extra"].includes(m[3]) && !/^(?:subdual|weapon|normal|melee|missile|physical)$/.test(m[3]) ) continue; // "+2 to damage"? not a sum of damage
-      add(m, m[1], m[2], !!m[4], kind);
+    for ( const m of s.matchAll(re.equalTo) ) add(m, got(m, "dice"), got(m, "level"));
+    for ( const m of s.matchAll(re.dealt) ) {
+      const word = got(m, "kind");
+      const kind = word ? damageTypes[word] : null;
+      if ( word && !kind && !notDamageTypes.has(word) ) continue; // "+2 to damage"? not a sum of damage
+      add(m, got(m, "dice"), got(m, "level"), !!got(m, "perLevel"), kind);
     }
-    for ( const m of s.matchAll(new RegExp(`loses? (?:an additional |another )?${DICE} (?:additional )?hit points?`, "g")) ) add(m, m[1]);
+    for ( const m of s.matchAll(re.loses) ) add(m, got(m, "dice"));
   }
   return out;
 }
@@ -92,9 +168,10 @@ export function damageIn(text, { casterLevel = 0, type = "untyped" } = {}) {
 /** "triple damage" and the like: how many times the blow's own damage it deals (1: no such thing). */
 export function damageMultiple(text) {
   const t = plain(text).toLowerCase();
-  if ( /\bquadruple damage\b|\bfour times (?:the )?damage\b|\bx4 damage\b/.test(t) ) return 4;
-  if ( /\btriple damage\b|\bthree times (?:the )?damage\b|\bx3 damage\b/.test(t) ) return 3;
-  if ( /\bdouble damage\b|\btwice (?:the )?damage\b|\bx2 damage\b/.test(t) ) return 2;
+  const re = R().damage;
+  if ( re.quadruple.test(t) ) return 4;
+  if ( re.triple.test(t) ) return 3;
+  if ( re.double.test(t) ) return 2;
   return 1;
 }
 
@@ -104,24 +181,26 @@ export function damageMultiple(text) {
  */
 export function roundsIn(text, { casterLevel = 0 } = {}) {
   const t = plain(text).toLowerCase();
-  if ( /\b(?:remainder|rest|end) of (?:the )?(?:battle|combat|fight|encounter)|\bpermanent|\bforever\b|\bendless/.test(t) ) return 100;
-  const m = t.match(new RegExp(`(?:for |lasts? |duration (?:is |of )?)?${DICE}${LEVEL}\\s+(rounds?|turns?|minutes?|hours?|days?|weeks?)`));
+  const re = R().rounds;
+  if ( re.whole.test(t) ) return 100;
+  const m = t.match(re.lasts);
   if ( m ) {
-    if ( !/^rounds?$/.test(m[3]) ) return 100;
-    const p = dicePart(m[1]);
-    return Math.max(1, Math.round((p ? meanPart(p) : 1) + (m[2] ? casterLevel : 0)));
+    if ( !got(m, "rounds") ) return 100;
+    const p = dicePart(got(m, "dice"));
+    return Math.max(1, Math.round((p ? meanPart(p) : 1) + (got(m, "level") ? casterLevel : 0)));
   }
-  if ( /\bnext (?:round|turn|attack|action|attack roll)\b|\bone round\b|\b1 round\b|\bthat round\b/.test(t) ) return 1;
+  if ( re.one.test(t) ) return 1;
   return null;
 }
 
 /** How many targets it takes: "up to two targets", "a single target", "all creatures within" (an area). */
 export function targetsIn(text) {
   const t = plain(text).toLowerCase();
-  if ( /\b(?:all|every|each) (?:\w+ ){0,2}(?:creatures?|targets?|enemies|foes|opponents)\b[^.]*\b(?:within|in|inside)\b|\b(?:cone|radius|burst|cloud|sphere|line|blast)\b/.test(t) ) return { targets: 3, area: true };
-  const m = t.match(/\bup to (\w+|\d+) (?:\w+ ){0,2}(?:targets?|creatures?|enemies|foes|opponents)/) ?? t.match(/\b(\w+|\d+) (?:\w+ ){0,2}targets?\b/);
+  const { targets: re, numbers } = R();
+  if ( re.area.test(t) ) return { targets: 3, area: true };
+  const m = t.match(re.upTo) ?? t.match(re.count);
   if ( m ) {
-    const n = NUMBER_WORDS[m[1]] ?? Number(m[1]);
+    const n = numbers[got(m, "n")] ?? Number(got(m, "n"));
     if ( Number.isFinite(n) && n > 0 ) return { targets: n, area: n > 1 };
   }
   return { targets: 1, area: false };
@@ -130,39 +209,40 @@ export function targetsIn(text) {
 /** The save a result calls for ("must make a Will save", "a DC 12 Fort save", "Ref save for half"), or null. */
 export function saveIn(text, fallback = null) {
   const t = plain(text).toLowerCase();
-  const m = t.match(/\b(fort(?:itude)?|ref(?:lex)?|will)\b(?:\s+(?:save|saving throw|vs\.?))/) ?? t.match(/\b(?:save|saving throw)[^.]*?\b(fort(?:itude)?|ref(?:lex)?|will)\b/)
+  const re = R().save;
+  const m = t.match(re.after) ?? t.match(re.before)
     // (A stat line's short way: "DC 12 Fort or ...".)
-    ?? t.match(/\bdc \d+\s+(fort(?:itude)?|ref(?:lex)?|will)\b/);
-  const dc = t.match(/\bdc (\d+)\b/);
-  const type = m ? SAVES[m[1].startsWith("fort") ? "fort" : m[1].startsWith("ref") ? "ref" : "will"] : null;
-  if ( !type && !/\bsave\b|\bsaving throw\b/.test(t) ) return null;
-  if ( /\bno save\b|\bwithout (?:a )?save\b|\bautomatically\b/.test(t) && !type ) return null;
-  return { type: type ?? fallback ?? "wil", dc: dc ? Number(dc[1]) : null, half: /\bhalf\b/.test(t) };
+    ?? t.match(re.short);
+  const dc = t.match(re.dc);
+  const type = m ? saveOf(got(m, "save")) : null;
+  if ( !type && !re.asked.test(t) ) return null;
+  if ( re.none.test(t) && !type ) return null;
+  return { type: type ?? fallback ?? "wil", dc: dc ? Number(got(dc, "n")) : null, half: re.half.test(t) };
 }
 
 /** Does the result say it simply happens (no save)? */
-export const automatic = text => /\bno save\b|\bwithout (?:a )?save\b|\bautomatically (?:affected|paralyzed|blinded|knocked|stunned|asleep|falls?|charmed)|\bwith no saving throw\b/.test(plain(text).toLowerCase());
+export const automatic = text => R().save.automatic.test(plain(text).toLowerCase());
 
 /**
- * The conditions DCC tables name, as the engine and the DCC rules know them. Each: what to look for, the
- * conditions, the word for it (FFDCC.Told), and anything else the outcome needs.
+ * The conditions DCC tables name, as the engine and the DCC rules know them. Each: its words (the reading's
+ * "conditions"), the conditions, the word for it (FFDCC.Told), and anything else the outcome needs.
  */
 const CONDITIONS = [
-  { re: /\bslay|\bdecapitat|\binstantly killed|\bdies instantly|\bkilled instantly|\bdies on the spot|\bis slain\b/, slay: true },
-  { re: /\b(?:falls?|fall|put|placed|sent) (?:into (?:a )?)?(?:\w+ )?(?:asleep|sleep|slumber)|\bsleeps?\b/, conditions: { incapacitated: 1, asleep: 1 }, told: "asleep", extra: { endsOnDamage: true } },
-  { re: /\bparaly[sz]/, conditions: { incapacitated: 1, paralyzed: 1 }, told: "paralyzed" },
+  { id: "slay", slay: true },
+  { id: "asleep", conditions: { incapacitated: 1, asleep: 1 }, told: "asleep", extra: { endsOnDamage: true } },
+  { id: "paralyzed", conditions: { incapacitated: 1, paralyzed: 1 }, told: "paralyzed" },
   // (Not a weapon "knocked out of reach".)
-  { re: /\b(?:knocked |falls? |is )?unconscious|\bknocked out\b(?!\s+of\b)|\bsenseless\b/, conditions: { incapacitated: 1, unconscious: 1 }, told: "knockedOut" },
-  { re: /\bstun(?:ned|s)?\b|\bbottom of the initiative|\bloses? (?:his |her |its |their |the )?next (?:action|attack|round|turn)|\bdazed\b/, conditions: { stunned: 1 }, told: "stunned" },
-  { re: /\b(?:knocked|falls?|thrown|sent|lands?|knocks? \w+|sweeps? \w+|tripped)\b(?: \w+){0,4} (?:prone|down|to the ground|off (?:his|her|its|their) feet)|\bprone\b/, conditions: { prone: 1 }, told: "knockedDown" },
-  { re: /\bblind(?:ed|s)?\b/, conditions: { blinded: 1 }, told: "blinded" },
+  { id: "knockedOut", conditions: { incapacitated: 1, unconscious: 1 }, told: "knockedOut" },
+  { id: "stunned", conditions: { stunned: 1 }, told: "stunned" },
+  { id: "knockedDown", conditions: { prone: 1 }, told: "knockedDown" },
+  { id: "blinded", conditions: { blinded: 1 }, told: "blinded" },
   // A one-word command costs it its turn; a charm turns it into the caster's friend.
-  { re: /\bobeys? (?:the|a|his|her|its|their) (?:\w+ )?command\b|\bmust obey\b/, conditions: { stunned: 1 }, told: "obeying" },
-  { re: /\bcharm(?:ed|s)?\b|\bunder (?:the caster's|his|her|your) (?:\w+ )?control\b|\bas if (?:it|he|she|they) (?:were|was) (?:his|her|the caster's) (?:friend|ally)/, conditions: { controlled: 1 }, told: "swayed" },
-  { re: /\b(?:frightened|terrified|flees?|fleeing|in fear|cowers?|cowering|panics?)\b/, conditions: { frightened: 1 }, told: "terrified" },
-  { re: /\b(?:entangled|held fast|webbed|stuck fast|immobil\w*|can(?:not|'t) move|pinned|restrained|grappled|grapple)\b/, conditions: { immobilized: 1, held: 1 }, told: "held" },
-  { re: /\bdisarm\w*|\bdrops? (?:his |her |its |their )?weapon|\bweapon (?:is )?(?:knocked|shattered|sundered|broken|flies)/, conditions: { disarmed: 1 }, told: "disarmed" },
-  { re: /\bslow(?:ed|s)?\b/, conditions: { slowed: 1 }, told: "slowed" }
+  { id: "obeying", conditions: { stunned: 1 }, told: "obeying" },
+  { id: "swayed", conditions: { controlled: 1 }, told: "swayed" },
+  { id: "terrified", conditions: { frightened: 1 }, told: "terrified" },
+  { id: "held", conditions: { immobilized: 1, held: 1 }, told: "held" },
+  { id: "disarmed", conditions: { disarmed: 1 }, told: "disarmed" },
+  { id: "slowed", conditions: { slowed: 1 }, told: "slowed" }
 ];
 
 /**
@@ -171,19 +251,18 @@ const CONDITIONS = [
  */
 export function modsIn(text) {
   const t = plain(text).toLowerCase();
+  const re = R().mods;
   const mods = {};
   const add = (k, v) => { mods[k] = (mods[k] ?? 0) + v; };
-  for ( const m of t.matchAll(/([+-]\s*\d+)\s*(?:penalty |bonus )?(?:to |on |in )?(?:(?:his|her|its|their|all|the|next|any) )*(attack rolls?|attacks?|to-hit|ac|armor class|saves|saving throws|all rolls|rolls|damage rolls|damage)\b/g) ) {
-    const v = Number(m[1].replace(/\s+/g, ""));
+  for ( const m of t.matchAll(re.bonus) ) {
+    const v = Number(got(m, "n").replace(/\s+/g, ""));
     if ( !v ) continue;
-    const what = m[2];
-    if ( /^attack|to-hit/.test(what) ) add("attack", v);
-    else if ( what === "ac" || what === "armor class" ) add("ac", v);
-    else if ( /^sav/.test(what) ) add("saves", v);
-    else if ( /^damage/.test(what) ) add("damage", v);
+    // (What it's to: the group that matched; "all", or none, all of them.)
+    const what = ["attack", "ac", "saves", "damage"].find(k => got(m, k) !== undefined);
+    if ( what ) add(what, v);
     else { add("attack", v); add("saves", v); add("checks", v); }
   }
-  for ( const m of t.matchAll(/\b(?:ac|armor class) (?:bonus |penalty )?(?:of )?([+-]\s*\d+)/g) ) add("ac", Number(m[1].replace(/\s+/g, "")));
+  for ( const m of t.matchAll(re.ac) ) add("ac", Number(got(m, "n").replace(/\s+/g, "")));
   return mods;
 }
 
@@ -194,15 +273,17 @@ export function modsIn(text) {
 export function outcomeIn(text, { casterLevel = 0, defaultRounds = 1 } = {}) {
   const t = plain(text).toLowerCase();
   if ( !t ) return null;
+  const { conditions: words, outcome: re } = R();
   const conditions = {};
   const labels = [];
   let slay = false;
   let extra = {};
   for ( const c of CONDITIONS ) {
-    if ( !c.re.test(t) ) continue;
+    const said = words[c.id];
+    if ( !said.test(t) ) continue;
     // "If ... it dies" or "unless ...": only when it's said plainly.
     if ( c.slay ) {
-      const plainly = sentences(text).some(s => c.re.test(s) && !/\bif\b|\bunless\b|\bsave\b|\bmay\b|\bchance\b/.test(s));
+      const plainly = sentences(text).some(s => said.test(s) && !re.notPlainly.test(s));
       if ( plainly ) slay = true;
       continue;
     }
@@ -251,8 +332,9 @@ export function tableRow({ range, text }, { fumble = false } = {}) {
   const lower = words.toLowerCase();
   const row = { lo: Number(range?.[0] ?? -Infinity), hi: Number(range?.[1] ?? Infinity), text: words };
   if ( fumble ) {
-    const self = /\byou\b|\byour\b|\bhim(?:self)?\b|\bthe character\b|\bthe attacker\b/.test(lower);
-    const hurtsSelf = /\b(?:you|yourself|the attacker|the character) (?:\w+ ){0,3}(?:take|takes|suffer|suffers|hit|hits|strike|strikes)\b[^.]*\bdamage\b/.test(lower) && !/\ball(?:y|ies)\b/.test(lower);
+    const re = R().fumble;
+    const self = re.self.test(lower);
+    const hurtsSelf = re.hurtsSelf.test(lower) && !re.allies.test(lower);
     if ( hurtsSelf ) row.damage = damageIn(words);
     if ( self ) row.outcome = outcomeIn(words);
     if ( row.outcome?.slay ) delete row.outcome.slay;
@@ -275,8 +357,6 @@ export function tableRow({ range, text }, { fumble = false } = {}) {
 /*  Spell check results                         */
 /* -------------------------------------------- */
 
-const FAILURE = /^\s*(?:lost|failure|fails?|the spell fails|no effect)\b/i;
-
 /**
  * One spell check result in the engine's terms: what it does at that total. {fail} for a failure row.
  *   {damage, repeat, heal, healDice, outcome (on its targets), buff (bonuses for the caster's side), save, auto,
@@ -287,32 +367,33 @@ const FAILURE = /^\s*(?:lost|failure|fails?|the spell fails|no effect)\b/i;
 export function spellResult(text, { casterLevel = 0, save = "" } = {}) {
   const words = plain(text);
   const lower = words.toLowerCase();
-  if ( !words || FAILURE.test(words) ) return { fail: true };
+  const { spell: re, numbers } = R();
+  if ( !words || re.failure.test(words) ) return { fail: true };
   const out = {};
   const spellSave = saveIn(save);
   // Missiles, bolts, rays: so many of so much each.
-  const count = lower.match(new RegExp(`\\b(?:throws?|fires?|launch(?:es)?|creates?|hurls?|shoots?|conjures?)\\s+${DICE}\\s+(?:magic(?:al)?\\s+)?(?:missiles?|bolts?|rays?|darts?|arrows?|beams?|projectiles?|orbs?)`));
+  const count = lower.match(re.count);
   const damage = damageIn(words, { casterLevel });
   if ( damage.length ) {
     out.damage = damage;
     if ( count ) {
-      const n = dicePart(count[1]);
+      const n = dicePart(got(count, "dice"));
       if ( n && meanPart(n) > 1 ) out.repeat = n;
     }
   }
-  const healing = lower.match(new RegExp(`\\b(?:heals?|restores?|cures?|regains?)\\s+(?:\\w+ ){0,3}?${DICE}${LEVEL}\\s+(?:hit points?|hp|points? of damage|damage)`));
+  const healing = lower.match(re.heals);
   if ( healing ) {
-    const p = dicePart(healing[1], "healing");
+    const p = dicePart(got(healing, "dice"), "healing");
     if ( p ) {
-      if ( healing[2] ) p.flat += casterLevel;
+      if ( got(healing, "level") ) p.flat += casterLevel;
       out.heal = [p];
     }
   }
-  const dice = lower.match(/\b(?:heals?|restores?)\s+(\w+|\d+)\s+(?:hit )?(?:dice|die|hd)\b/);
-  if ( dice ) out.healDice = NUMBER_WORDS[dice[1]] ?? (Number(dice[1]) || 1);
+  const dice = lower.match(re.healDice);
+  if ( dice ) out.healDice = numbers[got(dice, "n")] ?? (Number(got(dice, "n")) || 1);
   const effect = outcomeIn(words, { casterLevel, defaultRounds: 1 });
   // Bonuses that help the caster's side (Blessing, Enlarge) rather than hinder its foes.
-  const helps = effect?.mods && !effect.conditions && Object.values(effect.mods).every(v => v > 0) && !/\bpenalty\b/.test(lower);
+  const helps = effect?.mods && !effect.conditions && Object.values(effect.mods).every(v => v > 0) && !re.penalty.test(lower);
   if ( helps ) out.buff = { mods: effect.mods, rounds: roundsIn(words, { casterLevel }) ?? 10, label: effect.label };
   else if ( effect ) out.outcome = effect;
   const s = saveIn(words, spellSave?.type ?? null);
@@ -327,32 +408,17 @@ export function spellResult(text, { casterLevel = 0, save = "" } = {}) {
 /*  Mending                                     */
 /* -------------------------------------------- */
 
-/** "Per round": "per round", "/round", "each round", "at the end of each round", "every turn". */
-const EACH_ROUND = "\\s*(?:\\/\\s*|per\\s+|each\\s+|every\\s+|a\\s+|at the (?:end|start|beginning) of (?:each|every|the)\\s+)(?:round|turn)";
-const HP = "\\s*(?:hp|hit points?|points?(?: of damage)?)?";
-/**
- * What stops a regeneration: the kinds of harm a phrase names, before "from which it does not regenerate" or "stops its
- * regeneration" (before: true), or after "does not regenerate from", "except", "prevented by".
- */
-const STOPS = [
-  { re: /\b(?:does not|doesn't|cannot|can't|won't|will not|never)\s+regenerate\s+(?:damage\s+|hit points\s+)?(?:from|dealt by|caused by|done by|inflicted by)\s+([a-z ,'-]+)/g },
-  { re: /([a-z ,'-]+?)\s*,?\s*(?:from|against)\s+which\s+it\s+(?:does not|doesn't|cannot|can't|won't|will not|never)\s+regenerate/g, before: true },
-  { re: /([a-z ,'-]+?)\s+(?:damage\s+)?(?:stops?|prevents?|halts?|suppress(?:es)?|negates?|blocks?)\s+(?:its\s+|the\s+|this\s+)?regenerat/g, before: true },
-  { re: /\bregenerat\w*\b[^.;]*?\b(?:except|but not|save for|other than|not)\s+(?:against\s+|from\s+|by\s+)?([a-z ,'-]+)/g },
-  { re: /\bregenerat\w*\b[^.;]*?\b(?:stopped|prevented|halted|suppressed|negated|blocked)\s+(?:only\s+)?by\s+([a-z ,'-]+)/g }
-];
 /**
  * The most of a sentence (up to a full stop or semicolon) these are read in: well past any of the books'. Read a
  * sentence at a time, they cost little however long the text; a longer "sentence" isn't one of theirs, and isn't read.
  */
 const SENTENCE_MOST = 2000;
 
-/** Words that go with a list of kinds of harm ("fire or acid damage"). */
-const KIND_JOINERS = new Set(["and", "or", "damage", "attacks", "magical", "by"]);
-/** Is this part of a phrase only kinds of harm ("acid or cold")? */
+/** Is this part of a phrase only kinds of harm ("acid or cold"), or words that go with them ("fire or acid damage")? */
 const onlyKinds = part => {
-  const words = part.split(/[^a-z]+/).filter(Boolean);
-  return words.length > 0 && words.every(w => TYPES[w] || KIND_JOINERS.has(w));
+  const { wordBreak, damageTypes, kindJoiners } = R();
+  const words = part.split(wordBreak).filter(Boolean);
+  return words.length > 0 && words.every(w => damageTypes[w] || kindJoiners.has(w));
 };
 /**
  * The kinds of harm a phrase names, as far as it speaks of them: the part beside the words that say they stop it (the
@@ -367,41 +433,43 @@ function kindsNamed(phrase, before) {
     if ( !onlyKinds(p) ) break;
     near.push(p);
   }
-  return near.join(" ").split(/[^a-z]+/).map(w => TYPES[w]).filter(Boolean);
+  const { wordBreak, damageTypes } = R();
+  return near.join(" ").split(wordBreak).map(w => damageTypes[w]).filter(Boolean);
 }
 
 /**
  * What a creature's words say it mends of itself each round: regeneration ("regenerates 1d6 hp per round",
  * "regenerating 1d8 points of damage at the end of each round, including the round it is killed"; what it doesn't
- * regenerate from, fire or acid, stops it) and plain healing ("heal 2 hp per round", "heal 1 hp/round"). Regeneration
- * that goes on the round it's killed is a last burst (burst: rules.js onDropped). Its name with no amount
- * ("regeneration", a troll's stat line: the book says how much) is only named.
+ * regenerate from, fire or acid, stops it: the reading's "regenStops") and plain healing ("heal 2 hp per round", "heal
+ * 1 hp/round"). Regeneration that goes on the round it's killed is a last burst (burst: rules.js onDropped). Its name
+ * with no amount ("regeneration", a troll's stat line: the book says how much) is only named.
  * @returns {{regen: {amount, dice, stoppedBy, burst}|null, fastHealing: number|null, named: boolean}}
  */
 export function mendingIn(text) {
   const t = plain(text).toLowerCase();
+  const { mending: re, regenStops } = R();
   const out = { regen: null, fastHealing: null, named: false };
-  if ( !/\bregenerat|\bheals?\b|\bregains?\b/.test(t) ) return out;
-  const each = new RegExp(`\\bregenerat\\w*\\s*\\(?\\s*(?:at (?:a|the) rate of\\s+)?${DICE}${HP}${EACH_ROUND}`).exec(t);
-  const heals = new RegExp(`\\b(?:heals?|regains?)\\s+(?:(?:damage\\s+)?at (?:a|the) rate of\\s+)?${DICE}${HP}${EACH_ROUND}`).exec(t);
+  if ( !re.any.test(t) ) return out;
+  const each = re.regenerates.exec(t);
+  const heals = re.heals.exec(t);
   if ( heals ) {
-    const p = dicePart(heals[1]);
+    const p = dicePart(got(heals, "dice"));
     if ( p ) out.fastHealing = Math.max(1, Math.round(meanPart(p)));
   }
   if ( each ) {
-    const dice = dicePart(each[1]);
+    const dice = dicePart(got(each, "dice"));
     if ( dice ) {
       // (Sentence by sentence, those that speak of it: none of these crosses a full stop or a semicolon.)
-      const said = t.split(/[.;]/).filter(x => x.length <= SENTENCE_MOST && x.includes("regenerat"));
+      const said = t.split(/[.;]/).filter(x => x.length <= SENTENCE_MOST && re.sentence.test(x));
       const stoppedBy = new Set();
-      for ( const { re, before } of STOPS ) for ( const x of said ) for ( const m of x.matchAll(re) ) for ( const k of kindsNamed(m[1], before) ) stoppedBy.add(k);
+      for ( const { re: stop, before } of regenStops ) for ( const x of said ) for ( const m of x.matchAll(stop) ) for ( const k of kindsNamed(got(m, "what") ?? "", before) ) stoppedBy.add(k);
       // (It regenerates even the round it's killed: a last burst that may lift it again.)
-      const burst = said.some(x => /\bregenerat[^.;]*\b(?:including|even)\b[^.;]*\b(?:killed|slain|dies|death|dead)\b/.test(x));
+      const burst = said.some(x => re.burst.test(x));
       out.regen = { amount: Math.max(1, Math.round(meanPart(dice))), dice, stoppedBy: [...stoppedBy], burst };
     }
   }
   // ("Regeneration of heads": not of its hit points.)
-  out.named = !out.regen && /\bregenerat(?:ion|es|ing)\b(?!\s+(?:of|its)\s+(?!hit|hp|damage|wounds))/.test(t);
+  out.named = !out.regen && re.named.test(t);
   return out;
 }
 
@@ -409,12 +477,7 @@ export function mendingIn(text) {
 /*  Stat lines                                  */
 /* -------------------------------------------- */
 
-const IMMUNITIES = {
-  cold: ["cold"], fire: ["fire"], acid: ["acid"], electricity: ["electricity"], lightning: ["electricity"], poison: ["poison", "poisoned"], disease: ["disease"],
-  charm: ["controlled", "charm"], "mind-affecting": ["controlled", "frightened", "charm", "mental"], "mind-altering": ["controlled", "frightened", "charm", "mental"], mental: ["controlled", "frightened", "mental"],
-  sleep: ["asleep", "sleep"], paralysis: ["paralyzed", "paralysis"], fear: ["frightened", "fear"], "critical hits": ["crits"], crits: ["crits"]
-};
-/** What un-dead (and the mindless) shrug off. */
+/** What un-dead (and the mindless) shrug off: the engine's tags, not words. */
 const UNDEAD = ["asleep", "sleep", "controlled", "charm", "paralyzed", "paralysis", "frightened", "fear", "mental"];
 
 /**
@@ -428,49 +491,55 @@ const UNDEAD = ["asleep", "sleep", "controlled", "charm", "paralyzed", "paralysi
 export function statLine(text) {
   const t = plain(text);
   const lower = t.toLowerCase();
+  const { statLine: re, immunities, materials, movement, attacksAnyCase } = R();
   const out = { immune: [], attacks: [] };
   const special = lower; // (specials belong after "SP", but some stat lines put them elsewhere)
-  for ( const m of special.matchAll(/\bimmun\w*\s+(?:to\s+)?(?:damage from\s+)?([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) {
-    for ( const word of m[1].split(/,|\band\b|\bor\b/).map(w => w.trim().replace(/\s*(?:effects?|spells?|damage|attacks?)$/, "")) ) {
-      for ( const [k, v] of Object.entries(IMMUNITIES) ) if ( word === k || word.startsWith(k) ) out.immune.push(...v);
-      if ( word.startsWith("fear") ) out.fearless = true;
+  for ( const m of special.matchAll(re.immune) ) {
+    for ( const word of (got(m, "what") ?? "").split(re.listSplit).map(w => w.trim().replace(re.trailing, "")) ) {
+      for ( const [k, v] of Object.entries(immunities) ) if ( word === k || word.startsWith(k) ) out.immune.push(...v);
+      if ( re.fear.test(word) ) out.fearless = true;
     }
   }
-  if ( /\bconstruct (?:traits|qualities|characteristics)\b/.test(special) ) out.construct = true;
-  if ( /\bpack tactics\b/.test(special) ) out.pack = true;
-  const atkText = lower.match(/\batk\b\s*([^;]*)/)?.[1] ?? "";
-  if ( /\bspellcasting\b|\bspell ?check\b|\bharmful spells?\b|\b(?:druidical|media) magic\b/.test(special) || /^\s*spells?\s+or\b/.test(atkText) ) out.spellcasting = true;
-  if ( /\bun-?dead\b|\bundead traits\b/.test(special) ) {
+  if ( re.construct.test(special) ) out.construct = true;
+  if ( re.pack.test(special) ) out.pack = true;
+  const atkText = got(lower.match(re.attacks), "what") ?? "";
+  if ( re.spellcasting.test(special) || re.spellsAttack.test(atkText) ) out.spellcasting = true;
+  if ( re.undead.test(special) ) {
     out.undead = true;
     out.immune.push(...UNDEAD);
   }
-  if ( /\b(?:demon|devil)(?:s|ic|ish)?\b/.test(special) ) out.unholy = true;
+  if ( re.unholy.test(special) ) out.unholy = true;
   // Harmed only by magic (or silver): immune to weapons that aren't ("immune to non-magical weapons"), or taking half
   // from them ("resistant to non-magical weapons"): {magic, materials, half}.
-  const magicOnly = special.match(/\b(immun\w*|resist\w*|half damage)\s+(?:to\s+|from\s+)?non-?magical\b/);
-  const harmedOnly = special.match(/\bharmed only by ([a-z ,]+?)(?:weapons|attacks)\b|\bonly ([a-z ,]+?) weapons (?:can )?(?:harm|hurt|damage)\b/);
+  const magicOnly = special.match(re.magicOnly);
+  const harmedOnly = special.match(re.harmedOnly);
   if ( magicOnly || harmedOnly ) {
-    const words = harmedOnly ? (harmedOnly[1] ?? harmedOnly[2]) : "magic";
-    out.harmedOnlyBy = { magic: /\bmagic/.test(words), materials: ["silver", "iron"].filter(m => words.includes(m)), half: !!magicOnly && !/^immun/.test(magicOnly[1]) };
+    // (Only by what it names; else by magic.)
+    const by = harmedOnly ? got(harmedOnly, "what") ?? "" : null;
+    out.harmedOnlyBy = {
+      magic: by === null || re.magic.test(by),
+      materials: by === null ? [] : materials.filter(([, p]) => p.test(by)).map(([tag]) => tag),
+      half: !!magicOnly && !re.magicOnlyImmune.test(got(magicOnly, "how"))
+    };
   }
-  const reduction = special.match(/\bdamage reduction\s*(\d+)/);
-  if ( reduction ) out.reduction = Number(reduction[1]);
+  const reduction = special.match(re.reduction);
+  if ( reduction ) out.reduction = Number(got(reduction, "n"));
   // Half damage from some kinds of harm ("half damage from piercing and slashing weapons"); double from others.
   out.resist = [];
-  for ( const m of special.matchAll(/\bhalf damage from\s+([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) out.resist.push(...harmKinds(m[1]));
+  for ( const m of special.matchAll(re.halfFrom) ) out.resist.push(...harmKinds(got(m, "what")));
   out.weak = [];
-  for ( const m of special.matchAll(/\b(?:double damage from|vulnerab\w*\s+(?:to\s+)?)\s*([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) out.weak.push(...harmKinds(m[1]));
-  const crit = special.match(/\bcrits? (?:on|at)\s+(?:a\s+)?(?:natural\s+)?(\d+)(?:\s*[-–+]|\s+or (?:better|higher)|\+)/);
-  if ( crit ) out.critNatural = Number(crit[1]);
-  const infra = special.match(/\b(?:infravision|darkvision|(?:perfect )?night ?vision|true ?sight|see in (?:the )?dark(?:ness)?)\s*(\d+)?/);
-  if ( infra ) out.infravision = Number(infra[1]) || 60;
-  const mv = lower.match(/\bmv\b\s*([^;]*)/)?.[1] ?? "";
-  for ( const mode of ["fly", "swim", "climb", "burrow"] ) {
-    const m = mv.match(new RegExp(`${mode}\\w*\\s*(\\d+)`)) ?? mv.match(new RegExp(`(\\d+)'?\\s*${mode}`));
-    if ( m ) out[mode] = Number(m[1]);
+  for ( const m of special.matchAll(re.doubleFrom) ) out.weak.push(...harmKinds(got(m, "what")));
+  const crit = special.match(re.crit);
+  if ( crit ) out.critNatural = Number(got(crit, "n"));
+  const infra = special.match(re.infravision);
+  if ( infra ) out.infravision = Number(got(infra, "feet")) || 60;
+  const mv = got(lower.match(re.movement), "what") ?? "";
+  for ( const [mode, after, before] of movement ) {
+    const m = mv.match(after) ?? mv.match(before);
+    if ( m ) out[mode] = Number(got(m, "feet"));
   }
-  const check = special.match(/\bspell ?check\s*([+-]\s*\d+)/);
-  if ( check ) out.spellCheck = Number(check[1].replace(/\s+/g, ""));
+  const check = special.match(re.spellCheck);
+  if ( check ) out.spellCheck = Number(got(check, "n").replace(/\s+/g, ""));
   // Mending of its own: regeneration ("regenerates 1d6 hp per round"), healing each round ("heal 2 hp per round"), or
   // its regeneration only named.
   const mending = mendingIn(t);
@@ -478,16 +547,16 @@ export function statLine(text) {
   out.fastHealing = mending.fastHealing;
   out.regenNamed = mending.named;
   // Attacks: "claw +3 melee (1d4)" and "bite +5 melee (dmg 1d8 plus poison)", joined by "or".
-  const atk = t.match(/\bAtk\b\s*([^;]*)/i)?.[1] ?? "";
-  for ( const m of atk.matchAll(/([a-z][a-z' -]*?)\s+([+-]\s*\d+)\s+(melee|missile fire|missile|ranged)\s*(?:\(([^)]*)\))?/gi) ) {
-    const inside = String(m[4] ?? "");
+  const atk = got(t.match(attacksAnyCase), "what") ?? "";
+  for ( const m of atk.matchAll(re.attack) ) {
+    const inside = String(got(m, "rider") ?? "");
     const formula = inside.match(/(\d*d\d+(?:\s*[+-]\s*\d+(?!\s*d))?|\b\d+\b)/)?.[1] ?? null;
     out.attacks.push({
-      name: m[1].replace(/^(?:spells? or |or )/i, "").trim(),
-      bonus: Number(m[2].replace(/\s+/g, "")),
-      melee: /^melee$/i.test(m[3]),
+      name: got(m, "name").replace(re.attackLead, "").trim(),
+      bonus: Number(got(m, "bonus").replace(/\s+/g, "")),
+      melee: re.melee.test(got(m, "kind")),
       damage: formula,
-      rider: inside.replace(formula ?? "", "").replace(/^\s*(?:dmg\s*)?/i, "").replace(/^\s*plus\s+/i, "").trim() || null
+      rider: inside.replace(formula ?? "", "").replace(re.riderLead, "").replace(re.riderPlus, "").trim() || null
     });
   }
   // What its specials add to how it fights: saves it's better (or worse) at, auras that make foes save, and what follows
@@ -495,18 +564,18 @@ export function statLine(text) {
   out.saveVs = saveVsIn(special);
   out.auras = aurasIn(t);
   out.followUps = followUpsIn(special);
-  if ( /\bnever surprised\b|\bcan(?:not|'t) be surprised\b/.test(special) ) out.neverSurprised = true;
-  const hide = special.match(/([+-]\s*\d+)\s*(?:bonus\s*)?(?:to|on)\s*(?:hide|hiding|stealth|sneak\w*|move silently)/);
-  if ( hide ) out.stealth = Number(hide[1].replace(/\s+/g, ""));
+  if ( re.neverSurprised.test(special) ) out.neverSurprised = true;
+  const hide = special.match(re.hide);
+  if ( hide ) out.stealth = Number(got(hide, "n").replace(/\s+/g, ""));
   out.immune = [...new Set(out.immune)];
   return out;
 }
 
-/** The tags of what a "saves vs X" names, as the core's saveVs reads them (its traits and the engine's own). */
+/** The tags of what a "saves vs X" names (its words, the reading's "saveVs"), as the core's saveVs reads them. */
 const SAVE_VS = [
-  [/\bmagic(?:al)?\b|\bspells?\b/, ["magical"]], [/\bpoison/, ["poison"]], [/\bdisease/, ["disease"]],
-  [/\bfear\b|\bfright/, ["inflicts:frightened"]], [/\bcharm|\bmind/, ["inflicts:controlled"]], [/\bsleep/, ["inflicts:asleep"]],
-  [/\bparaly/, ["inflicts:paralyzed"]], [/\bpetrif/, ["petrification"]], [/\bbreath/, ["breath"]], [/\btraps?\b/, ["trap"]]
+  ["magical", ["magical"]], ["poison", ["poison"]], ["disease", ["disease"]],
+  ["frightened", ["inflicts:frightened"]], ["controlled", ["inflicts:controlled"]], ["asleep", ["inflicts:asleep"]],
+  ["paralyzed", ["inflicts:paralyzed"]], ["petrification", ["petrification"]], ["breath", ["breath"]], ["trap", ["trap"]]
 ];
 
 /**
@@ -516,11 +585,13 @@ const SAVE_VS = [
 export function saveVsIn(text) {
   const out = [];
   const t = plain(text).toLowerCase();
-  for ( const m of t.matchAll(/([+-]\s*\d+)\s*(?:bonus\s*)?(?:to|on)\s*(?:all\s+)?((?:fort(?:itude)?|ref(?:lex)?|will)\s+)?sav(?:es|ing throws?)\s*(?:vs\.?|versus|against)\s*([a-z ,'-]+)/g) ) {
-    const vs = SAVE_VS.filter(([re]) => re.test(m[3])).flatMap(([, tags]) => tags);
+  const { saveVs: words, statLine: re } = R();
+  for ( const m of t.matchAll(re.savesAgainst) ) {
+    const what = got(m, "what") ?? "";
+    const vs = SAVE_VS.filter(([id]) => words[id].test(what)).flatMap(([, tags]) => tags);
     if ( !vs.length ) continue;
-    const save = m[2]?.trim();
-    out.push({ bonus: Number(m[1].replace(/\s+/g, "")), vs, ...(save ? { saves: [SAVES[save.startsWith("fort") ? "fort" : save.startsWith("ref") ? "ref" : "will"]] } : {}) });
+    const save = got(m, "save");
+    out.push({ bonus: Number(got(m, "n").replace(/\s+/g, "")), vs, ...(save ? { saves: [saveOf(save)] } : {}) });
   }
   return out;
 }
@@ -535,13 +606,14 @@ const clausesOf = text => plain(text).split(/[;,](?![^(]*\))/).map(c => c.trim()
  */
 export function aurasIn(text) {
   const out = [];
+  const { auras: re, save: saves } = R();
   for ( const clause of clausesOf(text) ) {
     const t = clause.toLowerCase();
-    if ( !/\b(?:aura|stench|stink\w*|presence|gaze|song|wail\w*|cloud)\b/.test(t) ) continue;
+    if ( !re.named.test(t) ) continue;
     const save = saveIn(t);
-    const outcome = outcomeIn(t.replace(/\bdc \d+\b/, ""));
+    const outcome = outcomeIn(t.replace(saves.dc, ""));
     if ( !save?.dc || !outcome ) continue;
-    const range = Number(t.match(/(\d+)\s*(?:'|ft|feet)/)?.[1]) || 30;
+    const range = Number(got(t.match(re.range), "feet")) || 30;
     out.push({ label: clause.replace(/\s*\(.*$/, "").trim(), range, save: { type: save.type, dc: save.dc }, outcome });
   }
   return out;
@@ -554,16 +626,19 @@ export function aurasIn(text) {
  */
 export function followUpsIn(text) {
   const out = [];
+  const { followUps: re, numbers, rendCounts } = R();
   const dice = s => s.match(/(\d*d\d+(?:\s*[+-]\s*\d+(?!\s*d))?)/)?.[1]?.replace(/\s+/g, "") ?? null;
   for ( const clause of clausesOf(text).map(c => c.toLowerCase()) ) {
     const formula = dice(clause);
     if ( !formula ) continue;
-    if ( /\brend|\btear\b/.test(clause) ) {
-      const many = clause.match(/\bif\s+(?:more than\s+)?(both|two|three|\d+)\s+([a-z]+?)s?\s+(?:attacks?\s+)?hit/);
-      let n = many ? (many[1] === "both" ? 2 : NUMBER_WORDS[many[1]] ?? Number(many[1])) : 2;
-      if ( /\bmore than\b/.test(clause) ) n += 1;
-      out.push({ kind: "rend", damage: formula, n: Math.max(2, n || 2), with: many?.[2] && many[2] !== "attack" ? many[2] : null });
-    } else if ( /\bconstrict|\bhug\b|\bcrush|\bsqueez/.test(clause) ) out.push({ kind: "hold", damage: formula });
+    if ( re.rend.test(clause) ) {
+      const many = clause.match(re.hits);
+      const count = got(many, "n");
+      let n = many ? (rendCounts[count] ?? numbers[count] ?? Number(count)) : 2;
+      if ( re.moreThan.test(clause) ) n += 1;
+      const by = got(many, "with");
+      out.push({ kind: "rend", damage: formula, n: Math.max(2, n || 2), with: by && !re.attack.test(by) ? by : null });
+    } else if ( re.hold.test(clause) ) out.push({ kind: "hold", damage: formula });
   }
   return out;
 }
@@ -580,22 +655,23 @@ export function followUpsIn(text) {
  */
 export function ridersIn(text) {
   const out = { effects: [], damage: [] };
-  const t = plain(text).toLowerCase().replace(/,?\s*range\s*[\d']+'?/g, "").trim();
+  const { riders: re, save: saves, riderTraits } = R();
+  const t = plain(text).toLowerCase().replace(re.range, "").trim();
   if ( !t ) return out;
-  if ( /\bgrab|\bgrapple|\bconstrict|\bhold\b/.test(t) ) out.effects.push({ kind: "grabbed" });
-  const extra = t.match(/^\+\s*(\d*d\d+(?:\s*[+-]\s*\d+(?!\s*d))?)\s*([a-z]+)?/);
-  if ( extra ) out.damage.push(parseFormula(extra[1].replace(/\s+/g, ""), typeIn(extra[2] ?? "") ?? "untyped"));
-  const perRound = t.match(/(\d*d\d+)\s*(?:dmg|damage|hp)?\s*(?:per|each|every)\s*round/);
-  if ( perRound ) out.damage.push({ ...parseFormula(perRound[1], typeIn(t) ?? "untyped"), persistent: true });
+  if ( re.grab.test(t) ) out.effects.push({ kind: "grabbed" });
+  const extra = t.match(re.extra);
+  if ( extra ) out.damage.push(parseFormula(got(extra, "dice").replace(/\s+/g, ""), typeIn(got(extra, "kind") ?? "") ?? "untyped"));
+  const perRound = t.match(re.perRound);
+  if ( perRound ) out.damage.push({ ...parseFormula(got(perRound, "dice"), typeIn(t) ?? "untyped"), persistent: true });
   const save = saveIn(t);
   if ( save?.dc ) {
-    const failure = t.slice(t.search(/\bdc \d+/));
-    const kinds = ["poison", "disease"].filter(k => t.includes(k));
+    const failure = t.slice(t.search(saves.dcStart));
+    const kinds = riderTraits.filter(([, p]) => p.test(t)).map(([tag]) => tag);
     const effect = { kind: "save", label: plain(text), save: { type: save.type, dc: save.dc }, ...(kinds.length ? { traits: kinds } : {}) };
-    if ( /\bor (?:\w+ )?death\b|\bor die\b|\bdies\b/.test(failure) ) effect.slay = true;
-    const hurt = failure.match(/\bor (?:take |an? )?(?:additional |extra )?(\d*d\d+(?:\s*[+-]\s*\d+(?!\s*d))?)\s*(?:damage|dmg|hp)\b/);
-    if ( hurt ) effect.damage = [parseFormula(hurt[1].replace(/\s+/g, ""), typeIn(failure) ?? "untyped")];
-    const outcome = outcomeIn(failure.replace(/\bdc \d+\b/, ""));
+    if ( re.death.test(failure) ) effect.slay = true;
+    const hurt = failure.match(re.hurt);
+    if ( hurt ) effect.damage = [parseFormula(got(hurt, "dice").replace(/\s+/g, ""), typeIn(failure) ?? "untyped")];
+    const outcome = outcomeIn(failure.replace(saves.dc, ""));
     if ( outcome?.conditions ) Object.assign(effect, { conditions: outcome.conditions, rounds: outcome.rounds });
     if ( effect.slay || effect.damage || effect.conditions ) out.effects.push(effect);
   }
@@ -642,12 +718,13 @@ export const critOnFor = (natural, faces = 20) => (natural ? 20 - (faces - natur
  * @param {string} entry     the entry's text (its HTML is fine)
  */
 export function entryRider(names, entry) {
-  const stems = [...new Set(names.flatMap(n => String(n ?? "").toLowerCase().split(/[^a-z]+/))
-    .filter(w => w.length >= 3 && !["plus", "and", "the", "with", "dmg", "damage", "see", "below"].includes(w))
+  const { wordBreak, entryStopWords, save: saves } = R();
+  const stems = [...new Set(names.flatMap(n => String(n ?? "").toLowerCase().split(wordBreak))
+    .filter(w => w.length >= 3 && !entryStopWords.has(w))
     .map(w => w.slice(0, Math.min(5, Math.max(3, w.length - 1)))))];
   if ( !stems.length || !entry ) return { effects: [], damage: [] };
   for ( const s of sentences(entry) ) {
-    if ( !/\bdc \d+/.test(s) || !stems.some(stem => s.includes(stem)) ) continue;
+    if ( !saves.dcStart.test(s) || !stems.some(stem => s.includes(stem)) ) continue;
     const read = ridersIn(s);
     if ( read.effects.some(e => e.kind === "save") ) return { effects: read.effects.filter(e => e.kind === "save"), damage: [] };
   }

@@ -93,6 +93,9 @@ async function readers(core) {
   process.env.FASTFIGHTING_CORE = core;
   const { fakeI18n } = await import(pathToFileURL(join(REPO, "tests", "foundry-i18n.js")).href);
   globalThis.game = { i18n: fakeI18n() };
+  // (The words the books are read by: reading/en.json, as the module loads it at startup.)
+  const { setReading } = await import(pathToFileURL(join(REPO, "scripts", "reading.js")).href);
+  setReading(JSON.parse(readFileSync(join(REPO, "reading", "en.json"), "utf8")));
   return import(pathToFileURL(join(REPO, "scripts", "text.js")).href);
 }
 
