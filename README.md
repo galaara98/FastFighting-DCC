@@ -128,6 +128,8 @@ The Messenger plays as a cleric (holy acts with disapproval, turning the unholy,
 - **Brawler:** unarmed, two attacks together on a d16 each (a crit on a natural 16; no fumble on one alone); armed, a free unarmed attack on a d14 once a round besides its own. Its attack bonus, Strength and Luck (when it helps) go on its to-hit and its unarmed damage die. No crits in armor too heavy (a check penalty of -4 or worse).
 - **Dungeon Hottie:** Not in the Face (a round spent defending: its bonus to AC until its next turn); Too Cute to Die (a failed body roll passes for a point of Luck, once a level; a live battle marks it used).
 - **Jammer:** Disrespect, a performance check (Personality, level and Luck) its foe saves against with Will (the DC the check's average), or takes the Jammer's penalty (a step down the dice chain, counted as -2) to attacks, checks and damage for level + Personality rounds.
+- **Jammer, too:** Lionize, a performance check (Personality, level and Luck) read on the XCC book's Lionization table: its bonuses for one friend within 60 feet, for the Jammer's level in rounds. Without the book, none.
+- **Half-Orc:** Wild Attack with a melee weapon: its crit range down to the Half-Orc's wild crit range, and its Luck modifier (when it helps) on the roll and the damage; every foe in reach gets a free attack as it swings, and FastFighting weighs that before choosing it.
 - **Gnome:** Draw Agro, the core's taunt: a check (Personality, level, and Luck when it helps) a foe within 60 feet saves against with Will, or spends its next turn going for the gnome or pays a step down the dice chain (two from 5th level) on its rolls against anyone else. Each attack it draws earns the gnome a point of Mojo.
 - **Athlete:** wrestling, a grapple for 1d4 + Strength, not with a shield in hand (the armor with no fumble die). Its training die rolls with it like a deed die, onto the roll and the damage; it has its own crit range (none in armor too heavy), and a hit grabs.
 - **Acrobat and Half-Elf:** acrobatics to get clear of a melee: half its move and a check, 15 to slip one foe, 20 for several; missed, the free attacks come.
@@ -201,7 +203,6 @@ It sets two of FastFighting's: **Max rounds** (4 to 12, 10 at first: DCC's fight
 - What the book's disarm rows do to claws and teeth.
 - The book's spell duel tables, with momentum and phlogiston disturbance (the checks are compared instead).
 - Bones broken in a fall (on a roll of 6).
-- The Jammer's Lionize (its table is the XCC book's) and the Half-Orc's Wild Attack.
 - Consumables in a fight.
 
 ## License

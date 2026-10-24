@@ -15,7 +15,7 @@ import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
 import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
-import { spellAction, layOnHandsAction, turnUnholyAction } from "./spells.js";
+import { spellAction, layOnHandsAction, turnUnholyAction, chanceBetween } from "./spells.js";
 import { deriveDccTraits, speaksCommon, monsterKind, animalisticOf, aptitudesOf } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
 import { commitDccChanges, deathClockOn, describeDccOutcome, conditionsOf, statusFor, statusName, sheetConditions, applyDccDamage, systemAppliesDamage } from "./commit.js";
@@ -162,6 +162,73 @@ export function disrespect(actor) {
   const disrespected = { mods: { attack: -penalty, checks: -penalty, damage: -penalty }, rounds: Math.max(1, level + per), label };
   return [{ id: `${actor.id}.disrespect`, name: xccWord("XCC.Jammer.Disrespect", "FFDCC.Disrespect"), kind: "control", cost: 1, range: { increment: 60 },
     disrespect: true, save: { type: "wil", dc: Math.round(10.5 + bonus) }, onSave: [disrespected, disrespected, null, null] }];
+}
+
+/**
+ * What a Lionization row lends ("+2 attack rolls, Willpower saves, Reflex saves, and skill checks; +1 spell checks or
+ * Holy Acts"): each part's bonus to all it names, as the engine's mods. Empty for "No effect", and for a botch that
+ * helps a foe (the judge's).
+ */
+export function lionizeMods(text) {
+  const mods = {};
+  for ( const part of plain(text).toLowerCase().split(";") ) {
+    const m = part.match(/([+-]\s*\d+)\s+(.*)/);
+    const n = m ? Number(m[1].replace(/\s+/g, "")) : 0;
+    if ( !(n > 0) ) continue;
+    const put = k => { mods[k] = Math.max(mods[k] ?? 0, n); };
+    if ( /\battack/.test(m[2]) ) put("attack");
+    if ( /\bsaves?\b/.test(m[2]) ) put("saves");
+    if ( /\bchecks?\b|\bholy acts?\b/.test(m[2]) ) put("checks");
+    if ( /\bac\b|\barmor class\b/.test(m[2]) ) put("ac");
+  }
+  return mods;
+}
+
+/**
+ * An XCC Jammer's Lionize: a performance check (Personality, level and Luck), read on the XCC book's Jammer
+ * Lionization table, lionizing one friend within 60 feet for the Jammer's level in rounds (XCC's own words: "lionize
+ * their ally"). None without the table: its bonuses are the book's.
+ */
+export function lionize(actor, rows) {
+  if ( !rows?.length ) return [];
+  const sys = actor.system;
+  const level = Number(sys.details?.level?.value) || 1;
+  const mod = (Number(sys.abilities?.per?.mod) || 0) + level + (Number(sys.abilities?.lck?.mod) || 0);
+  const label = xccWord("XCC.Status.Lionized", "FFDCC.Lionized");
+  const tiers = rows.map(r => ({ min: Math.max(Number(r.range?.[0] ?? -99), -99), max: Number(r.range?.[1] ?? Infinity), mods: lionizeMods(r.text) }))
+    .filter(r => Object.keys(r.mods).length)
+    .map(({ min, max, mods }) => ({ min, max, damage: [], heal: [], healDice: 0, onSave: null, outcome: { mods, rounds: level, label } }))
+    .sort((a, b) => a.min - b.min);
+  if ( !tiers.length ) return [];
+  const chances = tiers.map(x => chanceBetween(mod, 20, x.min, x.max));
+  const castChance = chances.reduce((s, p) => s + p, 0);
+  const { min, max, ...typical } = tiers[chances.indexOf(Math.max(...chances))];
+  return [{
+    id: `${actor.id}.lionize`, name: xccWord("XCC.Jammer.Lionize", "FFDCC.Lionize"), kind: "buff", cost: 1, range: { increment: 60 }, includeSelf: false,
+    ...typical, casting: { mod, faces: 20, label: xccWord("XCC.Jammer.PerformanceCheck", "FFDCC.PerformanceCheck") }, tiers, castChance
+  }];
+}
+
+/**
+ * An XCC Half-Orc's Wild Attack with a melee weapon (XCC's sheet: the weapon's crit range down to the Half-Orc's wild
+ * crit range, and its Luck modifier, where it helps, on the roll and the damage), laying it open to every foe in reach
+ * as it swings (XCC's note: "provokes enemy attack"; core API 29's provokes). The engine rolls it: the system has no
+ * card for it but the sheet's own button.
+ */
+export function wildAttacks(actor, actions, firstDie = 20) {
+  const sys = actor.system;
+  const luck = Math.max(0, Number(sys.abilities?.lck?.mod) || 0);
+  const wild = Number(sys.class?.wildCritRange) || 20;
+  const name = xccWord("XCC.HalfOrc.WildAttack", "FFDCC.WildAttack");
+  return actions.filter(a => a.kind === "strike" && a.melee && a.itemId).map(a => {
+    const item = actor.items.get?.(a.itemId);
+    const range = Math.min(wild, Number(item?.system?.critRange) || 20);
+    const extra = luck ? [part([], luck, a.damage[0]?.type ?? "untyped")] : [];
+    return {
+      ...a, id: `${a.id}.wild`, itemId: undefined, name: t("WithWeapon", { action: name, weapon: a.name }),
+      bonus: (Number(a.bonus) || 0) + luck, damage: [...a.damage, ...extra], critOn: critOnAt(range, a.die || firstDie), provokes: true, special: true
+    };
+  });
 }
 
 /** How badly a foe that fails to resist a Gnome's Draw Agro wants the gnome: past anything but an obsession of its own. */
@@ -754,6 +821,8 @@ export class DccAdapter extends SystemAdapter {
     if ( pc && kind.jammer ) actions.push(...own(disrespect(actor)));
     if ( pc && kind.gnome ) actions.push(...own(drawAgro(actor)));
     if ( pc && kind.athlete ) actions.push(...own(wrestling(actor, { firstDie, crit: await this.#crit(sys, null, luckMod) })));
+    if ( pc && kind.jammer ) actions.push(...own(lionize(actor, await this.#tables.lionize())));
+    if ( pc && kind.halfOrc ) actions.push(...wildAttacks(actor, actions, firstDie));
     if ( fists.length ) actions.splice(actions.indexOf(fists[0]), fists.length, ...own(fists));
     // What anyone can try besides a blow (moves.js): Help, Grapple (an Athlete wrestles instead), Hide.
     if ( pc ) {

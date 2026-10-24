@@ -230,6 +230,11 @@
     "GivenWaits": "{action} → {target} ({effect}): not applied, the table settles it.",
     "Rend": "Rend",
     "Constrict": "Constrict",
-    "DamageWord": "damage"
+    "DamageWord": "damage",
+    "Lionize": "Lionize",
+    "Lionized": "Lionized",
+    "PerformanceCheck": "Performance check",
+    "WildAttack": "Wild Attack",
+    "WithWeapon": "{action} with {weapon}"
   }
 }

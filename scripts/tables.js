@@ -167,6 +167,14 @@ export class DccTables {
     });
   }
 
+  /** XCC's Jammer Lionization table (the XCC book's), or null. */
+  lionize() {
+    return this.#once("lionize", async () => {
+      const table = await findTable(n => /\blioniz/i.test(n ?? ""), tablePacks());
+      return table ? rowsOf(table) : null;
+    });
+  }
+
   turnUnholy() {
     return this.#once("turnUnholy", async () => {
       const table = (await fromSetting(CONFIG.DCC?.turnUnholyTable)) ?? (await findTable(n => /^turn unholy$/i.test(n ?? ""), tablePacks()));

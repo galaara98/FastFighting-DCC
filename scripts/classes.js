@@ -50,6 +50,7 @@ export function archetype(id) {
     jammer: c === "jammer",
     gnome: c === "gnome",
     athlete: c === "athlete",
+    halfOrc: c === "half-orc",
     acrobat: c === "sp-acrobat" || c === "half-elf",
     dwarf: c === "dwarf" || c === "xcc-dwarf",
     elf: c === "elf",
