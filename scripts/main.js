@@ -4,7 +4,6 @@
  * through the core's public API.
  */
 import { DccAdapter } from "./adapter.js";
-import { moveLoreBoost } from "./lore-move.js";
 import { hideApplyMenu } from "./cards.js";
 import { registerTiedStopsSpells } from "./tied.js";
 import { loadReading } from "./reading.js";
@@ -58,7 +57,6 @@ Hooks.once("fastFighting.init", api => {
 
 Hooks.once("ready", () => {
   if ( untested !== null && game.user.isGM ) ui.notifications.warn(game.i18n.format("FFDCC.CoreUntested", { major: untested }));
-  moveLoreBoost();
   if ( !game.modules.get("fast-fighting")?.active && game.user.isGM ) {
     ui.notifications.warn(game.i18n.localize("FFDCC.NeedsCore"));
   }

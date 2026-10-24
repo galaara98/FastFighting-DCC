@@ -7,7 +7,7 @@ How this helper plugs into FastFighting Core, what it hands the core, and how to
 `scripts/main.js`:
 - **`init`:** registers the world setting `tiedStopsSpells` (tied.js, Boolean, default on), and starts reading `reading/en.json` (reading.js `loadReading`; `toCombatantSpec` waits for it).
 - **`fastFighting.init`:** stays inactive outside a `dcc` world (module.json already limits it to one). Checks the core's API version (below), then `api.registerAdapter("dcc", DccAdapter, { priority: 10, source: MODULE_ID })`, `api.adviseTranslation(MODULE_ID, game.system.title, KNOWN_TRANSLATIONS)` (no translation module known yet) and `api.keepEnglish(MODULE_ID)` (hardcoded-toEN.json).
-- **`ready`:** warns the GM (`FFDCC.NeedsCore`) when the core isn't active, and moves a value set on this module's old `loreBoost` setting to the core's (lore-move.js; temporary, until 0.10.0: tests/temporary/lore-move.test.js).
+- **`ready`:** warns the GM (`FFDCC.NeedsCore`) when the core isn't active.
 
 **The API gate.** The core's API version is `major.bug` (`api.version` "28.0", `api.major` 28, `api.bug` 0). The helper decides compatibility; the core never refuses it. `KNOWN_API` in main.js lists the API majors this helper is known to work with, currently `[24, 25, 26, 27, 28, 29, 30]`. Below the oldest major listed, it doesn't register and tells the GM the core is too old (`FFDCC.CoreTooOld`). On any other major it isn't known to work with, it registers and warns the GM once that it hasn't been tried with that core (`FFDCC.CoreUntested`). When a new core major arrives, test the helper with it and add the major to `KNOWN_API`.
 
@@ -58,7 +58,6 @@ When new work needs something the core can't handle in a close-enough way with w
 | `leadership.js` | `rankDccLeaders`: Personality, a title (`FFDCC.Words.Title`), a cleric, level or Hit Dice. |
 | `moves.js` | Help, Grapple and Hide actions; weak spots from a stat line's resistances. |
 | `tied.js` | The module's setting. |
-| `lore-move.js` | Temporary: the old Lore-Collector setting's value moved to the core's. |
 | `statuses.js` | The dcc system's statuses as the engine's conditions (`SHEET_STATUSES`), and `leftBehind`. Pure. |
 | `words.js` | `t(key)` for `FFDCC.*`, `conditionName`, the word lists (`wordList`, `saysWord`, over the core's), and `harmOf` (a weapon's damage kinds, by its formula and name). |
 
