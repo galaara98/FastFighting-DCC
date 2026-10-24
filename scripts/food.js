@@ -70,7 +70,8 @@ export function dccCorpseKind(actor, spec = null) {
 export function dccMeatFor(actor, spec = null) {
   const kind = dccCorpseKind(actor, spec);
   if ( !kind ) return null;
-  const size = Number(spec?.position?.size) || Number(actor.token?.width ?? actor.prototypeToken?.width) || 1;
+  // (Squares across: its token's own, else the battle's, which counts feet, 5 a square.)
+  const size = Number(actor.token?.width) || (Number(spec?.position?.size) / 5) || Number(actor.prototypeToken?.width) || 1;
   const portions = kind === "fresh" ? meatBySize(size) : 0;
   const { key, img } = CORPSES[kind];
   return {

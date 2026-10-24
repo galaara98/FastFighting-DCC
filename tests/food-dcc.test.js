@@ -48,7 +48,10 @@ describe("what a body leaves", () => {
   test("a Fresh Corpse: one item, its portions by its size, food; none from a body of no flesh", () => {
     expect(dccMeatFor(creature({ name: "Rat", width: 0.5 })).quantity).toBe(1);
     expect(dccMeatFor(creature({ name: "Ogre", width: 2 })).quantity).toBe(8);
-    expect(dccMeatFor(creature(), { position: { size: 3 } }).quantity).toBe(16);
+    // (The battle's size counts feet: 15 feet across, three squares.)
+    expect(dccMeatFor(creature(), { position: { size: 15 } }).quantity).toBe(16);
+    expect(dccMeatFor(creature(), { position: { size: 5 } }).quantity).toBe(4);
+    expect(dccMeatFor({ ...creature(), token: { width: 2 } }, { position: { size: 5 } }).quantity).toBe(8);
     expect(dccMeatFor(creature({ name: name("NoFlesh") }))).toBeNull();
     const meat = dccMeatFor(creature());
     expect(meat.item).toMatchObject({ type: "equipment", img: CORPSES.fresh.img, system: { quantity: 1 }, flags: { "fast-fighting": { corpse: "fresh", food: "meat", portions: 4 } } });
