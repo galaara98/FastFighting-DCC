@@ -144,7 +144,7 @@ Where the rules say nothing, the module keeps to DCC's own mechanics:
 - **Help:** a step up the dice chain, counted as +2 (as the Jammer's step down is -2), on a friend's next attack or check, at the foe beside the helper.
 - **Hide:** a thief's Hide in Shadows (a halfling's Sneak and Hide), anyone else's untrained check (a d10 and Agility), against the sharpest eyes among its foes, never with a foe beside it. Hidden, it's -4 to hit, and its next attack catches its foe unready (a thief's backstab); it stays hidden until it attacks.
 - **Binding a bleeding friend's wound** (only healing saves one in the rules): an action beside it, and the friend's own Luck decides, once, as rolling the body would. Made, it stops bleeding, still out, a point of Stamina gone for good.
-- **Subdual:** any blunt blow, bare hands, or a weapon the system marks as dealing subdual damage knocks a foe out instead of killing it.
+- **Subdual:** any blunt blow, bare hands, or a weapon the system marks as dealing subdual damage knocks a foe out instead of killing it. A monster knocked out lies unconscious at 0, not dead, until something hits it again.
 
 ## Playstyles in DCC
 

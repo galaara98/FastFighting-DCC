@@ -1185,8 +1185,10 @@ export class DccAdapter extends SystemAdapter {
     const sys = actor.system;
     const hp = sys.attributes?.hp ?? {};
     const value = Number(hp.value) || 0;
-    // (Monsters and anyone at 0-level die at 0: the spec's diesAtZero, a monster's.)
-    const dead = statusesOf(actor).has("dead") || (value <= 0 && actor.type !== "Player");
+    // (Monsters and anyone at 0-level die at 0: the spec's diesAtZero, a monster's. One subdued, knocked out by a blunt or
+    // subduing blow, lies unconscious at 0 as DCC has it, until something hits it again.)
+    const statuses = statusesOf(actor);
+    const dead = statuses.has("dead") || (value <= 0 && actor.type !== "Player" && !statuses.has("unconscious"));
     const resources = {};
     for ( const key of Object.keys(context.unit.resources) ) {
       const n = this.#resourceLeft(actor, key);
