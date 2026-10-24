@@ -16,6 +16,7 @@
  *     natural 20 or a fumble (rules.js afterRoll), written back with the turn.
  */
 import { attackOf, rollMarked } from "./read-turn.js";
+import { HELPER_ID } from "./cards.js";
 import { harmOf, harmNamed } from "./words.js";
 import { damageMultiple } from "./text.js";
 
@@ -131,6 +132,7 @@ export async function rollDccStrike(token, { action, target, secret = false } = 
     // (FastFighting deals this blow, and counts its Fleeting Luck: not the system's Auto-apply damage, nor its tracker.)
     const flags = data.flags ??= {};
     flags["dcc.damageApplied"] = true;
+    flags[`${HELPER_ID}.rolled`] = true;
     delete flags["dcc.FleetingLuckEffect"];
     if ( flags.dcc && typeof flags.dcc === "object" ) delete flags.dcc.FleetingLuckEffect;
     // (For the GMs only, as Foundry sets a GM roll's card.)

@@ -54,7 +54,7 @@ A rally follows the world's rally table: so much to friends' morale checks, and 
 
 ### Crits and fumbles: the core's outcomes
 
-A crit rolls the crit die plus Luck on the attacker's crit table, and the row becomes the core's outcomes: extra damage and a lasting effect (knocked down, stunned, blinded, disarmed, a penalty, sometimes death outright). A player character's Luck lessens a monster's crit against it. A player character's fumble rolls the fumble die (from its armor) on the fumble table.
+A crit rolls the crit die plus Luck (and any crit adjustment its effects give, such as the Warrior's Arm) on the attacker's crit table, and the row becomes the core's outcomes: extra damage and a lasting effect (knocked down, stunned, blinded, disarmed, a penalty, sometimes death outright). A player character's Luck lessens a monster's crit against it. A player character's fumble rolls the fumble die (from its armor) on the fumble table, less any fumble adjustment (the Broken Star). Crit ranges follow the system's **Strict critical hits** setting: off, a range keeps its number on a bigger die (20-24 on a d24).
 
 ### Conditions and position: the core's, with DCC's numbers
 
@@ -172,16 +172,20 @@ The first time FastFighting sets a character up by itself (see the [core's READM
 
 In a live battle, each turn's changes go onto the tokens as the turn is played:
 - hit points; death (and the combatant defeated); the fled hidden; a Surrendered effect on one that gave up;
-- Luck and spellburn spent (spellburn from Strength, then Stamina, then Agility, none below 3), and Fleeting Luck or Mojo as the fight left it (on the player, or the crawler);
+- Luck and spellburn spent (spellburn from Strength, then Stamina, then Agility, none below 3), and Fleeting Luck or Mojo as the fight left it (on the player, or the crawler). With the system's Ability Score Log on, each loss is logged as what it was (Luck spent, spellburn, bleeding out, rolling the body);
 - spells lost for the day, and a cleric's disapproval range;
 - the Stamina lost to bleeding out, or, for a body rolled after the fight and found alive, the ability lost, Groggy, and no longer dead (with the dcc system's Death Clock on, the system marks the dying, counts their rounds and scars the saved itself);
 - statuses put on or taken off, by the fight or by the GM in the Battle Vantage: Prone, Stunned, Paralyzed, Asleep, Unconscious, Blind, Deaf, Silenced, Frightened, Restrained (DCC's held), Invisible, Poisoned, and Disarmed (the dcc system's palette) or Slowed and Grappled (XCC's). Each turn the token's statuses are read back, so one the GM takes off is gone from the fight too. FastFighting keeps what DCC has no status for (turned, hidden, can't move, can't act on its own);
 - the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the Friendlies: Hostile);
-- what a creature hands over (or has stolen): coins, or things, as many as the deal says, set aside and out of any container.
+- what a creature hands over (or has stolen): coins, or things, as many as the deal says, set aside and out of any container;
+- XCC's Disrespected and Agro statuses on whoever a Jammer disrespects or a Gnome draws, off when they wear off;
+- in the chat, who got a buff no card names (a Help, a rallying deed), or, for one a player's character gave another while **Apply players' damage** is off, that the table settles it.
 
-A player's damage roll at a creature FastFighting runs is applied at once or put before the GM in the Battle Vantage. **Apply players' damage** is greyed out while the dcc system's Auto-apply damage to target is on, as the system applies it then.
+A player's damage roll at a creature FastFighting runs is applied at once or put before the GM in the Battle Vantage. Luck a player burns after the roll (from the card's menu) counts: a miss it lifts to the target's AC is a hit. The free attack at a foe withdrawing is a reaction each player sets to always, ask or never. **Apply players' damage** is greyed out while the dcc system's Auto-apply damage to target is on, as the system applies it then.
 
 Every attack FastFighting plays, a free attack too, is rolled from the sheet as the dcc system's own attack card, damage and crit included; FastFighting applies its damage, not the system, counting what the target's stat line says about immunity, half and double damage. Saves in the turns it plays are rolled from the sheet too, and so are the checks the system has a roll for: spell checks (with the spell's results card), Lay on Hands, Turn Unholy, Personality for words, a thief's Hide in Shadows and Pick Pockets, a halfling's Sneak and Hide, and an Acrobat's Acrobatics. FastFighting counts the spell lost, the disapproval and the Fleeting Luck, not the system. A spell's damage is rolled once for everyone it catches, as the system's Damage card (the number of missiles first); each target takes its share, halved by a save where the spell says so, its stat line counted the same way.
+
+Damage FastFighting rolls itself (a stray shot, a fall, a crit row's extra) shows as the system's Damage card. The chat menu's Apply Damage and Apply Healing are gone from every card FastFighting applies, so nothing is applied twice.
 
 Rewind takes one turn back; Rewind This Encounter, all of it.
 

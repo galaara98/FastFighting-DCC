@@ -5,6 +5,7 @@
  */
 import { DccAdapter } from "./adapter.js";
 import { moveLoreBoost } from "./lore-move.js";
+import { hideApplyMenu } from "./cards.js";
 import { registerTiedStopsSpells } from "./tied.js";
 
 export const MODULE_ID = "fast-fighting-dcc";
@@ -24,6 +25,9 @@ let untested = null;
  * module's settings recommend it when it isn't on (FastFighting Core's api.adviseTranslation). None known yet.
  */
 const KNOWN_TRANSLATIONS = {};
+
+// The damage cards FastFighting applies itself: no Apply Damage on them in the chat menu, which would apply them again (cards.js).
+Hooks.on("getChatMessageContextOptions", hideApplyMenu);
 
 Hooks.once("init", () => {
   // Whether a creature tied up can still cast (tied.js).

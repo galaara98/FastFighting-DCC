@@ -215,6 +215,10 @@
     },
     "DroppedGoods": "Dropped goods",
     "Meat": "Uncooked meat",
-    "MeatHint": "Meat from a fresh kill, raw. A hungry creature may well want it."
+    "MeatHint": "Meat from a fresh kill, raw. A hungry creature may well want it.",
+    "AbilityLogSource": "FastFighting",
+    "FreeAttack": "Free attack at a foe withdrawing",
+    "Given": "{action} → {target} ({effect})",
+    "GivenWaits": "{action} → {target} ({effect}): not applied, the table settles it."
   }
 }

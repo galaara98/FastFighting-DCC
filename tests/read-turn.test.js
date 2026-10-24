@@ -37,6 +37,21 @@ describe("a player's turn read from the dcc system's cards", () => {
     expect(e.damage).toBe(5);
   });
 
+  it("Luck burned after the roll: added to its total, a miss graded again at its target's AC; unsure where that can't be read", () => {
+    const miss = { ...card({ flags: { isToHit: true, hitsTarget: false, isMelee: true, targetUuid: "Scene.s.Token.tokB" }, rolls: [roll(13, 10)] }), id: "m1" };
+    const burn = bonus => card({ flags: { RollType: "LuckBurn", luckBurnFor: "m1", luckBurnBonus: bonus } });
+    const ac = { "Scene.s.Token.tokB": { actor: { system: { attributes: { ac: { value: 15 } } } } } };
+    globalThis.fromUuidSync = uuid => ac[uuid] ?? null;
+    try {
+      expect(readDccTurn([miss, burn(1), burn(1)], context)[0]).toMatchObject({ degree: 2, total: 15, sure: true });
+      expect(readDccTurn([miss, burn(1)], context)[0]).toMatchObject({ degree: 1, total: 14, sure: true });
+      delete ac["Scene.s.Token.tokB"];
+      expect(readDccTurn([miss, burn(3)], context)[0]).toMatchObject({ degree: 1, total: 16, sure: false });
+    } finally {
+      delete globalThis.fromUuidSync;
+    }
+  });
+
   it("tells a critical, a fumble and a miss apart", () => {
     const at = flags => readDccTurn([card({ flags: { isToHit: true, hasTarget: true, targetUuid: "Scene.s.Token.tokB", ...flags }, rolls: [roll(10, 10)] })], context)[0];
     expect(at({ hitsTarget: true, isCrit: true }).degree).toBe(3);

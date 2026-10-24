@@ -13,6 +13,7 @@
  *     the engine counts each target's share and resistances from it, and applyDamageCard deals that (its `amount`).
  * Nothing is applied here, and nothing earns or costs Fleeting Luck. It's for the GMs only when secret.
  */
+import { HELPER_ID } from "./cards.js";
 
 /**
  * The spell and the result the core names: {itemId, tier} for "<actor id>.<item id>@<n>" (the core's id for a spell
@@ -109,7 +110,8 @@ export async function rollDccDamage(token, { name, damage, repeat = null, secret
   const byType = byKind(roll, damage, times);
   const card = await roll.toMessage({
     speaker, flavor: game.i18n.format("DCC.RollsDamageWith", { weapon: name }),
-    flags: { dcc: { RollType: "Damage" } }
+    // (FastFighting applies it: the system's Apply entries are gone from it, cards.js.)
+    flags: { dcc: { RollType: "Damage", damageApplied: true }, [HELPER_ID]: { rolled: true } }
   }, modeOf(secret));
   return card?.id ? { damage: { byType }, card: card.id } : null;
 }

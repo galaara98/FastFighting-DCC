@@ -4,6 +4,9 @@
  *   - An attack roll: at whom (the target the card names), with what, a hit, a critical, a fumble or a miss; its
  *     damage, rolled with it or from the card's Damage button or inline damage roll (the sheets settle how much).
  *   - A Personality check: words, for the GM to confirm (whether it was talk at all, at whom and how well).
+ *   - Luck burned after the roll (dcc 0.70.72: the card's menu posts a card of its own, dcc.RollType "LuckBurn", naming
+ *     the card it's for, and leaves that card as it was): its bonus added to the roll it's for, and an attack that
+ *     missed graded again at its target's AC as the sheet has it now; unsure where that can't be read.
  * Each event says whether it's `sure`.
  *
  * And one card's damage as it's made (readDccDamage), for the core to apply in a live battle or put before a GM.
@@ -37,8 +40,26 @@ const laterDamage = m => flag(m, "RollType") === "Damage" || m.flavor === INLINE
 /** A card that carries an attack (or a stray shot into melee) and, rolled with it, maybe its damage. */
 const attackCard = m => !!(flag(m, "isToHit") || flag(m, "isFriendlyFire"));
 
-/** An attack that lands nothing: a miss the card knows of, a fumble, a natural 1 of two-weapon fighting. */
-const missed = m => flag(m, "hitsTarget") === false || !!flag(m, "isFumble") || !!flag(m, "twoWeaponFumble");
+/**
+ * What Luck burned after the roll added to a card: the bonus of every Luck-burn card in `messages` that names it.
+ * @param {ChatMessage} m
+ * @param {ChatMessage[]} messages
+ */
+export function burnedFor(m, messages = []) {
+  if ( !m?.id ) return 0;
+  return messages.filter(x => flag(x, "RollType") === "LuckBurn" && flag(x, "luckBurnFor") === m.id)
+    .reduce((sum, x) => sum + (Number(flag(x, "luckBurnBonus")) || 0), 0);
+}
+
+/** The armor class of the token or actor a uuid names, as its sheet has it now; null where it can't be read. */
+function acOf(uuid) {
+  const doc = typeof uuid === "string" ? globalThis.fromUuidSync?.(uuid) : null;
+  const ac = Number((doc?.actor ?? doc)?.system?.attributes?.ac?.value);
+  return Number.isFinite(ac) ? ac : null;
+}
+
+/** An attack that lands nothing: a miss the card knows of (Luck burned after it counted), a fumble, a natural 1 of two-weapon fighting. */
+const missed = (m, messages = []) => !!flag(m, "isFumble") || !!flag(m, "twoWeaponFumble") || (flag(m, "hitsTarget") === false && attackOf(m, messages).degree < 2);
 
 /**
  * A healing roll, by its formula: typed healing ("2d6[healing]"), with nothing typed otherwise. DCC marks no roll as
@@ -49,11 +70,11 @@ function healing(roll) {
   return parts.some(p => p.type === "healing") && parts.every(p => ["healing", "untyped"].includes(p.type));
 }
 
-/** What a roll deals: {amount, kind}; damage at least 1, as the system has it. Null for nothing. */
-function dealtBy(roll) {
+/** What a roll deals: {amount, kind}; damage at least 1, as the system has it. Null for nothing. `heals`: it's healing whatever its formula says. */
+function dealtBy(roll, heals = false) {
   if ( !roll ) return null;
   const total = Number(roll.total) || 0;
-  const kind = healing(roll) ? "healing" : "damage";
+  const kind = heals || healing(roll) ? "healing" : "damage";
   const amount = kind === "damage" ? Math.max(1, total) : total;
   return amount > 0 ? { amount, kind } : null;
 }
@@ -65,9 +86,10 @@ function dealtBy(roll) {
  */
 export function damageOf(m) {
   if ( !m ) return null;
-  if ( attackCard(m) ) return missed(m) ? null : dealtBy(rollMarked(m, "dcc.isDamageRoll"));
+  if ( attackCard(m) ) return flag(m, "hitsTarget") === false || flag(m, "isFumble") || flag(m, "twoWeaponFumble") ? null : dealtBy(rollMarked(m, "dcc.isDamageRoll"));
   const roll = m.rolls?.[0];
-  if ( laterDamage(m) ) return dealtBy(roll);
+  // (FastFighting's own card of the engine's healing (table-cards.js), on a GM's card: healing.)
+  if ( laterDamage(m) ) return dealtBy(roll, !!m.flags?.["fast-fighting-dcc"]?.healing && !!m.author?.isGM);
   return roll && healing(roll) ? dealtBy(roll) : null;
 }
 
@@ -88,7 +110,7 @@ const LOOKBACK = 30;
 function attackBefore(m, messages) {
   const at = messages.findIndex(x => x === m || (!!m.id && x.id === m.id));
   const earlier = (at >= 0 ? messages.slice(0, at) : messages).slice(-LOOKBACK).reverse();
-  return earlier.find(x => flag(x, "isToHit") && sameSpeaker(x, m) && !missed(x) && !rollMarked(x, "dcc.isDamageRoll")) ?? null;
+  return earlier.find(x => flag(x, "isToHit") && sameSpeaker(x, m) && !missed(x, messages) && !rollMarked(x, "dcc.isDamageRoll")) ?? null;
 }
 
 /**
@@ -124,16 +146,26 @@ export function readDccDamage(message, { ids = {}, messages = [], scene = null }
 /**
  * An attack card's verdict, as the dcc system marks it: {degree: 3 a critical hit, 2 a hit, 1 a miss, 0 a fumble,
  * natural, total, known (the card says whether it hit: its target's AC was read)}. A critical hits, unless its die's
- * range needs a hit too.
+ * range needs a hit too. Luck burned after the roll (burnedFor, among `messages`) adds to the total, and a miss is
+ * graded again at its target's AC (acOf); not known where that can't be read.
  * @param {ChatMessage} m
+ * @param {ChatMessage[]} [messages]
  */
-export function attackOf(m) {
+export function attackOf(m, messages = []) {
   const roll = m.rolls?.[0] ?? null;
-  const known = flag(m, "hitsTarget") !== undefined && flag(m, "hitsTarget") !== null;
+  let known = flag(m, "hitsTarget") !== undefined && flag(m, "hitsTarget") !== null;
   const fumble = !!flag(m, "isFumble");
-  const crit = !!flag(m, "isCrit") && (!flag(m, "critNeedsHit") || !!flag(m, "hitsTarget"));
-  const hit = !fumble && (crit || !!flag(m, "hitsTarget"));
-  return { degree: crit ? 3 : hit ? 2 : fumble ? 0 : 1, natural: naturalOf(m, roll), total: roll?.total ?? null, known };
+  let hits = !!flag(m, "hitsTarget");
+  const burned = burnedFor(m, messages);
+  const total = Number.isFinite(roll?.total) ? roll.total + burned : roll?.total ?? null;
+  if ( burned > 0 && !hits && !fumble ) {
+    const ac = acOf(flag(m, "targetUuid"));
+    if ( ac === null ) known = false;
+    else hits = total >= ac;
+  }
+  const crit = !!flag(m, "isCrit") && (!flag(m, "critNeedsHit") || hits);
+  const hit = !fumble && (crit || hits);
+  return { degree: crit ? 3 : hit ? 2 : fumble ? 0 : 1, natural: naturalOf(m, roll), total, known };
 }
 
 /**
@@ -152,7 +184,7 @@ export function readDccTurn(messages, { tokenId, actorId = null, ids = {}, actor
       // (At no one the card names: nothing to tell.)
       const target = whom(flag(m, "targetUuid"));
       if ( !target ) continue;
-      const { degree, natural, total, known } = attackOf(m);
+      const { degree, natural, total, known } = attackOf(m, messages);
       const crit = degree === 3;
       const hit = degree >= 2;
       const melee = flag(m, "isMelee") !== false;
@@ -170,7 +202,8 @@ export function readDccTurn(messages, { tokenId, actorId = null, ids = {}, actor
       if ( strike ) strike.damage = Math.max(1, Number(roll?.total) || 0);
     } else if ( flag(m, "isAbilityCheck") && flag(m, "Ability") === "per" ) {
       // (Words: whether it was talk at all, at whom and how well, the GM says.)
-      events.push({ type: "talk", targetId: null, kind: "persuade", skill: m.flavor ?? "", degree: null, natural: naturalOf(m, roll), total: roll?.total ?? null, sure: false });
+      const total = Number.isFinite(roll?.total) ? roll.total + burnedFor(m, messages) : roll?.total ?? null;
+      events.push({ type: "talk", targetId: null, kind: "persuade", skill: m.flavor ?? "", degree: null, natural: naturalOf(m, roll), total, sure: false });
     }
   }
   return events;

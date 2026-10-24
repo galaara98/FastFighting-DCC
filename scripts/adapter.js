@@ -8,7 +8,7 @@
  * results, Lay on Hands and Turn Unholy (see tables.js); without them, crits add the crit die, deeds and the
  * cleric's skills use rough built-in versions, and spells it can't read are left out.
  */
-import { SystemAdapter, parseFormula, part, hasWords, plainText, englishWords } from "./core.js";
+import { SystemAdapter, parseFormula, part, hasWords, plainText, englishWords, statusesOf } from "./core.js";
 import { dccRules } from "./rules.js";
 import { tiedStopsSpells } from "./tied.js";
 import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn } from "./text.js";
@@ -21,6 +21,8 @@ import { rankDccLeaders } from "./leadership.js";
 import { commitDccChanges, deathClockOn, describeDccOutcome, conditionsOf, statusFor, statusName, sheetConditions, applyDccDamage, systemAppliesDamage } from "./commit.js";
 import { readDccTurn, readDccDamage } from "./read-turn.js";
 import { dccAppetite, dccMeatFor, dccIsFood } from "./food.js";
+import { unmarkRolled } from "./cards.js";
+import { showDccTableRoll } from "./table-cards.js";
 import { worthOf, copperOf, coinValues, stowed, takeDccGoods, putDccGoods, dccGoodsOf, dropDccValuables, dccPileContents, dccSkillsOf, dccGiveables } from "./goods.js";
 import { dccHints, dccTactics } from "./auto.js";
 import { t, saysWord, harmOf } from "./words.js";
@@ -43,6 +45,27 @@ const deedOf = toHit => {
 };
 
 const MODES = ["fly", "swim", "climb", "burrow"];
+
+/** Whether the world's crits are strict (the dcc system's setting, on unless it says otherwise). */
+function strictCrits() {
+  try {
+    return game.settings.get("dcc", "strictCriticalHits") !== false;
+  } catch ( err ) {
+    return true;
+  }
+}
+
+/**
+ * A weapon's crit range (d20-relative: 19 for 19-20) as the rules' critOn for the die it's rolled on. Strict crits (the
+ * dcc system's default) scale it to the die's top faces, as the rules do; with them off, it keeps its number, capped at
+ * the die (19-24 on a d24, 16 on a d16), given as the d20-relative range that comes to the same.
+ */
+export function critOnAt(critRange, faces = 20, strict = strictCrits()) {
+  const range = Number(critRange) || 20;
+  const die = Number(faces) || 20;
+  const on = strict ? range : Math.min(range, die) - die + 20;
+  return on < 20 ? on : undefined;
+}
 
 /**
  * A natural attack (a bite, claws, a slam): what its name says, by the language file's words (FFDCC.Words.Natural;
@@ -135,7 +158,7 @@ export function disrespect(actor) {
   const raw = String(sys.class?.disrespectPenalty ?? "-1d");
   const steps = /(-?\d+)\s*d/i.exec(raw);
   const penalty = steps ? Math.abs(Number(steps[1])) * 2 : Math.abs(flatOf(raw)) || 2;
-  const label = xccWord("XCC.Jammer.Disrespected", "FFDCC.Disrespected");
+  const label = xccWord("XCC.Status.Disrespected", "FFDCC.Disrespected");
   const disrespected = { mods: { attack: -penalty, checks: -penalty, damage: -penalty }, rounds: Math.max(1, level + per), label };
   return [{ id: `${actor.id}.disrespect`, name: xccWord("XCC.Jammer.Disrespect", "FFDCC.Disrespect"), kind: "control", cost: 1, range: { increment: 60 },
     disrespect: true, save: { type: "wil", dc: Math.round(10.5 + bonus) }, onSave: [disrespected, disrespected, null, null] }];
@@ -597,7 +620,8 @@ export class DccAdapter extends SystemAdapter {
     const rows = await this.#tables.fumble();
     if ( !rows?.length ) return null;
     const die = parseFormula(String(sys.attributes?.fumble?.die || "1d4"));
-    return { die, mod: -luckMod, rows };
+    // (Luck's way round: its Active Effects' adjustment, the Broken Star augur's, lowers the roll too. sys 0.70.74.)
+    return { die, mod: -luckMod - (Number(sys.attributes?.fumble?.otherMod) || 0), rows };
   }
 
   /* -------------------------------------------- */
@@ -711,7 +735,7 @@ export class DccAdapter extends SystemAdapter {
       range: ranged || s.thrown ? { increment: rangeFeet ?? 30 } : null,
       damage,
       die: die && die !== firstDie ? die : undefined,
-      critOn: critNatural ? critOnFor(critNatural, die || firstDie) : (critRange < 20 ? critRange : undefined),
+      critOn: critNatural ? critOnFor(critNatural, die || firstDie) : critOnAt(critRange, die || firstDie),
       fumbleOn: Number(s.fumbleRange) > 1 ? Number(s.fumbleRange) : undefined,
       deedDie: deedDie ?? undefined,
       crit: await this.#crit(actor.system, w, pc ? luckMod : 0),
@@ -736,6 +760,8 @@ export class DccAdapter extends SystemAdapter {
 
   /** A crit table: the weapon's or the creature's, from the world's books; else the crit die as extra damage. */
   async #crit(sys, weapon, mod) {
+    // (Its Active Effects' adjustment besides: the Warrior's Arm augur's, sys 0.70.74.)
+    mod += Number(sys.attributes?.critical?.otherMod) || 0;
     const id = String(weapon?.system?.critTable || sys.attributes?.critical?.table || "M").trim();
     const dieText = String(weapon?.system?.critDie || sys.attributes?.critical?.die || "1d4");
     const die = parseFormula(dieText);
@@ -978,6 +1004,51 @@ export class DccAdapter extends SystemAdapter {
     return true;
   }
 
+  /**
+   * A token's sheet mid-fight (the core's readLiveState): only what a turn changes, read straight off the actor, not a
+   * whole CombatantSpec (its crit, fumble and spell tables, its augur) for every creature every turn. Its resources are
+   * the ones the engine counts (context.unit), each read as toCombatantSpec reads it.
+   */
+  async readLiveState(tokenDoc, context = {}) {
+    const actor = tokenDoc.actor;
+    if ( !context.unit?.resources ) return super.readLiveState(tokenDoc, context);
+    if ( !this.canHandle(actor) ) return null;
+    const sys = actor.system;
+    const hp = sys.attributes?.hp ?? {};
+    const value = Number(hp.value) || 0;
+    // (Monsters and anyone at 0-level die at 0: the spec's diesAtZero, a monster's.)
+    const dead = statusesOf(actor).has("dead") || (value <= 0 && actor.type !== "Player");
+    const resources = {};
+    for ( const key of Object.keys(context.unit.resources) ) {
+      const n = this.#resourceLeft(actor, key);
+      if ( n !== undefined ) resources[key] = n;
+    }
+    return {
+      hp: value, temp: Number(hp.temp) || 0, maxHp: Number(hp.max) || 1, dying: 0, wounded: 0, doomed: 0,
+      status: dead ? "dead" : value > 0 ? "standing" : "down",
+      conditions: conditionsOf(actor), persistent: [], resources
+    };
+  }
+
+  /** What's left of one of its resources (a key toCombatantSpec gave it), or undefined for one it doesn't know. */
+  #resourceLeft(actor, key) {
+    const sys = actor.system;
+    if ( key === "luck" ) return Number(sys.abilities?.lck?.value) || 0;
+    if ( key === "spellburn" ) return ["str", "agl", "sta"].reduce((s, k) => s + Math.max(0, (Number(sys.abilities?.[k]?.value) || 0) - 8), 0);
+    if ( key === "fleeting" ) return fleetingOf(actor)?.points ?? 0;
+    return undefined;
+  }
+
+  /**
+   * Its reactions, for its player to say always / ask / never: DCC's one, the free attack at a foe withdrawing from a
+   * melee, by DCC's name for it, for one with a melee attack (an XCC Brawler's Toughness is always on: no choice).
+   */
+  reactionsOf(spec) {
+    const out = (spec?.reactions ?? []).filter(r => !r.passive).map(r => ({ id: r.id, label: r.label ?? r.name ?? r.id }));
+    if ( (spec?.actions ?? []).some(a => a.kind === "strike" && a.melee) ) out.push({ id: "opportunity", label: t("FreeAttack") });
+    return out;
+  }
+
   /** A live battle: one turn's changes (commit.js commitDccChanges). */
   async commitChanges(tokenDoc, spec, changes, final, options) {
     return commitDccChanges(tokenDoc, spec, changes, final, options);
@@ -1035,6 +1106,22 @@ export class DccAdapter extends SystemAdapter {
    */
   async applyDamageCard(message, token, { multiplier = 1, amount = null } = {}) {
     return applyDccDamage(message, token, { multiplier, amount });
+  }
+
+  /**
+   * API 20. The engine's own damage or healing roll shown as the dcc system's Damage card, the engine's dice in it, for
+   * FastFighting to apply (table-cards.js); anything else, the core's plain roll.
+   */
+  async showTableRoll(roll, options) {
+    return showDccTableRoll(roll, options);
+  }
+
+  /**
+   * API 21. A card of FastFighting's own it won't apply after all, the table settling it (a player's character's heal or
+   * damage at another, Apply players' damage off): its marks off (cards.js), so the system's Apply entries are back.
+   */
+  async leaveToTable(message) {
+    await unmarkRolled(message);
   }
 
   /** API 19. The dcc system's Auto-apply damage, by its name, while it's on (commit.js systemAppliesDamage). */

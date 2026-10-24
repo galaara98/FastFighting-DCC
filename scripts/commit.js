@@ -8,7 +8,7 @@
  *     createdEffects: [id], tokenUpdate, createdActors, createdTokens, deletedTokens, statuses: [{id, active}], combatant,
  *     statusesBefore: [id] }
  */
-import { MODULE_ID, STATUS, commonOutcome, statusesOf, statusEntry, toggleStatus, undoRecord } from "./core.js";
+import { MODULE_ID, STATUS, commonOutcome, statusesOf, statusEntry, toggleStatus, undoRecord, escapeHtml, inertHtml } from "./core.js";
 import { t, conditionName } from "./words.js";
 import { damageOf } from "./read-turn.js";
 import { SHEET_STATUSES, leftBehind } from "./statuses.js";
@@ -117,10 +117,14 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
   const sys = actor.system;
   const s = final.system ?? {};
   const was = options.before?.system ?? {};
-  const ability = (key, change, { max = false } = {}) => {
+  // (Each ability change, as the dcc system's Ability Score Log would record it: its kind, DCC.abilityLogTypes.)
+  const logged = [];
+  const ability = (key, change, { max = false, type = "manual" } = {}) => {
     const now = update[`system.abilities.${key}.value`] ?? (Number(sys.abilities?.[key]?.value) || 0);
-    set(`system.abilities.${key}.value`, Math.max(0, now + change));
+    const value = Math.max(0, now + change);
+    set(`system.abilities.${key}.value`, value);
     if ( max ) set(`system.abilities.${key}.max`, Math.max(0, (Number(sys.abilities?.[key]?.max) || now) + change));
+    logged.push(logEntry(key, value - now, value, { maxChange: max ? change : 0, type }));
   };
   const clock = actor.type === "Player" && deathClockOn();
   const dead = final.status === STATUS.DEAD;
@@ -129,21 +133,21 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
   if ( changes.temp ) set("system.attributes.hp.temp", changes.temp.to ?? 0);
   const spentOf = c => Math.max(0, (Number(c?.from) || 0) - (Number(c?.to) || 0));
   const luck = spentOf(changes.resources?.luck);
-  if ( luck ) ability("lck", -luck);
+  if ( luck ) ability("lck", -luck, { type: "luckSpend" });
   // Spellburn: from Strength first, then Stamina, then Agility, none below 3.
   let burn = spentOf(changes.resources?.spellburn);
   for ( const key of ["str", "sta", "agl"] ) {
     if ( burn <= 0 ) break;
     const have = update[`system.abilities.${key}.value`] ?? (Number(sys.abilities?.[key]?.value) || 0);
     const take = Math.min(burn, Math.max(0, have - 3));
-    if ( take > 0 ) ability(key, -take);
+    if ( take > 0 ) ability(key, -take, { type: "spellburn" });
     burn -= take;
   }
   // Saved from bleeding out this turn: a point of Stamina gone for good.
-  if ( changes.revived && s.bledOut && !clock && !dead ) ability("sta", -1, { max: true });
+  if ( changes.revived && s.bledOut && !clock && !dead ) ability("sta", -1, { max: true, type: "bleedOut" });
   // Found alive when the body was rolled (after the fight): a point of Strength, Agility or Stamina gone for good.
   const found = !!s.body && !was.body && !dead;
-  if ( found ) ability(s.body, -1, { max: true });
+  if ( found ) ability(s.body, -1, { max: true, type: "rollTheBody" });
   // Disapproval as this turn moved it.
   if ( Number.isFinite(s.disapproval) && Number.isFinite(was.disapproval) && s.disapproval !== was.disapproval ) {
     set("system.class.disapproval", Math.max(1, (Number(sys.class?.disapproval) || 1) + s.disapproval - was.disapproval));
@@ -220,6 +224,13 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
     }]);
     if ( effect ) undo.createdEffects.push(effect.id);
   }
+  // XCC's statuses for its own classes' effects (a Jammer's Disrespect, a Gnome's Draw Agro), on and off with them; and
+  // who got which buff or debuff, named in the chat.
+  if ( !dead ) {
+    for ( const e of changes.effects?.added ?? [] ) if ( xccStatus(e) ) await toggleStatus(actor, xccStatus(e), true, undo);
+    for ( const e of changes.effects?.ended ?? [] ) if ( xccStatus(e) ) await toggleStatus(actor, xccStatus(e), false, undo);
+  }
+  await tellGiven(tokenDoc, spec, changes, options);
   // Spells lost to a failed check this turn stay lost for the day.
   for ( const id of (s.lost ?? []).filter(id => !(was.lost ?? []).includes(id)) ) {
     const item = actor.items.get(spec.actions.find(a => a.id === id)?.itemId);
@@ -227,8 +238,78 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
     undo.itemUpdates.push({ id: item.id, update: { "system.lost": false } });
     await item.update({ "system.lost": true });
   }
-  if ( Object.keys(update).length ) await actor.update(update);
+  // (The Ability Score Log, where the world keeps one: the changes written with their kinds, and the update marked as
+  // logged, so the system's own hook doesn't log them again as made by hand; Rewind's restore too, by the record's
+  // systemOptions, core API 29.)
+  const log = actor.type === "Player" && abilityLogOn() && logged.some(e => e.change);
+  if ( log ) {
+    const before = Array.isArray(sys.abilityLog) ? sys.abilityLog : [];
+    update["system.abilityLog"] = [...before, ...logged.filter(e => e.change)];
+    undo.actorUpdate["system.abilityLog"] = foundry.utils.deepClone(before);
+    undo.systemOptions = { dcc: { abilityLogged: true } };
+  }
+  if ( Object.keys(update).length ) await actor.update(update, log ? { dcc: { abilityLogged: true } } : {});
   return undo;
+}
+
+/** XCC's status for an effect its classes lay, by the action that laid it ("<actor id>.disrespect"), where the palette has it. */
+const XCC_STATUS = { disrespect: "disrespected", drawAgro: "agro" };
+function xccStatus(e) {
+  const id = XCC_STATUS[String(e?.key ?? "").split(".").pop()];
+  return id && statusEntry(id) ? id : null;
+}
+
+/** An action whose own card names its roll and target (a save, a check, an attack): the chat has it already. */
+const rollNames = a => !!(a?.save || a?.check || a?.harm?.save || Number.isFinite(a?.bonus) || a?.kind === "strike");
+/** An action that only ever lands on its user (Not in the Face): nothing to name. */
+const ownOnly = a => a?.targets === "self" || !!a?.selfOnly;
+
+/**
+ * Who got which buff or debuff this turn, named in the chat as its giver ("Help → Wenna (+2 to its next attack)"), where
+ * nothing else says so (a Help, a rallying deed: no card of the system's); one the table settles itself after all (a
+ * player's character's on another, Apply players' damage off), named as not applied. The GMs' alone where either one's
+ * name is the GM's to keep.
+ */
+async function tellGiven(tokenDoc, spec, changes, options) {
+  if ( typeof options?.tokenOf !== "function" || typeof options?.effectSource !== "function" ) return;
+  const given = [
+    ...[...(changes.effects?.added ?? []), ...(changes.laid ?? [])].map(e => ({ e, waits: false })),
+    ...[...(changes.left?.effects ?? []), ...(changes.left?.laid ?? [])].map(e => ({ e, waits: true }))
+  ];
+  const Message = globalThis.CONFIG?.ChatMessage?.documentClass ?? globalThis.ChatMessage;
+  for ( const { e, waits } of given ) {
+    const action = options.effectSource(e.key)?.action;
+    if ( !action || rollNames(action) || (ownOnly(action) && e.sourceId === spec.id) ) continue;
+    const by = options.tokenOf(e.sourceId) ?? tokenDoc;
+    const gm = [e.sourceId, spec.id].some(id => options.audience?.(id) === "gm");
+    const words = t(waits ? "GivenWaits" : "Given", { action: escapeHtml(action.name ?? ""), target: escapeHtml(tokenDoc.name ?? ""), effect: escapeHtml(e.label || action.name || "") });
+    try {
+      await Message.create({
+        speaker: Message.getSpeaker({ token: by, actor: by.actor }),
+        content: inertHtml(`<p>${words}</p>`),
+        ...(gm ? { whisper: (globalThis.game?.users ?? []).filter(u => u.isGM).map(u => u.id) } : {})
+      });
+    } catch ( err ) {
+      console.error(`${MODULE_ID} | naming who got ${action.name}`, err);
+    }
+  }
+}
+
+/** Whether the world keeps the dcc system's Ability Score Log. */
+function abilityLogOn() {
+  try {
+    return !!game.settings.get("dcc", "enableAbilityScoreLog");
+  } catch ( err ) {
+    return false;
+  }
+}
+
+/** An Ability Score Log entry, as the dcc system writes one (ability-score-log.js buildLogEntry), FastFighting's as its source. */
+function logEntry(ability, change, newValue, { maxChange = 0, type = "manual" } = {}) {
+  return {
+    id: foundry.utils.randomID?.() ?? `ff${Date.now()}${ability}`, timestamp: Date.now(), ability, change, maxChange, type,
+    source: t("AbilityLogSource"), newValue, hpChange: 0, healedAmount: 0, healedTimestamp: null
+  };
 }
 
 /* -------------------------------------------- */

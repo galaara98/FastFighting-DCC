@@ -230,3 +230,16 @@ describe("what the system's data says, and a name where it says nothing", () => 
     expect(await flags("Hoogabungaroo", "M")).toEqual({});
   });
 });
+
+describe("a weapon's crit range on its die", () => {
+  test("strict crits scale it to the die's top; off, it keeps its number, capped at the die", async () => {
+    const { critOnAt } = await import("../scripts/adapter.js");
+    expect(critOnAt(19, 20, true)).toBe(19);
+    expect(critOnAt(20, 24, true)).toBeUndefined();
+    // (Off: crit 20 on a d24 is 20-24, the d20-relative 16 the rules scale back to 20; on a d16, its top.)
+    expect(critOnAt(20, 24, false)).toBe(16);
+    expect(dccRules.degreeOfSuccess(20, 30, 10, "attack", { faces: 24, critOn: critOnAt(20, 24, false) })).toBe(3);
+    expect(dccRules.degreeOfSuccess(19, 30, 10, "attack", { faces: 24, critOn: critOnAt(20, 24, false) })).toBe(2);
+    expect(critOnAt(20, 16, false)).toBeUndefined();
+  });
+});
