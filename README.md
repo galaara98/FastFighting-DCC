@@ -203,10 +203,19 @@ It sets two of FastFighting's: **Max rounds** (4 to 12, 10 at first: DCC's fight
 
 ## Not played
 
-- What the book's disarm rows do to claws and teeth.
-- The book's spell duel tables, with momentum and phlogiston disturbance (the checks are compared instead).
-- Bones broken in a fall (on a roll of 6).
-- Consumables other than things thrown to harm (DCC's items keep no stats of their own: a potion's effect is only words).
+What DCC's rules or data don't give FastFighting to play:
+- **Reactions beyond the free attack.** DCC has no reaction economy: no Shield Block or Riposte to choose, and nothing a blow disrupts (a spell is one check).
+- **Rerolls.** Luck adds to a roll, before or after it; it never buys a reroll, so no Hero Point-like spending.
+- **Reloading, drawing and ammunition.** DCC's weapons keep no reload, capacity or ammunition link, and the rules give drawing a weapon no cost.
+- **Recharges.** Nothing in DCC recharges on a roll or a crit.
+- **Bones broken in a fall** (a 6 on the dice): the rules leave what a broken bone costs to the judge.
+- **What the book's disarm rows do to claws and teeth:** nothing to disarm; a creature with only natural attacks is never disarmed.
+- **Consumables beyond things thrown to harm:** DCC's items keep no stats of their own (a potion's effect is only words, the judge's to apply).
+- **Specials a stat line names but doesn't explain** ("heightened senses", "slime creature", "see below"), where the book's entry says nothing a fight can play either. [docs/coverage.md](docs/coverage.md) counts them.
+
+Possible, not played yet:
+- **The book's spell duel tables** (momentum, counterspell power, phlogiston disturbance): the checks are compared instead. Playing them needs the core to send a spell back at its caster or weaken it as it's cast, and to play the disturbance's planar effects.
+- **Limited-use specials** a stat line names without stats ("breath weapon", "plane shift 2/day"): read only where a weapon on the sheet carries them.
 
 ## License
 
