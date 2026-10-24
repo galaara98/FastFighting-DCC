@@ -11,7 +11,7 @@
 import { SystemAdapter, parseFormula, part, hasWords, plainText, englishWords, statusesOf } from "./core.js";
 import { dccRules } from "./rules.js";
 import { tiedStopsSpells } from "./tied.js";
-import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn, ridersIn, entryRider } from "./text.js";
+import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn, ridersIn, entryRider, thrownIn } from "./text.js";
 import { reading } from "./reading.js";
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
@@ -379,6 +379,30 @@ export function augurSaves(actor) {
   return mod ? [{ bonus: mod, vs: ["trap"] }] : [];
 }
 
+/**
+ * Things carried that are thrown to harm, as their descriptions say (text.js thrownIn: holy water, a flask of oil): a
+ * missile attack each, at the missile attack bonus (a character's, with Agility), its count its resource (`item:<id>`:
+ * the sheet's quantity, spent as thrown). The engine rolls it: the system's attack card is a weapon's.
+ */
+export function thrownActions(actor) {
+  const sys = actor.system ?? {};
+  const out = [];
+  for ( const item of actor.items ?? [] ) {
+    if ( !["equipment", "treasure"].includes(item.type) ) continue;
+    const quantity = Math.max(0, Number(item.system?.quantity ?? 1) || 0);
+    const read = quantity > 0 ? thrownIn(item.system?.description?.value ?? "") : null;
+    if ( !read ) continue;
+    const missile = sys.details?.attackHitBonus?.missile?.value;
+    const bonus = missile !== undefined && missile !== null && missile !== "" ? flatOf(missile) : flatOf(sys.details?.attackBonus) + (Number(sys.abilities?.agl?.mod) || 0);
+    out.push({
+      id: `${actor.id}.thrown.${item.id}`, name: item.name, kind: "strike", cost: 1, bonus, melee: false, thrown: true,
+      range: { increment: read.range }, damage: read.damage, resource: `item:${item.id}`, pool: quantity,
+      ...(read.unholyOnly ? { unholyOnly: true } : {}), traits: []
+    });
+  }
+  return out;
+}
+
 /** Are a stat line's attack and a weapon on the sheet the same ("bite" and "Bite"; "claw" and "Claws")? */
 export const sameAttack = (said, name) => {
   const a = String(said ?? "").toLowerCase().replace(/s\b/g, "").trim();
@@ -515,6 +539,8 @@ export class DccAdapter extends SystemAdapter {
       }
     }
 
+    // (Things thrown, by their count on the sheet.)
+    for ( const a of actions ) if ( a.resource && a.pool !== undefined ) resources[a.resource] = a.pool;
     const derived = this.deriveTraits(actor, { line, casts: actions.some(a => a.casting), level });
     const iwr = iwrIn(line);
     // Grappling (opposed attack rolls): its attack bonus and the better of Strength and Agility; a monster's, its best
@@ -837,6 +863,7 @@ export class DccAdapter extends SystemAdapter {
       const trained = skill !== null && skill !== undefined && String(skill).trim() !== "";
       actions.push(hideAction(actor.id, { mod: (trained ? flatOf(skill) : 0) + agl, trained, label: game.i18n.localize(kind.halfling && !kind.thief ? "DCC.SneakAndHide" : "DCC.HideInShadows") }));
     }
+    actions.push(...thrownActions(actor));
     actions.push(...await this.#spells(actor, { pc, kind, level, dice, line }));
     if ( pc && kind.cleric ) actions.push(...await this.#clericSkills(actor, dice));
     return { actions, shieldBash, freeAttack: fists.some(a => a.economy === "bonus") };
@@ -1178,6 +1205,7 @@ export class DccAdapter extends SystemAdapter {
     if ( key === "luck" ) return Number(sys.abilities?.lck?.value) || 0;
     if ( key === "spellburn" ) return ["str", "agl", "sta"].reduce((s, k) => s + Math.max(0, (Number(sys.abilities?.[k]?.value) || 0) - 8), 0);
     if ( key === "fleeting" ) return fleetingOf(actor)?.points ?? 0;
+    if ( key.startsWith("item:") ) return Math.max(0, Number(actor.items.get(key.slice(5))?.system?.quantity) || 0);
     return undefined;
   }
 

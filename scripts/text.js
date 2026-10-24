@@ -42,7 +42,7 @@ const FLAGS = {
   statLine: { immune: "g", halfFrom: "g", doubleFrom: "g", attack: "gi", savesAgainst: "g", melee: "i", attackLead: "i", riderLead: "i", riderPlus: "i" },
   riders: { range: "g" }
 };
-const SECTIONS = ["conditions", "outcome", "saveVs", "damage", "rounds", "targets", "save", "mods", "fumble", "spell", "mending", "statLine", "auras", "followUps", "riders"];
+const SECTIONS = ["conditions", "outcome", "saveVs", "damage", "rounds", "targets", "save", "mods", "fumble", "spell", "mending", "statLine", "auras", "followUps", "riders", "thrown"];
 
 /** A reading's words and its patterns, compiled. */
 function compileReading(words) {
@@ -729,4 +729,20 @@ export function entryRider(names, entry) {
     if ( read.effects.some(e => e.kind === "save") ) return { effects: read.effects.filter(e => e.kind === "save"), damage: [] };
   }
   return { effects: [], damage: [] };
+}
+
+/**
+ * Something carried that's thrown to harm, as its description says (the books' holy water and flask of oil): {damage:
+ * DamageParts, unholyOnly (it harms only the un-dead, demons and devils), range (feet; 10 where it says none)}, or null
+ * for anything else.
+ */
+export function thrownIn(text) {
+  const t = plain(text).toLowerCase();
+  const r = R().thrown;
+  if ( !t || !r.thrown.test(t) ) return null;
+  const m = t.match(r.damage);
+  const formula = got(m, "dice");
+  if ( !formula ) return null;
+  const type = typeIn(got(m, "kind")) ?? typeIn(t) ?? "untyped";
+  return { damage: [parseFormula(formula.replace(/\s+/g, ""), type)], unholyOnly: r.unholyOnly.test(t), range: Number(got(t.match(r.range), "feet")) || 10 };
 }

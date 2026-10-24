@@ -36,6 +36,8 @@ The class is the character sheet chosen for the actor or its token, as in DCC an
 
 Each weapon brings its to-hit, damage, range, action die, crit range, crit die and table, and fumble range. DCC doesn't say whether a weapon cuts, pierces or crushes, so the damage formula or the weapon's name does. A monster's stat line fills in what its sheet leaves out: attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check. Its specials and its attacks' riders count too, where they say what they do: a poison's or a disease's save and what a failure costs (damage, a condition, death), extra damage with the blow, damage each round after it, a grab; saves it's better at; an aura with a save; rend after so many hits, constriction on one it holds; harm only from magic or silver weapons (a weapon with a bonus of its own, or a name that says so); damage reduction; never surprised. A rider it only names ("plus disease") is read from the creature's entry in the book, where the stat line links one. [docs/coverage.md](docs/coverage.md) counts how much of the books' monsters it reads.
 
+Things carried that are thrown to harm, as their descriptions say (holy water, a lit flask of oil), are missile attacks, as many as the sheet has; holy water harms only the un-dead, demons and devils.
+
 Natural attacks (a bite, claws, a slam, a Brawler's fists) need no free hand, except fists, which need their own. A creature with no weapon in hand can't be disarmed, by a deed or a crit.
 
 ### Action dice: the core's turn
@@ -178,6 +180,7 @@ In a live battle, each turn's changes go onto the tokens as the turn is played:
 - hit points; death (and the combatant defeated); the fled hidden; a Surrendered effect on one that gave up;
 - Luck and spellburn spent (spellburn from Strength, then Stamina, then Agility, none below 3), and Fleeting Luck or Mojo as the fight left it (on the player, or the crawler). With the system's Ability Score Log on, each loss is logged as what it was (Luck spent, spellburn, bleeding out, rolling the body);
 - spells lost for the day, and a cleric's disapproval range;
+- things thrown: the sheet's count down, the item gone at none;
 - the Stamina lost to bleeding out, or, for a body rolled after the fight and found alive, the ability lost, Groggy, and no longer dead (with the dcc system's Death Clock on, the system marks the dying, counts their rounds and scars the saved itself);
 - statuses put on or taken off, by the fight or by the GM in the Battle Vantage: Prone, Stunned, Paralyzed, Asleep, Unconscious, Blind, Deaf, Silenced, Frightened, Restrained (DCC's held), Invisible, Poisoned, and Disarmed (the dcc system's palette) or Slowed and Grappled (XCC's). Each turn the token's statuses are read back, so one the GM takes off is gone from the fight too. FastFighting keeps what DCC has no status for (turned, hidden, can't move, can't act on its own);
 - the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the Friendlies: Hostile);
@@ -203,7 +206,7 @@ It sets two of FastFighting's: **Max rounds** (4 to 12, 10 at first: DCC's fight
 - What the book's disarm rows do to claws and teeth.
 - The book's spell duel tables, with momentum and phlogiston disturbance (the checks are compared instead).
 - Bones broken in a fall (on a roll of 6).
-- Consumables in a fight.
+- Consumables other than things thrown to harm (DCC's items keep no stats of their own: a potion's effect is only words).
 
 ## License
 

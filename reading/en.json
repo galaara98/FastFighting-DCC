@@ -313,5 +313,11 @@
     "perRound": "(?<dice>\\d*d\\d+)\\s*(?:dmg|damage|hp)?\\s*(?:per|each|every)\\s*round",
     "death": "\\bor (?:\\w+ )?death\\b|\\bor die\\b|\\bdies\\b",
     "hurt": "\\bor (?:take |an? )?(?:additional |extra )?(?<dice>{formula})\\s*(?:damage|dmg|hp)\\b"
+  },
+  "thrown": {
+    "thrown": "\\b(?:thrown|throw\\w*|hurl\\w*|splash\\w*)\\b",
+    "damage": "(?<dice>{formula})\\s*(?:points? of\\s+)?(?:(?<kind>[a-z]+)\\s+)?damage",
+    "unholyOnly": "\\b(?:un-?dead|unholy|demons?|devils?)\\b",
+    "range": "(?<feet>\\d+)\\s*(?:'|ft\\.?|feet)"
   }
 }

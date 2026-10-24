@@ -231,6 +231,20 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
     for ( const e of changes.effects?.ended ?? [] ) if ( xccStatus(e) ) await toggleStatus(actor, xccStatus(e), false, undo);
   }
   await tellGiven(tokenDoc, spec, changes, options);
+  // Things thrown this turn: the sheet's count down by as many, the item gone at none.
+  for ( const [key, c] of Object.entries(changes.resources ?? {}) ) {
+    if ( !key.startsWith("item:") || !Number.isFinite(c?.to) ) continue;
+    const item = actor.items.get(key.slice(5));
+    if ( !item ) continue;
+    const left = Math.max(0, Math.round(c.to));
+    if ( left <= 0 ) {
+      undo.deletedItems.push(item.toObject());
+      await item.delete();
+    } else if ( left !== Number(item.system?.quantity) ) {
+      undo.itemUpdates.push({ id: item.id, update: { "system.quantity": item.system.quantity } });
+      await item.update({ "system.quantity": left });
+    }
+  }
   // Spells lost to a failed check this turn stay lost for the day.
   for ( const id of (s.lost ?? []).filter(id => !(was.lost ?? []).includes(id)) ) {
     const item = actor.items.get(spec.actions.find(a => a.id === id)?.itemId);

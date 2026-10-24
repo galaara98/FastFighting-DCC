@@ -422,6 +422,8 @@ export const dccRules = {
   },
   /** Immune ignores; resistance halves; vulnerability doubles. */
   applyIwr(iwr, byType, target = null, ctx = {}) {
+    // (Holy water and the like: nothing to any but the un-dead, demons and devils.)
+    if ( ctx?.action?.unholyOnly && !target?.spec?.unholy ) return 0;
     // (Harmed only by magic, or silver: a blow of neither does nothing, or half (a stat line's "resistant to non-magical
     // weapons"). Spells are magic.)
     const only = target?.spec?.harmedOnlyBy;
