@@ -4,7 +4,13 @@
  * up for the tests; the field paths are the dcc system's own.
  */
 import { beforeEach, describe, expect, test } from "vitest";
+import { readFileSync } from "fs";
 import { dccAppetite, dccMeatFor, dccIsFood, HUNGER } from "../scripts/food.js";
+import { wordList } from "../scripts/words.js";
+
+/** A word of a list a name can carry (plain letters), English's at least: the names here whatever the wording. */
+const word = key => wordList(key).find(w => /^[a-z]+$/.test(w));
+const name = key => word(key).replace(/^./, c => c.toUpperCase());
 
 const creature = ({ name = "Thing", type = "NPC", notes = "", weapons = [], table = "M", width = 1 } = {}) => ({
   name, type, flags: {}, prototypeToken: { width },
@@ -13,13 +19,15 @@ const creature = ({ name = "Thing", type = "NPC", notes = "", weapons = [], tabl
 });
 
 beforeEach(() => {
+  game.i18n._fallback = JSON.parse(readFileSync(new URL("../languages/en.json", import.meta.url), "utf8"));
+  globalThis.foundry = { utils: { getProperty: (o, key) => key.split(".").reduce((x, k) => x?.[k], o) } };
   globalThis.CONFIG = { DCC: { monsterCriticalHits: { "1": { demon: { table: "DN" }, humanoid: { table: "III" }, other: { table: "M" } } } } };
 });
 
 describe("who eats what", () => {
   test("a beast that bites eats meat; another beast anything; anyone else anything, rarely hungry", () => {
-    expect(dccAppetite(creature({ name: "Wolf", weapons: ["Bite"] }))).toEqual({ diet: "meat", hunger: HUNGER.biter, cannibal: false });
-    expect(dccAppetite(creature({ name: "Goat", weapons: ["Horns"] }))).toEqual({ diet: "any", hunger: HUNGER.beast, cannibal: false });
+    expect(dccAppetite(creature({ name: name("Beast"), weapons: [name("Bite")] }))).toEqual({ diet: "meat", hunger: HUNGER.biter, cannibal: false });
+    expect(dccAppetite(creature({ name: name("Beast"), weapons: ["Horns"] }))).toEqual({ diet: "any", hunger: HUNGER.beast, cannibal: false });
     expect(dccAppetite(creature({ name: "Orc", table: "III", weapons: ["Spear"] }))).toEqual({ diet: "any", hunger: HUNGER.living, cannibal: false });
   });
 
@@ -41,7 +49,7 @@ describe("what a body leaves", () => {
     expect(dccMeatFor(creature({ name: "Rat", width: 0.5 })).quantity).toBe(1);
     expect(dccMeatFor(creature({ name: "Ogre", width: 2 })).quantity).toBe(8);
     expect(dccMeatFor(creature(), { position: { size: 3 } }).quantity).toBe(16);
-    expect(dccMeatFor(creature({ name: "Primeval slime" }))).toBeNull();
+    expect(dccMeatFor(creature({ name: name("NoFlesh") }))).toBeNull();
     expect(dccMeatFor(creature({ name: "Zombie", notes: "Un-dead traits" }))).toBeNull();
     const meat = dccMeatFor(creature());
     expect(meat.item).toMatchObject({ type: "equipment", system: { quantity: 4 }, flags: { "fast-fighting": { food: "meat" } } });
@@ -51,7 +59,7 @@ describe("what a body leaves", () => {
 
 describe("what counts as food", () => {
   test("rations by name; anything else isn't", () => {
-    expect(dccIsFood({ type: "equipment", name: "Rations, per day", system: { quantity: 3 } })).toEqual({ portions: 3, meat: false });
+    expect(dccIsFood({ type: "equipment", name: `${name("Rations")}, per day`, system: { quantity: 3 } })).toEqual({ portions: 3, meat: false });
     expect(dccIsFood({ type: "equipment", name: "Rope, 50'", system: { quantity: 1 } })).toBeNull();
     expect(dccIsFood({ type: "weapon", name: "Food fork", system: {} })).toBeNull();
   });
