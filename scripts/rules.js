@@ -159,6 +159,9 @@ const ESCAPE_DC = 15;
  */
 const SHEET_HOLDS = Object.freeze({ held: Object.freeze({ dc: ESCAPE_DC, others: "check" }), grabbed: Object.freeze({ dc: ESCAPE_DC, others: null }) });
 
+/** The kinds of physical harm a stat line's damage reduction takes off. */
+const PHYSICAL_HARM = ["slashing", "piercing", "bludgeoning", "untyped"];
+
 export const dccRules = {
   /**
    * Surprise as DCC has it (the planner's Follow System): those lying in wait as it starts (a side with hidden tokens)
@@ -418,16 +421,28 @@ export const dccRules = {
     return parts ?? [];
   },
   /** Immune ignores; resistance halves; vulnerability doubles. */
-  applyIwr(iwr, byType) {
+  applyIwr(iwr, byType, target = null, ctx = {}) {
+    // (Harmed only by magic, or silver: a blow of neither does nothing, or half (a stat line's "resistant to non-magical
+    // weapons"). Spells are magic.)
+    const only = target?.spec?.harmedOnlyBy;
+    const harms = !only || (only.magic && !!ctx?.magical) || (only.materials ?? []).some(m => (ctx?.materials ?? []).includes(m));
+    if ( !harms && !only.half ) return 0;
+    // (Damage reduction: so much off each blow's physical harm, as its stat line says.)
+    let shrug = Number(target?.spec?.reduction) || 0;
     let total = 0;
     for ( const [type, amount] of Object.entries(byType) ) {
       if ( amount <= 0 || iwr?.immune?.includes(type) ) continue;
       let value = amount;
       if ( iwr?.resist?.[type] ) value = Math.floor(value / 2);
       if ( iwr?.weak?.[type] ) value *= 2;
+      if ( shrug > 0 && PHYSICAL_HARM.includes(type) ) {
+        const off = Math.min(shrug, value);
+        value -= off;
+        shrug -= off;
+      }
       total += value;
     }
-    return total;
+    return harms ? total : Math.floor(total / 2);
   },
   /**
    * A fall (shoved off a ledge: the core's behavior/forced.js): 1d6 for each 10 feet, as far as it goes (the core's

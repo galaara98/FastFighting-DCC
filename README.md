@@ -10,7 +10,7 @@ FastFighting Core knows no game's rules. It offers a large but fixed set of opti
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
-- **Requires:** FastFighting Core 0.8.0 or later (API 28)
+- **Requires:** FastFighting Core 0.9.0 or later (API 29)
 
 ## Installation
 
@@ -34,7 +34,7 @@ Where DCC marks nothing (whether a weapon cuts or crushes, whether an attack is 
 
 The class is the character sheet chosen for the actor or its token, as in DCC and XCC; the rest comes from the character's own numbers (a deed die, its spells), so classes from other books work too.
 
-Each weapon brings its to-hit, damage, range, action die, crit range, crit die and table, and fumble range. DCC doesn't say whether a weapon cuts, pierces or crushes, so the damage formula or the weapon's name does. A monster's stat line fills in what its sheet leaves out: attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check.
+Each weapon brings its to-hit, damage, range, action die, crit range, crit die and table, and fumble range. DCC doesn't say whether a weapon cuts, pierces or crushes, so the damage formula or the weapon's name does. A monster's stat line fills in what its sheet leaves out: attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check. Its specials and its attacks' riders count too, where they say what they do: a poison's or a disease's save and what a failure costs (damage, a condition, death), extra damage with the blow, damage each round after it, a grab; saves it's better at; an aura with a save; rend after so many hits, constriction on one it holds; harm only from magic or silver weapons (a weapon with a bonus of its own, or a name that says so); damage reduction; never surprised. A rider it only names ("plus disease") is read from the creature's entry in the book, where the stat line links one. [docs/coverage.md](docs/coverage.md) counts how much of the books' monsters it reads.
 
 Natural attacks (a bite, claws, a slam, a Brawler's fists) need no free hand, except fists, which need their own. A creature with no weapon in hand can't be disarmed, by a deed or a crit.
 

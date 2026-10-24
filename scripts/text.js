@@ -24,7 +24,10 @@ export function plain(text) {
     .replace(/@\w+\[[^\]]*\](?:\{([^}]*)\})?/g, (m, label) => label ?? "")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ").replace(/&(?:r|l)squo;|[’‘]/g, "'").replace(/&(?:r|l)dquo;|[“”]/g, "\"").replace(/&amp;/g, "&")
-    .replace(/\s+/g, " ").trim();
+    .replace(/\s+/g, " ")
+    // (A word broken at the end of a printed line: "infravi- sion", "non- magical".)
+    .replace(/(\p{L})- (\p{Ll})/gu, "$1$2")
+    .trim();
 }
 
 /** The documents a text links to, by uuid ("@UUID[Compendium.x.y.JournalEntry.z]{Troll}"; the older "@Compendium[x.y.z]"). */
@@ -127,7 +130,9 @@ export function targetsIn(text) {
 /** The save a result calls for ("must make a Will save", "a DC 12 Fort save", "Ref save for half"), or null. */
 export function saveIn(text, fallback = null) {
   const t = plain(text).toLowerCase();
-  const m = t.match(/\b(fort(?:itude)?|ref(?:lex)?|will)\b(?:\s+(?:save|saving throw|vs\.?))/) ?? t.match(/\b(?:save|saving throw)[^.]*?\b(fort(?:itude)?|ref(?:lex)?|will)\b/);
+  const m = t.match(/\b(fort(?:itude)?|ref(?:lex)?|will)\b(?:\s+(?:save|saving throw|vs\.?))/) ?? t.match(/\b(?:save|saving throw)[^.]*?\b(fort(?:itude)?|ref(?:lex)?|will)\b/)
+    // (A stat line's short way: "DC 12 Fort or ...".)
+    ?? t.match(/\bdc \d+\s+(fort(?:itude)?|ref(?:lex)?|will)\b/);
   const dc = t.match(/\bdc (\d+)\b/);
   const type = m ? SAVES[m[1].startsWith("fort") ? "fort" : m[1].startsWith("ref") ? "ref" : "will"] : null;
   if ( !type && !/\bsave\b|\bsaving throw\b/.test(t) ) return null;
@@ -425,7 +430,7 @@ export function statLine(text) {
   const lower = t.toLowerCase();
   const out = { immune: [], attacks: [] };
   const special = lower; // (specials belong after "SP", but some stat lines put them elsewhere)
-  for ( const m of special.matchAll(/\bimmun\w*\s+(?:to\s+)?([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) {
+  for ( const m of special.matchAll(/\bimmun\w*\s+(?:to\s+)?(?:damage from\s+)?([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) {
     for ( const word of m[1].split(/,|\band\b|\bor\b/).map(w => w.trim().replace(/\s*(?:effects?|spells?|damage|attacks?)$/, "")) ) {
       for ( const [k, v] of Object.entries(IMMUNITIES) ) if ( word === k || word.startsWith(k) ) out.immune.push(...v);
       if ( word.startsWith("fear") ) out.fearless = true;
@@ -439,7 +444,17 @@ export function statLine(text) {
     out.undead = true;
     out.immune.push(...UNDEAD);
   }
-  if ( /\b(?:demon|devil)\b/.test(special) ) out.unholy = true;
+  if ( /\b(?:demon|devil)(?:s|ic|ish)?\b/.test(special) ) out.unholy = true;
+  // Harmed only by magic (or silver): immune to weapons that aren't ("immune to non-magical weapons"), or taking half
+  // from them ("resistant to non-magical weapons"): {magic, materials, half}.
+  const magicOnly = special.match(/\b(immun\w*|resist\w*|half damage)\s+(?:to\s+|from\s+)?non-?magical\b/);
+  const harmedOnly = special.match(/\bharmed only by ([a-z ,]+?)(?:weapons|attacks)\b|\bonly ([a-z ,]+?) weapons (?:can )?(?:harm|hurt|damage)\b/);
+  if ( magicOnly || harmedOnly ) {
+    const words = harmedOnly ? (harmedOnly[1] ?? harmedOnly[2]) : "magic";
+    out.harmedOnlyBy = { magic: /\bmagic/.test(words), materials: ["silver", "iron"].filter(m => words.includes(m)), half: !!magicOnly && !/^immun/.test(magicOnly[1]) };
+  }
+  const reduction = special.match(/\bdamage reduction\s*(\d+)/);
+  if ( reduction ) out.reduction = Number(reduction[1]);
   // Half damage from some kinds of harm ("half damage from piercing and slashing weapons"); double from others.
   out.resist = [];
   for ( const m of special.matchAll(/\bhalf damage from\s+([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) out.resist.push(...harmKinds(m[1]));
@@ -447,7 +462,7 @@ export function statLine(text) {
   for ( const m of special.matchAll(/\b(?:double damage from|vulnerab\w*\s+(?:to\s+)?)\s*([a-z ,'-]+?)(?=[^a-z ,'-]|\bsv\b|$)/g) ) out.weak.push(...harmKinds(m[1]));
   const crit = special.match(/\bcrits? (?:on|at)\s+(?:a\s+)?(?:natural\s+)?(\d+)(?:\s*[-–+]|\s+or (?:better|higher)|\+)/);
   if ( crit ) out.critNatural = Number(crit[1]);
-  const infra = special.match(/\b(?:infravision|darkvision|see in (?:the )?dark(?:ness)?)\s*(\d+)?/);
+  const infra = special.match(/\b(?:infravision|darkvision|(?:perfect )?night ?vision|true ?sight|see in (?:the )?dark(?:ness)?)\s*(\d+)?/);
   if ( infra ) out.infravision = Number(infra[1]) || 60;
   const mv = lower.match(/\bmv\b\s*([^;]*)/)?.[1] ?? "";
   for ( const mode of ["fly", "swim", "climb", "burrow"] ) {
@@ -475,7 +490,115 @@ export function statLine(text) {
       rider: inside.replace(formula ?? "", "").replace(/^\s*(?:dmg\s*)?/i, "").replace(/^\s*plus\s+/i, "").trim() || null
     });
   }
+  // What its specials add to how it fights: saves it's better (or worse) at, auras that make foes save, and what follows
+  // a hit (rend, constriction).
+  out.saveVs = saveVsIn(special);
+  out.auras = aurasIn(t);
+  out.followUps = followUpsIn(special);
+  if ( /\bnever surprised\b|\bcan(?:not|'t) be surprised\b/.test(special) ) out.neverSurprised = true;
+  const hide = special.match(/([+-]\s*\d+)\s*(?:bonus\s*)?(?:to|on)\s*(?:hide|hiding|stealth|sneak\w*|move silently)/);
+  if ( hide ) out.stealth = Number(hide[1].replace(/\s+/g, ""));
   out.immune = [...new Set(out.immune)];
+  return out;
+}
+
+/** The tags of what a "saves vs X" names, as the core's saveVs reads them (its traits and the engine's own). */
+const SAVE_VS = [
+  [/\bmagic(?:al)?\b|\bspells?\b/, ["magical"]], [/\bpoison/, ["poison"]], [/\bdisease/, ["disease"]],
+  [/\bfear\b|\bfright/, ["inflicts:frightened"]], [/\bcharm|\bmind/, ["inflicts:controlled"]], [/\bsleep/, ["inflicts:asleep"]],
+  [/\bparaly/, ["inflicts:paralyzed"]], [/\bpetrif/, ["petrification"]], [/\bbreath/, ["breath"]], [/\btraps?\b/, ["trap"]]
+];
+
+/**
+ * Saves a special says it's better (or worse) at ("+4 to saves vs. magic", "+2 on all saves against poison"): the
+ * core's saveVs, [{bonus, saves?, vs}]; its saves alone where it names one ("+2 to Fort saves vs. poison").
+ */
+export function saveVsIn(text) {
+  const out = [];
+  const t = plain(text).toLowerCase();
+  for ( const m of t.matchAll(/([+-]\s*\d+)\s*(?:bonus\s*)?(?:to|on)\s*(?:all\s+)?((?:fort(?:itude)?|ref(?:lex)?|will)\s+)?sav(?:es|ing throws?)\s*(?:vs\.?|versus|against)\s*([a-z ,'-]+)/g) ) {
+    const vs = SAVE_VS.filter(([re]) => re.test(m[3])).flatMap(([, tags]) => tags);
+    if ( !vs.length ) continue;
+    const save = m[2]?.trim();
+    out.push({ bonus: Number(m[1].replace(/\s+/g, "")), vs, ...(save ? { saves: [SAVES[save.startsWith("fort") ? "fort" : save.startsWith("ref") ? "ref" : "will"]] } : {}) });
+  }
+  return out;
+}
+
+/** A stat line's specials one by one: split at commas and semicolons outside brackets. */
+const clausesOf = text => plain(text).split(/[;,](?![^(]*\))/).map(c => c.trim()).filter(Boolean);
+
+/**
+ * Auras a special describes with their save and what a failure does ("stench (DC 12 Fort or -2 to attacks)", "fear
+ * aura 30' (DC 14 Will or flee)"): [{label, range, save: {type, dc}, outcome}], within 30 feet where it says no range.
+ * Only what it says plainly: a gaze or a song with no outcome named isn't one.
+ */
+export function aurasIn(text) {
+  const out = [];
+  for ( const clause of clausesOf(text) ) {
+    const t = clause.toLowerCase();
+    if ( !/\b(?:aura|stench|stink\w*|presence|gaze|song|wail\w*|cloud)\b/.test(t) ) continue;
+    const save = saveIn(t);
+    const outcome = outcomeIn(t.replace(/\bdc \d+\b/, ""));
+    if ( !save?.dc || !outcome ) continue;
+    const range = Number(t.match(/(\d+)\s*(?:'|ft|feet)/)?.[1]) || 30;
+    out.push({ label: clause.replace(/\s*\(.*$/, "").trim(), range, save: { type: save.type, dc: save.dc }, outcome });
+  }
+  return out;
+}
+
+/**
+ * What follows a hit, as a special says it: rend ("rend for additional 1d8 damage if more than 2 slam attacks hit";
+ * "if both claws hit"), constriction or a hug ("constriction 1d6", "bear hug 2d6": on one it holds). [{kind: "rend" |
+ * "hold", damage, n, with}]: `with`, the attack it names ("claw"), where it does.
+ */
+export function followUpsIn(text) {
+  const out = [];
+  const dice = s => s.match(/(\d*d\d+(?:\s*[+-]\s*\d+(?!\s*d))?)/)?.[1]?.replace(/\s+/g, "") ?? null;
+  for ( const clause of clausesOf(text).map(c => c.toLowerCase()) ) {
+    const formula = dice(clause);
+    if ( !formula ) continue;
+    if ( /\brend|\btear\b/.test(clause) ) {
+      const many = clause.match(/\bif\s+(?:more than\s+)?(both|two|three|\d+)\s+([a-z]+?)s?\s+(?:attacks?\s+)?hit/);
+      let n = many ? (many[1] === "both" ? 2 : NUMBER_WORDS[many[1]] ?? Number(many[1])) : 2;
+      if ( /\bmore than\b/.test(clause) ) n += 1;
+      out.push({ kind: "rend", damage: formula, n: Math.max(2, n || 2), with: many?.[2] && many[2] !== "attack" ? many[2] : null });
+    } else if ( /\bconstrict|\bhug\b|\bcrush|\bsqueez/.test(clause) ) out.push({ kind: "hold", damage: formula });
+  }
+  return out;
+}
+
+/**
+ * What an attack's rider says happens on a hit ("plus poison (DC 15 Fort save or death)", "+1d6 acid plus grab",
+ * "plus disease (DC 7 Fort save or additional 1d6 damage)", "blood drain (automatic 1d4 dmg per round)"), in the
+ * engine's terms: {effects: the core's on-hit effects, damage: extra damage parts on the blow}. What it says only by
+ * name ("plus slime": the book's entry has the rest) is left out, never guessed.
+ *   - a grab: a grab, constriction or a hold;
+ *   - a save with what a failure does: conditions, damage, death; its own kinds (poison, disease) for immunity;
+ *   - extra damage with the blow ("+1d6 acid"), and damage each round after it (persistent, as DCC's ends).
+ * A range a stat line puts in its parentheses (", range 100'") is no rider.
+ */
+export function ridersIn(text) {
+  const out = { effects: [], damage: [] };
+  const t = plain(text).toLowerCase().replace(/,?\s*range\s*[\d']+'?/g, "").trim();
+  if ( !t ) return out;
+  if ( /\bgrab|\bgrapple|\bconstrict|\bhold\b/.test(t) ) out.effects.push({ kind: "grabbed" });
+  const extra = t.match(/^\+\s*(\d*d\d+(?:\s*[+-]\s*\d+(?!\s*d))?)\s*([a-z]+)?/);
+  if ( extra ) out.damage.push(parseFormula(extra[1].replace(/\s+/g, ""), typeIn(extra[2] ?? "") ?? "untyped"));
+  const perRound = t.match(/(\d*d\d+)\s*(?:dmg|damage|hp)?\s*(?:per|each|every)\s*round/);
+  if ( perRound ) out.damage.push({ ...parseFormula(perRound[1], typeIn(t) ?? "untyped"), persistent: true });
+  const save = saveIn(t);
+  if ( save?.dc ) {
+    const failure = t.slice(t.search(/\bdc \d+/));
+    const kinds = ["poison", "disease"].filter(k => t.includes(k));
+    const effect = { kind: "save", label: plain(text), save: { type: save.type, dc: save.dc }, ...(kinds.length ? { traits: kinds } : {}) };
+    if ( /\bor (?:\w+ )?death\b|\bor die\b|\bdies\b/.test(failure) ) effect.slay = true;
+    const hurt = failure.match(/\bor (?:take |an? )?(?:additional |extra )?(\d*d\d+(?:\s*[+-]\s*\d+(?!\s*d))?)\s*(?:damage|dmg|hp)\b/);
+    if ( hurt ) effect.damage = [parseFormula(hurt[1].replace(/\s+/g, ""), typeIn(failure) ?? "untyped")];
+    const outcome = outcomeIn(failure.replace(/\bdc \d+\b/, ""));
+    if ( outcome?.conditions ) Object.assign(effect, { conditions: outcome.conditions, rounds: outcome.rounds });
+    if ( effect.slay || effect.damage || effect.conditions ) out.effects.push(effect);
+  }
   return out;
 }
 
@@ -510,3 +633,23 @@ export function feet(text) {
 
 /** A crit natural (on the die rolled) as the engine's d20-relative threat: 21+ on a d24 is 17+ on a d20. */
 export const critOnFor = (natural, faces = 20) => (natural ? 20 - (faces - natural) : null);
+
+/**
+ * A rider the stat line only names ("plus disease", "plus paralysis"), read from the creature's entry in the book: the
+ * first sentence with a DC that speaks of it (its words, or the attack's: "bitten by a ghoul must make a DC 14 Will
+ * save or be paralyzed"), read as ridersIn reads a rider. Nothing where no sentence says it plainly.
+ * @param {string[]} names   the rider's words and the attack's name
+ * @param {string} entry     the entry's text (its HTML is fine)
+ */
+export function entryRider(names, entry) {
+  const stems = [...new Set(names.flatMap(n => String(n ?? "").toLowerCase().split(/[^a-z]+/))
+    .filter(w => w.length >= 3 && !["plus", "and", "the", "with", "dmg", "damage", "see", "below"].includes(w))
+    .map(w => w.slice(0, Math.min(5, Math.max(3, w.length - 1)))))];
+  if ( !stems.length || !entry ) return { effects: [], damage: [] };
+  for ( const s of sentences(entry) ) {
+    if ( !/\bdc \d+/.test(s) || !stems.some(stem => s.includes(stem)) ) continue;
+    const read = ridersIn(s);
+    if ( read.effects.some(e => e.kind === "save") ) return { effects: read.effects.filter(e => e.kind === "save"), damage: [] };
+  }
+  return { effects: [], damage: [] };
+}

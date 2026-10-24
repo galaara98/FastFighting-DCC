@@ -11,7 +11,7 @@
 import { SystemAdapter, parseFormula, part, hasWords, plainText, englishWords, statusesOf } from "./core.js";
 import { dccRules } from "./rules.js";
 import { tiedStopsSpells } from "./tied.js";
-import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn } from "./text.js";
+import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn, ridersIn, entryRider } from "./text.js";
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
 import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
@@ -297,6 +297,32 @@ function inPartyOf(actor) {
   return parties.some(p => [p.getFlag?.("dcc", "partyMembers") ?? []].flat().some(m => m?.id === actor.id));
 }
 
+/** Are a stat line's attack and a weapon on the sheet the same ("bite" and "Bite"; "claw" and "Claws")? */
+export const sameAttack = (said, name) => {
+  const a = String(said ?? "").toLowerCase().replace(/s\b/g, "").trim();
+  const b = String(name ?? "").toLowerCase().replace(/s\b/g, "").trim();
+  return !!a && !!b && (a === b || b.includes(a) || a.includes(b));
+};
+
+/**
+ * What follows a hit, as engine actions (text.js followUpsIn): rend, its damage after so many hits on one foe this turn
+ * with the attack it names (any melee attack where it names none); constriction, its damage on one it holds. Free (DCC
+ * plays them as part of the attack), no roll, once a turn. Named as the stat line names them.
+ */
+export function followUpActions(actorId, followUps = [], actions = []) {
+  const melee = actions.filter(a => a.kind === "strike" && a.melee);
+  const out = [];
+  for ( const [i, f] of followUps.entries() ) {
+    const damage = parseFormula(f.damage, "untyped");
+    const base = { id: `${actorId}.follow${i}`, kind: "auto", economy: "free", cost: 1, oncePerTurn: true, melee: true, reach: 5, traits: [], damage: [damage] };
+    if ( f.kind === "rend" ) {
+      const ids = (f.with ? melee.filter(a => sameAttack(f.with, a.name)) : melee).map(a => a.id);
+      if ( ids.length ) out.push({ ...base, name: t("Rend"), requires: { hits: { n: f.n, with: ids } } });
+    } else if ( f.kind === "hold" ) out.push({ ...base, name: t("Constrict"), requires: { holding: true } });
+  }
+  return out;
+}
+
 /**
  * What it could be talked (or robbed) out of: coins, what it carries put away, the weapons and shield in its hands, and
  * the armor it wears; each with how many and what one is worth (copper). Not a container (all in it would go too).
@@ -425,7 +451,17 @@ export class DccAdapter extends SystemAdapter {
       hitDie: hd.faces,
       defenses,
       shield: null, // a DCC shield is in the AC
-      initiative: { mod: flatOf(sys.attributes?.init?.value), die: initiativeDie(actor), stealth: sneakOf(actor, kind) },
+      initiative: { mod: flatOf(sys.attributes?.init?.value), die: initiativeDie(actor), stealth: line.stealth ?? sneakOf(actor, kind) },
+      // (What its stat line's specials say: saves it's better at, auras foes save against, what only magic or silver
+      // harms, damage it shrugs off, and that it's never caught unready: core API 29's alert.)
+      saveVs: line.saveVs?.length ? line.saveVs : undefined,
+      auras: line.auras?.length ? line.auras.map((a, i) => ({
+        id: `${actor.id}.aura${i}`, key: a.label.toLowerCase(), label: a.label, range: a.range, save: a.save,
+        byDegree: [a.outcome, a.outcome, null, null], when: "both", traits: [], foesOnly: true
+      })) : undefined,
+      harmedOnlyBy: line.harmedOnlyBy,
+      reduction: line.reduction,
+      alert: line.neverSurprised || undefined,
       speeds,
       actions,
       actionDice: dice,
@@ -590,6 +626,20 @@ export class DccAdapter extends SystemAdapter {
    * a stat line that only names its regeneration (a troll's) leaves how much to its entry in a book, which it links to,
    * when that's installed. Null for none.
    */
+  /**
+   * A stat-line attack's rider (text.js ridersIn); one it only names ("plus disease"), as the creature's entry in the
+   * book says it (entryRider), where the stat line links one.
+   */
+  async #rider(sys, attack) {
+    const read = ridersIn(attack.rider);
+    if ( read.effects.length || !attack.rider ) return read;
+    for ( const uuid of linksIn(sys.details?.notes?.value) ) {
+      const said = entryRider([attack.rider, attack.name], await this.#tables.entry(uuid));
+      if ( said.effects.length ) return { effects: [...read.effects, ...said.effects], damage: read.damage };
+    }
+    return read;
+  }
+
   async #mending(sys, line) {
     let { regen, fastHealing } = line;
     if ( !regen && line.regenNamed ) {
@@ -662,14 +712,18 @@ export class DccAdapter extends SystemAdapter {
     if ( !pc && !actions.length ) {
       for ( const [i, a] of line.attacks.entries() ) {
         if ( !a.damage ) continue;
+        const rider = await this.#rider(sys, a);
         actions.push({
           id: `${actor.id}.atk${i}`, name: a.name, kind: "strike", cost: 1, bonus: a.bonus, melee: a.melee, reach: a.melee ? 5 : undefined,
-          range: a.melee ? null : { increment: 60 }, damage: harmOf(a.damage, a.name),
+          range: a.melee ? null : { increment: 60 }, damage: [...harmOf(a.damage, a.name), ...rider.damage],
           critOn: critOnFor(line.critNatural, firstDie) ?? undefined, crit: await this.#crit(sys, null, 0),
-          effects: this.#riders(a.rider), ...naturalOf(a.name)
+          effects: rider.effects.length ? rider.effects : undefined, ...naturalOf(a.name)
         });
       }
     }
+    // What follows a hit, as its stat line says: rend (so many hits on one foe this turn) and constriction (on one it
+    // holds), each its damage, no roll, once a turn.
+    if ( !pc ) actions.push(...followUpActions(actor.id, line.followUps, actions));
     // An XCC brawler's fists (fighting unarmed, or a free punch besides its weapon).
     const armed = actions.some(a => a.melee && a.kind === "strike");
     const fists = pc && kind.brawler ? brawlerFists(actor, { armed, firstDie, crit: await this.#crit(sys, null, luckMod) }) : [];
@@ -744,6 +798,16 @@ export class DccAdapter extends SystemAdapter {
       // (A bite, claws, a slam: no weapon in hand.)
       ...naturalOf(w.name, worthOf(w))
     };
+    // (A monster's weapon: what its stat line's attack of that name carries, "plus poison (DC 12 Fort or death)".)
+    const said = !pc ? line.attacks.find(a => a.rider && sameAttack(a.name, w.name)) : null;
+    if ( said ) {
+      const rider = await this.#rider(actor.system, said);
+      if ( rider.effects.length ) action.effects = rider.effects;
+      if ( rider.damage.length ) action.damage = [...action.damage, ...rider.damage];
+    }
+    // (Magic, or silver, for a creature only those harm: the weapon's own bonus or its name.)
+    if ( flatOf(s.attackBonusWeapon) > 0 || saysWord("Magic", w.name) ) action.magical = true;
+    if ( saysWord("Silver", w.name) ) action.materials = ["silver"];
     // A thief striking a foe who can't defend itself: the backstab (its bonus, and a far worse wound).
     if ( pc && kind.thief && s.melee ) {
       const type = damage[0].type;
@@ -768,18 +832,6 @@ export class DccAdapter extends SystemAdapter {
     const rows = await this.#tables.crit(id);
     if ( rows?.length ) return { die, mod, rows, table: id };
     return { die, mod: 0, rows: [{ lo: -Infinity, hi: Infinity, damage: [{ ...die, type: "untyped" }] }], table: id, guessed: true };
-  }
-
-  /** A stat line's attack rider ("plus grapple", "plus poison (DC 12 Fort or paralyzed 1d4 rounds)"). */
-  #riders(text) {
-    if ( !text ) return undefined;
-    const t = plain(text).toLowerCase();
-    const out = [];
-    if ( /\bgrab|\bgrapple|\bconstrict|\bhold\b/.test(t) ) out.push({ kind: "grabbed" });
-    const save = saveIn(t);
-    const outcome = outcomeIn(t);
-    if ( save?.dc && outcome?.conditions ) out.push({ kind: "save", label: text, save: { type: save.type, dc: save.dc }, conditions: outcome.conditions, rounds: outcome.rounds });
-    return out.length ? out : undefined;
   }
 
   /** Spells it knows (and hasn't lost today), cast with a spell check. */
