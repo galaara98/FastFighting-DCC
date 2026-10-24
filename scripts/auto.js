@@ -10,17 +10,18 @@ import { t } from "./words.js";
 
 /** What each class leans toward, by the class sheet's id. */
 const CLASSES = Object.freeze({
-  warrior: { brawler: 0.4, tank: 0.2 },
+  // (A Warrior's Mighty Deeds are a daredevil's stunts.)
+  warrior: { brawler: 0.4, tank: 0.2, daredevil: 0.3 },
   dwarf: { tank: 0.4, relentless: 0.2 }, "xcc-dwarf": { tank: 0.4, relentless: 0.2 },
   thief: { thief: 0.5, wallflower: 0.1 },
-  halfling: { wallflower: 0.3 },
+  halfling: { wallflower: 0.3, daredevil: 0.15 },
   elf: { unmundane: 0.4, loreCollector: 0.2 },
   wizard: { unmundane: 0.5, loreCollector: 0.3 },
   cleric: { enabler: 0.4 }, messenger: { enabler: 0.4 },
   "zero-level": { fragile: 0.3, chicken: 0.1 }, "0-level": { fragile: 0.3, chicken: 0.1 }, zero: { fragile: 0.3, chicken: 0.1 },
   // XCC's own.
   brawler: { brawler: 0.7 }, "dungeon-hottie": { peoplePleaser: 0.3 }, jammer: { instigator: 0.4 }, gnome: { tank: 0.5 },
-  athlete: { brawler: 0.3, dps: 0.2 }, "sp-acrobat": { kiter: 0.3 }
+  athlete: { brawler: 0.3, dps: 0.2, daredevil: 0.2 }, "sp-acrobat": { kiter: 0.3, daredevil: 0.3 }
 });
 
 /** What an alignment leans toward (l, n, c). */

@@ -4,10 +4,13 @@
  *   - Eats nothing: the mindless and constructs, the un-dead, and demons (the crit table the system gave it: traits.js
  *     monsterKind). A beast (traits.js: by its name) that bites (a weapon on its sheet named as the language file's
  *     FFDCC.Words.Bite says) eats meat; any other beast eats anything; anyone else too, rarely hungry in a fight.
- *   - Meat: none from the un-dead, constructs, demons, or a body its name says has no flesh (FFDCC.Words.NoFlesh: an
- *     ooze, a mist, a statue); else by its token's size (DCC's only size), 1 for a small one to 32 for a gargantuan one,
- *     as our own "Uncooked meat" (DCC has no such item).
- *   - Food: our meat, and anything named as rations are (FFDCC.Words.Rations: DCC's items have no kind of their own).
+ *   - Corpses (core API 30): a body leaves one, equipment (DCC has no food type): the un-dead's a Rotten Corpse, never
+ *     food; none from a construct, a demon, or a body its name says has no flesh (FFDCC.Words.NoFlesh: an ooze, a mist,
+ *     a statue; DCC has no creature of metal or a machine, so no Scrap Corpse); else a Fresh Corpse, food, its portions
+ *     by its token's size (DCC's only size), 1 for a small one to 32 for a gargantuan one, in the core's portions flag,
+ *     eaten a portion at a time.
+ *   - Food: a fresh corpse (or the "Uncooked meat" of before), and anything named as rations are (FFDCC.Words.Rations:
+ *     DCC's items have no kind of their own).
  * The core weighs the rest: wisdom against hunger, and the chance any creature that eats is famished.
  */
 import { MODULE_ID } from "./core.js";
@@ -18,6 +21,11 @@ import { t, saysWord } from "./words.js";
 /** How likely each kind comes to a fight hungry (the core's chance, before wisdom). */
 export const HUNGER = Object.freeze({ biter: 0.4, beast: 0.3, living: 0.1 });
 export const MEAT_ICON = "icons/consumables/meat/steak-raw-red-pink.webp";
+/** Each kind of corpse: its name's key (and its hint's, with Hint) and icon. */
+export const CORPSES = Object.freeze({
+  fresh: { key: "FreshCorpse", img: MEAT_ICON },
+  rotten: { key: "RottenCorpse", img: "icons/commodities/bones/bones-stack-worn-brown.webp" }
+});
 
 /** Portions of meat a body leaves, by its token's size in squares across. */
 const meatBySize = size => (size <= 0.5 ? 1 : size <= 1 ? 4 : size <= 2 ? 8 : size <= 3 ? 16 : 32);
@@ -37,7 +45,7 @@ function natureOf(actor, spec) {
   return {
     eats: !(undead || mindless || demon),
     flesh: !(undead || !!line.construct || demon || saysWord("NoFlesh", actor.name)),
-    beast, bites
+    undead, beast, bites
   };
 }
 
@@ -50,20 +58,29 @@ export function dccAppetite(actor, spec = null) {
   return { diet: "any", hunger: HUNGER.living, cannibal: false };
 }
 
-/** What its body leaves when it dies: our "Uncooked meat", by its size; null for a body of no flesh. */
-export function dccMeatFor(actor, spec = null) {
+/** The kind of corpse its body leaves (CORPSES): the un-dead's rotten, a body of flesh fresh; else none. */
+export function dccCorpseKind(actor, spec = null) {
   const n = natureOf(actor, spec);
-  if ( !n?.flesh ) return null;
+  if ( !n ) return null;
+  if ( n.undead && !saysWord("NoFlesh", actor.name) ) return "rotten";
+  return n.flesh ? "fresh" : null;
+}
+
+/** The corpse its body leaves when it dies (core API 30): {item, quantity: its portions, 0 for no food}, or null. */
+export function dccMeatFor(actor, spec = null) {
+  const kind = dccCorpseKind(actor, spec);
+  if ( !kind ) return null;
   const size = Number(spec?.position?.size) || Number(actor.token?.width ?? actor.prototypeToken?.width) || 1;
-  const quantity = meatBySize(size);
+  const portions = kind === "fresh" ? meatBySize(size) : 0;
+  const { key, img } = CORPSES[kind];
   return {
-    quantity,
+    quantity: portions,
     item: {
-      name: t("Meat"),
+      name: t(key),
       type: "equipment",
-      img: MEAT_ICON,
-      system: { quantity, equipped: false, description: { value: `<p>${t("MeatHint")}</p>` } },
-      flags: { [MODULE_ID]: { food: "meat" } }
+      img,
+      system: { quantity: 1, equipped: false, description: { value: `<p>${t(`${key}Hint`)}</p>` } },
+      flags: { [MODULE_ID]: { corpse: kind, ...(portions ? { food: "meat", portions } : {}) } }
     }
   };
 }
@@ -72,8 +89,13 @@ export function dccMeatFor(actor, spec = null) {
 export function dccIsFood(item) {
   if ( !item ) return null;
   const quantity = Math.max(1, Number(item.system?.quantity ?? item.quantity ?? 1) || 1);
-  const flags = item.flags?.[MODULE_ID] ?? (typeof item.getFlag === "function" ? { food: item.getFlag(MODULE_ID, "food") } : {});
-  if ( flags?.food === "meat" ) return { portions: quantity, meat: true };
+  const flags = item.flags?.[MODULE_ID] ?? (typeof item.getFlag === "function" ? { food: item.getFlag(MODULE_ID, "food"), portions: item.getFlag(MODULE_ID, "portions") } : {});
+  if ( flags?.food === "meat" ) {
+    // (A fresh corpse: its portions left, none once they're eaten. The meat of before: its quantity.)
+    const portions = flags.portions ?? null;
+    if ( portions === null ) return { portions: quantity, meat: true };
+    return Number(portions) > 0 ? { portions: Math.round(Number(portions)), meat: true } : null;
+  }
   if ( ["equipment", "treasure"].includes(item.type) && saysWord("Rations", item.name) ) return { portions: quantity, meat: false };
   return null;
 }

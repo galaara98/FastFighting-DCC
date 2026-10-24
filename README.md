@@ -122,7 +122,7 @@ A creature persuades, intimidates (with Strength, when better) and deceives with
 
 Coins are worth what the system says: a platinum piece 100 gold, an electrum piece 10. A team's cash is in gold. In a deal a creature hands over coins and what it carries put away, as many as agreed, never the weapon in its hand or the armor it wears. A player's deal rolls the check they pick: Personality, Strength, or a skill on the sheet; left to FastFighting, a bribe is Personality (XCC's Bribery expert where the sheet has it) and a demand the better of Personality and Strength. Dropped goods and the fallen's belongings lie in an Item Piles pile when that module is on, else in a pile of DCC's own (an NPC sheet that holds them).
 
-DCC keeps no diet or size, so a beast that bites (by its weapons' names) eats meat, other beasts and the people anything, and the un-dead, constructs and demons nothing. A body leaves meat by its token's size, none for a body of no flesh. Rations are food by name.
+DCC keeps no diet or size, so a beast that bites (by its weapons' names) eats meat, other beasts and the people anything, and the un-dead, constructs and demons nothing. A creature that dies leaves a **Fresh Corpse** (food for the hungry, by its token's size), or a **Rotten Corpse** if it's un-dead; constructs, demons and bodies of no flesh leave none. Rations are food by name.
 
 ### XCC classes
 

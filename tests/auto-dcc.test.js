@@ -31,7 +31,8 @@ const NAMES = { will: "Will", lucky: "Lucky Weapon", deeds: "Mighty Deeds of Arm
 
 describe("the playstyles DCC says fit", () => {
   test("a class, by the class sheet (XCC's too; every Specialist a thief)", () => {
-    expect(dccHints({ cls: "warrior" })).toMatchObject({ brawler: 0.4, tank: 0.2 });
+    expect(dccHints({ cls: "warrior" })).toMatchObject({ brawler: 0.4, tank: 0.2, daredevil: 0.3 });
+    expect(dccHints({ cls: "sp-acrobat" }).daredevil).toBe(0.3);
     expect(dccHints({ cls: "sp-scout" }).thief).toBe(0.5);
     expect(dccHints({ cls: "gnome" }).tank).toBe(0.5);
     // (The core book's 0-level pregens are filed under the class "Zero".)

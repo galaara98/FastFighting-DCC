@@ -5,7 +5,7 @@
  */
 import { beforeEach, describe, expect, test } from "vitest";
 import { readFileSync } from "fs";
-import { dccAppetite, dccMeatFor, dccIsFood, HUNGER } from "../scripts/food.js";
+import { dccAppetite, dccMeatFor, dccIsFood, dccCorpseKind, CORPSES, HUNGER } from "../scripts/food.js";
 import { wordList } from "../scripts/words.js";
 
 /** A word of a list a name can carry (plain letters), English's at least: the names here whatever the wording. */
@@ -45,15 +45,30 @@ describe("who eats what", () => {
 });
 
 describe("what a body leaves", () => {
-  test("meat by its size; none from a body of no flesh", () => {
+  test("a Fresh Corpse: one item, its portions by its size, food; none from a body of no flesh", () => {
     expect(dccMeatFor(creature({ name: "Rat", width: 0.5 })).quantity).toBe(1);
     expect(dccMeatFor(creature({ name: "Ogre", width: 2 })).quantity).toBe(8);
     expect(dccMeatFor(creature(), { position: { size: 3 } }).quantity).toBe(16);
     expect(dccMeatFor(creature({ name: name("NoFlesh") }))).toBeNull();
-    expect(dccMeatFor(creature({ name: "Zombie", notes: "Un-dead traits" }))).toBeNull();
     const meat = dccMeatFor(creature());
-    expect(meat.item).toMatchObject({ type: "equipment", system: { quantity: 4 }, flags: { "fast-fighting": { food: "meat" } } });
+    expect(meat.item).toMatchObject({ type: "equipment", img: CORPSES.fresh.img, system: { quantity: 1 }, flags: { "fast-fighting": { corpse: "fresh", food: "meat", portions: 4 } } });
     expect(dccIsFood(meat.item)).toEqual({ portions: 4, meat: true });
+    expect(dccIsFood({ ...meat.item, flags: { "fast-fighting": { corpse: "fresh", food: "meat", portions: 0 } } })).toBeNull();
+  });
+
+  test("the un-dead's a Rotten Corpse, never food; a construct's, a demon's, none", () => {
+    const zombie = creature({ name: "Zombie", notes: "Un-dead traits" });
+    expect(dccCorpseKind(zombie)).toBe("rotten");
+    const rotten = dccMeatFor(zombie);
+    expect(rotten.quantity).toBe(0);
+    expect(rotten.item).toMatchObject({ type: "equipment", img: CORPSES.rotten.img, flags: { "fast-fighting": { corpse: "rotten" } } });
+    expect(dccIsFood(rotten.item)).toBeNull();
+    expect(dccMeatFor(creature({ name: "Statue", notes: "Construct" }))).toBeNull();
+    expect(dccMeatFor(creature({ name: "Imp", table: "DN" }))).toBeNull();
+  });
+
+  test("the meat of before still eats as its quantity", () => {
+    expect(dccIsFood({ type: "equipment", system: { quantity: 3 }, flags: { "fast-fighting": { food: "meat" } } })).toEqual({ portions: 3, meat: true });
   });
 });
 

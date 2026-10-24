@@ -222,8 +222,10 @@
       "AugurTrapSaves": "escape traps, saves vs traps, saves against traps, saving throws against traps"
     },
     "DroppedGoods": "Dropped goods",
-    "Meat": "Uncooked meat",
-    "MeatHint": "Meat from a fresh kill, raw. A hungry creature may well want it.",
+    "FreshCorpse": "Fresh Corpse",
+    "FreshCorpseHint": "A body, freshly dead. A hungry creature may well want it.",
+    "RottenCorpse": "Rotten Corpse",
+    "RottenCorpseHint": "What's left of an un-dead creature: rotten, and no one's meal.",
     "AbilityLogSource": "FastFighting",
     "FreeAttack": "Free attack at a foe withdrawing",
     "Given": "{action} → {target} ({effect})",
