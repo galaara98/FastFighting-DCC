@@ -243,3 +243,13 @@ describe("a weapon's crit range on its die", () => {
     expect(critOnAt(20, 16, false)).toBeUndefined();
   });
 });
+
+describe("a birth augur for saves against traps", () => {
+  test("Guardian angel: its Luck modifier on saves against traps; any other augur nothing", async () => {
+    const { augurSaves } = await import("../scripts/adapter.js");
+    const pc = (augur, mod) => ({ system: { details: { birthAugur: augur, birthAugurLuckMod: mod }, abilities: { lck: { mod: 1 } } } });
+    expect(augurSaves(pc("Guardian angel (Savings throws to escape traps) (-3)", -3))).toEqual([{ bonus: -3, vs: ["trap"] }]);
+    expect(augurSaves(pc("Guardian angel (Saving throws to escape traps)", undefined))).toEqual([{ bonus: 1, vs: ["trap"] }]);
+    expect(augurSaves(pc("Fox's cunning (Find/disable traps) (+1)", 1))).toEqual([]);
+  });
+});

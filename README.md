@@ -42,7 +42,7 @@ Natural attacks (a bite, claws, a slam, a Brawler's fists) need no free hand, ex
 
 A creature gets one action for each action die: a giant its d24 then its d16, a high-level character its second die. Crit ranges scale to the die (19–20 on a d20 is 23–24 on a d24). Initiative rolls the system's die: a d20, a d16 with a two-handed weapon in hand, or a weapon's own. Springing an ambush (the core's stealth surprise), a thief rolls its Sneak Silently and Agility, a halfling its Sneak and Hide.
 
-Two weapons set up as the primary hand and the off hand attack together for one action, on the dice the system steps down for each (Table 4-3), each hand with its own crit rule (no crits, or only on the die's highest face: a halfling's).
+Two weapons set up as the primary hand and the off hand attack together for one action, on the dice the system steps down for each (Table 4-3), each hand with its own crit rule (no crits, or only on the die's highest face: a halfling's). A halfling fumbles only when both hands roll a 1.
 
 ### Mighty Deeds: the core's maneuvers, riding the blow
 
@@ -107,6 +107,8 @@ DCC's morale is for creatures; a character's is its player's. A group checks whe
 A Lore-Collector with a mind (not the mindless or constructs) sizes a foe up with an Intelligence check against DC 10. When it works, its rolls against every foe of that sort are far likelier to land through its next turn, by FastFighting's **Lore-Collector advantage** setting.
 
 ### Personality, leadership and talking: the core's traits and standoffs
+
+The members of the world's Party sheets start on the Friendly Team, unless their token is Hostile. A character born under the Guardian angel adds its birth Luck modifier to saves against traps (a token the GM marks as a hazard).
 
 A player character starts as the usual hero, and its sheet moves each trait a little: a 0-level funnel peasant starts lower (about 45 Tactical, 50 Brave, 35 Selfish, 55 Loyal), and its level, abilities, Will save, hit points, class, alignment, birth augur and party (DCC's Party sheets) each count. A monster's traits come from what its stat line and crit table say it is (the walking dead, a construct, a spellcaster), its name only where those say nothing, then its Will, alignment and any ability scores. The mindless never change. Each trait's tooltip in the planner lists every part that moved it.
 

@@ -213,7 +213,8 @@
       "NoFlesh": "ooze, jelly, slime, pudding, mist, fog, vapor, shadow, ghost, spirit, wraith, spectre, specter, phantom, elemental, golem, statue, automaton, android, servitor, plant, fungus, mold, mould, shrooman",
       "Rations": "ration, rations, trail rations, provisions, food, bread, cheese, jerky, dried meat, hardtack",
       "Magic": "magic, magical, enchanted, +1, +2, +3, +4, +5",
-      "Silver": "silver, silvered"
+      "Silver": "silver, silvered",
+      "AugurTrapSaves": "escape traps, saves vs traps, saves against traps, saving throws against traps"
     },
     "DroppedGoods": "Dropped goods",
     "Meat": "Uncooked meat",

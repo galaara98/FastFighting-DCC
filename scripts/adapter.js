@@ -297,6 +297,20 @@ function inPartyOf(actor) {
   return parties.some(p => [p.getFlag?.("dcc", "partyMembers") ?? []].flat().some(m => m?.id === actor.id));
 }
 
+/**
+ * What a character's birth augur adds to its saves, where it's one the rules have for saves (its sheet's words for it,
+ * "Guardian angel (Saving throws to escape traps)", by the language file's FFDCC.Words.AugurTrapSaves): its Luck
+ * modifier on saves against traps (core API 29: an effect a hazard sets off is a trap).
+ */
+export function augurSaves(actor) {
+  const d = actor?.system?.details ?? {};
+  const governs = String(d.birthAugur ?? "").match(/\(([^)]*)\)/)?.[1] ?? "";
+  if ( !governs || !saysWord("AugurTrapSaves", governs) ) return [];
+  const mod = Number.isFinite(Number(d.birthAugurLuckMod)) && d.birthAugurLuckMod !== "" && d.birthAugurLuckMod !== null
+    ? Number(d.birthAugurLuckMod) : Number(actor.system?.abilities?.lck?.mod) || 0;
+  return mod ? [{ bonus: mod, vs: ["trap"] }] : [];
+}
+
 /** Are a stat line's attack and a weapon on the sheet the same ("bite" and "Bite"; "claw" and "Claws")? */
 export const sameAttack = (said, name) => {
   const a = String(said ?? "").toLowerCase().replace(/s\b/g, "").trim();
@@ -454,7 +468,7 @@ export class DccAdapter extends SystemAdapter {
       initiative: { mod: flatOf(sys.attributes?.init?.value), die: initiativeDie(actor), stealth: line.stealth ?? sneakOf(actor, kind) },
       // (What its stat line's specials say: saves it's better at, auras foes save against, what only magic or silver
       // harms, damage it shrugs off, and that it's never caught unready: core API 29's alert.)
-      saveVs: line.saveVs?.length ? line.saveVs : undefined,
+      saveVs: [...(line.saveVs ?? []), ...(pc ? augurSaves(actor) : [])].length ? [...(line.saveVs ?? []), ...(pc ? augurSaves(actor) : [])] : undefined,
       auras: line.auras?.length ? line.auras.map((a, i) => ({
         id: `${actor.id}.aura${i}`, key: a.label.toLowerCase(), label: a.label, range: a.range, save: a.save,
         byDegree: [a.outcome, a.outcome, null, null], when: "both", traits: [], foesOnly: true
@@ -706,7 +720,9 @@ export class DccAdapter extends SystemAdapter {
     if ( hands.primary && hands.offHand ) {
       const { primary, offHand } = hands;
       actions.push({ ...primary, id: `${actor.id}.two-weapons`, name: t("TwoWeapons", { main: primary.name, off: offHand.name }), itemId: undefined,
-        sequence: [primary, offHand].map(a => ({ ...a, id: `${a.id}.two-weapons` })) });
+        sequence: [primary, offHand].map(a => ({ ...a, id: `${a.id}.two-weapons` })),
+        // (A halfling fumbles only when both hands roll a 1: the fumble table once, after both. Core API 29.)
+        ...(kind.halfling ? { fumble: "all" } : {}) });
     }
     // A monster with no weapons on its sheet: its stat line's attacks.
     if ( !pc && !actions.length ) {
@@ -1281,6 +1297,12 @@ export class DccAdapter extends SystemAdapter {
   /** What a character could hand over in a deal. */
   giveables(actor) {
     return dccGiveables(actor);
+  }
+
+  /** DCC's own party (its Party sheets, their members a flag on each): on the Friendly Team (core API 29). */
+  partyMembers() {
+    const parties = game.actors?.filter?.(a => a.type === "Party") ?? [];
+    return parties.flatMap(p => [p.getFlag?.("dcc", "partyMembers") ?? []].flat().map(m => m?.id)).filter(Boolean);
   }
 
   /* -------------------------------------------- */
