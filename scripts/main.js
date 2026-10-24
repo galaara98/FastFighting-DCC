@@ -7,6 +7,7 @@ import { DccAdapter } from "./adapter.js";
 import { moveLoreBoost } from "./lore-move.js";
 import { hideApplyMenu } from "./cards.js";
 import { registerTiedStopsSpells } from "./tied.js";
+import { loadReading } from "./reading.js";
 
 export const MODULE_ID = "fast-fighting-dcc";
 
@@ -32,6 +33,8 @@ Hooks.on("getChatMessageContextOptions", hideApplyMenu);
 Hooks.once("init", () => {
   // Whether a creature tied up can still cast (tied.js).
   registerTiedStopsSpells();
+  // The words the books' stat lines and tables are read by (reading.js).
+  loadReading();
 });
 
 Hooks.once("fastFighting.init", api => {

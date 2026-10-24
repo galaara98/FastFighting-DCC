@@ -1,0 +1,317 @@
+{
+  "$comment": "How FastFighting DCC reads the books' English: monsters' stat lines and the rows of crit, fumble and spell tables. Patterns are regular expressions over the text, lower case; {name} in one is a piece from parts ({dice} and {formula}, a dice term, are the code's). A translation is a copy of this file named for its language (de.json), merged over this one. See CODING_README.md.",
+  "parts": {
+    "save": "fort(?:itude)?|ref(?:lex)?|will",
+    "level": "(?<level>\\s*\\+\\s*(?:caster level|cl|the caster's level|his level|her level|level))?",
+    "hp": "\\s*(?:hp|hit points?|points?(?: of damage)?)?",
+    "eachRound": "\\s*(?:\\/\\s*|per\\s+|each\\s+|every\\s+|a\\s+|at the (?:end|start|beginning) of (?:each|every|the)\\s+)(?:round|turn)",
+    "wordBreak": "[^a-z]+"
+  },
+  "numbers": {
+    "a": 1,
+    "an": 1,
+    "one": 1,
+    "single": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+    "twelve": 12
+  },
+  "saveNames": {
+    "fort": "frt",
+    "fortitude": "frt",
+    "ref": "ref",
+    "reflex": "ref",
+    "will": "wil"
+  },
+  "damageTypes": {
+    "fire": "fire",
+    "flame": "fire",
+    "cold": "cold",
+    "ice": "cold",
+    "frost": "cold",
+    "acid": "acid",
+    "electric": "electricity",
+    "electricity": "electricity",
+    "electrical": "electricity",
+    "lightning": "electricity",
+    "holy": "holy",
+    "unholy": "unholy",
+    "poison": "poison",
+    "sonic": "sonic",
+    "force": "force"
+  },
+  "notDamageTypes": [
+    "damage",
+    "additional",
+    "extra",
+    "subdual",
+    "weapon",
+    "normal",
+    "melee",
+    "missile",
+    "physical"
+  ],
+  "kindJoiners": [
+    "and",
+    "or",
+    "damage",
+    "attacks",
+    "magical",
+    "by"
+  ],
+  "immunities": {
+    "cold": [
+      "cold"
+    ],
+    "fire": [
+      "fire"
+    ],
+    "acid": [
+      "acid"
+    ],
+    "electricity": [
+      "electricity"
+    ],
+    "lightning": [
+      "electricity"
+    ],
+    "poison": [
+      "poison",
+      "poisoned"
+    ],
+    "disease": [
+      "disease"
+    ],
+    "charm": [
+      "controlled",
+      "charm"
+    ],
+    "mind-affecting": [
+      "controlled",
+      "frightened",
+      "charm",
+      "mental"
+    ],
+    "mind-altering": [
+      "controlled",
+      "frightened",
+      "charm",
+      "mental"
+    ],
+    "mental": [
+      "controlled",
+      "frightened",
+      "mental"
+    ],
+    "sleep": [
+      "asleep",
+      "sleep"
+    ],
+    "paralysis": [
+      "paralyzed",
+      "paralysis"
+    ],
+    "fear": [
+      "frightened",
+      "fear"
+    ],
+    "critical hits": [
+      "crits"
+    ],
+    "crits": [
+      "crits"
+    ]
+  },
+  "movement": {
+    "fly": "fly",
+    "swim": "swim",
+    "climb": "climb",
+    "burrow": "burrow"
+  },
+  "materials": {
+    "silver": "silver",
+    "iron": "iron"
+  },
+  "riderTraits": {
+    "poison": "poison",
+    "disease": "disease"
+  },
+  "rendCounts": {
+    "both": 2
+  },
+  "entryStopWords": [
+    "plus",
+    "and",
+    "the",
+    "with",
+    "dmg",
+    "damage",
+    "see",
+    "below"
+  ],
+  "conditions": {
+    "slay": "\\bslay|\\bdecapitat|\\binstantly killed|\\bdies instantly|\\bkilled instantly|\\bdies on the spot|\\bis slain\\b",
+    "asleep": "\\b(?:falls?|fall|put|placed|sent) (?:into (?:a )?)?(?:\\w+ )?(?:asleep|sleep|slumber)|\\bsleeps?\\b",
+    "paralyzed": "\\bparaly[sz]",
+    "knockedOut": "\\b(?:knocked |falls? |is )?unconscious|\\bknocked out\\b(?!\\s+of\\b)|\\bsenseless\\b",
+    "stunned": "\\bstun(?:ned|s)?\\b|\\bbottom of the initiative|\\bloses? (?:his |her |its |their |the )?next (?:action|attack|round|turn)|\\bdazed\\b",
+    "knockedDown": "\\b(?:knocked|falls?|thrown|sent|lands?|knocks? \\w+|sweeps? \\w+|tripped)\\b(?: \\w+){0,4} (?:prone|down|to the ground|off (?:his|her|its|their) feet)|\\bprone\\b",
+    "blinded": "\\bblind(?:ed|s)?\\b",
+    "obeying": "\\bobeys? (?:the|a|his|her|its|their) (?:\\w+ )?command\\b|\\bmust obey\\b",
+    "swayed": "\\bcharm(?:ed|s)?\\b|\\bunder (?:the caster's|his|her|your) (?:\\w+ )?control\\b|\\bas if (?:it|he|she|they) (?:were|was) (?:his|her|the caster's) (?:friend|ally)",
+    "terrified": "\\b(?:frightened|terrified|flees?|fleeing|in fear|cowers?|cowering|panics?)\\b",
+    "held": "\\b(?:entangled|held fast|webbed|stuck fast|immobil\\w*|can(?:not|'t) move|pinned|restrained|grappled|grapple)\\b",
+    "disarmed": "\\bdisarm\\w*|\\bdrops? (?:his |her |its |their )?weapon|\\bweapon (?:is )?(?:knocked|shattered|sundered|broken|flies)",
+    "slowed": "\\bslow(?:ed|s)?\\b"
+  },
+  "outcome": {
+    "notPlainly": "\\bif\\b|\\bunless\\b|\\bsave\\b|\\bmay\\b|\\bchance\\b"
+  },
+  "saveVs": {
+    "magical": "\\bmagic(?:al)?\\b|\\bspells?\\b",
+    "poison": "\\bpoison",
+    "disease": "\\bdisease",
+    "frightened": "\\bfear\\b|\\bfright",
+    "controlled": "\\bcharm|\\bmind",
+    "asleep": "\\bsleep",
+    "paralyzed": "\\bparaly",
+    "petrification": "\\bpetrif",
+    "breath": "\\bbreath",
+    "trap": "\\btraps?\\b"
+  },
+  "regenStops": [
+    {
+      "pattern": "\\b(?:does not|doesn't|cannot|can't|won't|will not|never)\\s+regenerate\\s+(?:damage\\s+|hit points\\s+)?(?:from|dealt by|caused by|done by|inflicted by)\\s+(?<what>[a-z ,'-]+)"
+    },
+    {
+      "pattern": "(?<what>[a-z ,'-]+?)\\s*,?\\s*(?:from|against)\\s+which\\s+it\\s+(?:does not|doesn't|cannot|can't|won't|will not|never)\\s+regenerate",
+      "before": true
+    },
+    {
+      "pattern": "(?<what>[a-z ,'-]+?)\\s+(?:damage\\s+)?(?:stops?|prevents?|halts?|suppress(?:es)?|negates?|blocks?)\\s+(?:its\\s+|the\\s+|this\\s+)?regenerat",
+      "before": true
+    },
+    {
+      "pattern": "\\bregenerat\\w*\\b[^.;]*?\\b(?:except|but not|save for|other than|not)\\s+(?:against\\s+|from\\s+|by\\s+)?(?<what>[a-z ,'-]+)"
+    },
+    {
+      "pattern": "\\bregenerat\\w*\\b[^.;]*?\\b(?:stopped|prevented|halted|suppressed|negated|blocked)\\s+(?:only\\s+)?by\\s+(?<what>[a-z ,'-]+)"
+    }
+  ],
+  "damage": {
+    "heals": "\\b(?:heal|heals|healed|restore|restores|cure|cures|regain)",
+    "toAllies": "\\b(?:ally|allies|caster|you)\\b[^.]*\\b(?:also |is |are )?(?:hit|struck|takes?)\\b",
+    "toFoes": "\\b(?:foe|target|opponent|enemy|creature)\\b",
+    "equalTo": "damage (?:equal to|of) {dice}{level}",
+    "dealt": "\\+?\\s*{dice}{level}\\s+(?:additional |extra |more |bonus |points? of |hit points? of )*(?:(?<kind>[a-z]+) )?(?:points? of )?damage(?<perLevel>\\s+per (?:caster )?level)?",
+    "loses": "loses? (?:an additional |another )?{dice} (?:additional )?hit points?",
+    "quadruple": "\\bquadruple damage\\b|\\bfour times (?:the )?damage\\b|\\bx4 damage\\b",
+    "triple": "\\btriple damage\\b|\\bthree times (?:the )?damage\\b|\\bx3 damage\\b",
+    "double": "\\bdouble damage\\b|\\btwice (?:the )?damage\\b|\\bx2 damage\\b"
+  },
+  "rounds": {
+    "whole": "\\b(?:remainder|rest|end) of (?:the )?(?:battle|combat|fight|encounter)|\\bpermanent|\\bforever\\b|\\bendless",
+    "lasts": "(?:for |lasts? |duration (?:is |of )?)?{dice}{level}\\s+(?:(?<rounds>rounds?)|turns?|minutes?|hours?|days?|weeks?)",
+    "one": "\\bnext (?:round|turn|attack|action|attack roll)\\b|\\bone round\\b|\\b1 round\\b|\\bthat round\\b"
+  },
+  "targets": {
+    "area": "\\b(?:all|every|each) (?:\\w+ ){0,2}(?:creatures?|targets?|enemies|foes|opponents)\\b[^.]*\\b(?:within|in|inside)\\b|\\b(?:cone|radius|burst|cloud|sphere|line|blast)\\b",
+    "upTo": "\\bup to (?<n>\\w+|\\d+) (?:\\w+ ){0,2}(?:targets?|creatures?|enemies|foes|opponents)",
+    "count": "\\b(?<n>\\w+|\\d+) (?:\\w+ ){0,2}targets?\\b"
+  },
+  "save": {
+    "after": "\\b(?<save>{save})\\b(?:\\s+(?:save|saving throw|vs\\.?))",
+    "before": "\\b(?:save|saving throw)[^.]*?\\b(?<save>{save})\\b",
+    "short": "\\bdc \\d+\\s+(?<save>{save})\\b",
+    "dc": "\\bdc (?<n>\\d+)\\b",
+    "dcStart": "\\bdc \\d+",
+    "asked": "\\bsave\\b|\\bsaving throw\\b",
+    "none": "\\bno save\\b|\\bwithout (?:a )?save\\b|\\bautomatically\\b",
+    "half": "\\bhalf\\b",
+    "automatic": "\\bno save\\b|\\bwithout (?:a )?save\\b|\\bautomatically (?:affected|paralyzed|blinded|knocked|stunned|asleep|falls?|charmed)|\\bwith no saving throw\\b"
+  },
+  "mods": {
+    "bonus": "(?<n>[+-]\\s*\\d+)\\s*(?:penalty |bonus )?(?:to |on |in )?(?:(?:his|her|its|their|all|the|next|any) )*(?:(?<attack>attack rolls?|attacks?|to-hit)|(?<ac>ac|armor class)|(?<saves>saves|saving throws)|(?<all>all rolls|rolls)|(?<damage>damage rolls|damage))\\b",
+    "ac": "\\b(?:ac|armor class) (?:bonus |penalty )?(?:of )?(?<n>[+-]\\s*\\d+)"
+  },
+  "fumble": {
+    "self": "\\byou\\b|\\byour\\b|\\bhim(?:self)?\\b|\\bthe character\\b|\\bthe attacker\\b",
+    "hurtsSelf": "\\b(?:you|yourself|the attacker|the character) (?:\\w+ ){0,3}(?:take|takes|suffer|suffers|hit|hits|strike|strikes)\\b[^.]*\\bdamage\\b",
+    "allies": "\\ball(?:y|ies)\\b"
+  },
+  "spell": {
+    "failure": "^\\s*(?:lost|failure|fails?|the spell fails|no effect)\\b",
+    "count": "\\b(?:throws?|fires?|launch(?:es)?|creates?|hurls?|shoots?|conjures?)\\s+{dice}\\s+(?:magic(?:al)?\\s+)?(?:missiles?|bolts?|rays?|darts?|arrows?|beams?|projectiles?|orbs?)",
+    "heals": "\\b(?:heals?|restores?|cures?|regains?)\\s+(?:\\w+ ){0,3}?{dice}{level}\\s+(?:hit points?|hp|points? of damage|damage)",
+    "healDice": "\\b(?:heals?|restores?)\\s+(?<n>\\w+|\\d+)\\s+(?:hit )?(?:dice|die|hd)\\b",
+    "penalty": "\\bpenalty\\b"
+  },
+  "mending": {
+    "any": "\\bregenerat|\\bheals?\\b|\\bregains?\\b",
+    "regenerates": "\\bregenerat\\w*\\s*\\(?\\s*(?:at (?:a|the) rate of\\s+)?{dice}{hp}{eachRound}",
+    "heals": "\\b(?:heals?|regains?)\\s+(?:(?:damage\\s+)?at (?:a|the) rate of\\s+)?{dice}{hp}{eachRound}",
+    "sentence": "regenerat",
+    "burst": "\\bregenerat[^.;]*\\b(?:including|even)\\b[^.;]*\\b(?:killed|slain|dies|death|dead)\\b",
+    "named": "\\bregenerat(?:ion|es|ing)\\b(?!\\s+(?:of|its)\\s+(?!hit|hp|damage|wounds))"
+  },
+  "statLine": {
+    "immune": "\\bimmun\\w*\\s+(?:to\\s+)?(?:damage from\\s+)?(?<what>[a-z ,'-]+?)(?=[^a-z ,'-]|\\bsv\\b|$)",
+    "listSplit": ",|\\band\\b|\\bor\\b",
+    "trailing": "\\s*(?:effects?|spells?|damage|attacks?)$",
+    "fear": "^fear",
+    "construct": "\\bconstruct (?:traits|qualities|characteristics)\\b",
+    "pack": "\\bpack tactics\\b",
+    "attacks": "\\batk\\b\\s*(?<what>[^;]*)",
+    "spellcasting": "\\bspellcasting\\b|\\bspell ?check\\b|\\bharmful spells?\\b|\\b(?:druidical|media) magic\\b",
+    "spellsAttack": "^\\s*spells?\\s+or\\b",
+    "undead": "\\bun-?dead\\b|\\bundead traits\\b",
+    "unholy": "\\b(?:demon|devil)(?:s|ic|ish)?\\b",
+    "magicOnly": "\\b(?<how>immun\\w*|resist\\w*|half damage)\\s+(?:to\\s+|from\\s+)?non-?magical\\b",
+    "magicOnlyImmune": "^immun",
+    "harmedOnly": "\\bharmed only by (?<what>[a-z ,]+?)(?:weapons|attacks)\\b|\\bonly (?<what2>[a-z ,]+?) weapons (?:can )?(?:harm|hurt|damage)\\b",
+    "magic": "\\bmagic",
+    "reduction": "\\bdamage reduction\\s*(?<n>\\d+)",
+    "halfFrom": "\\bhalf damage from\\s+(?<what>[a-z ,'-]+?)(?=[^a-z ,'-]|\\bsv\\b|$)",
+    "doubleFrom": "\\b(?:double damage from|vulnerab\\w*\\s+(?:to\\s+)?)\\s*(?<what>[a-z ,'-]+?)(?=[^a-z ,'-]|\\bsv\\b|$)",
+    "crit": "\\bcrits? (?:on|at)\\s+(?:a\\s+)?(?:natural\\s+)?(?<n>\\d+)(?:\\s*[-–+]|\\s+or (?:better|higher)|\\+)",
+    "infravision": "\\b(?:infravision|darkvision|(?:perfect )?night ?vision|true ?sight|see in (?:the )?dark(?:ness)?)\\s*(?<feet>\\d+)?",
+    "movement": "\\bmv\\b\\s*(?<what>[^;]*)",
+    "moveAfter": "{mode}\\w*\\s*(?<feet>\\d+)",
+    "moveBefore": "(?<feet>\\d+)'?\\s*{mode}",
+    "spellCheck": "\\bspell ?check\\s*(?<n>[+-]\\s*\\d+)",
+    "attack": "(?<name>[a-z][a-z' -]*?)\\s+(?<bonus>[+-]\\s*\\d+)\\s+(?<kind>melee|missile fire|missile|ranged)\\s*(?:\\((?<rider>[^)]*)\\))?",
+    "melee": "^melee$",
+    "attackLead": "^(?:spells? or |or )",
+    "riderLead": "^\\s*(?:dmg\\s*)?",
+    "riderPlus": "^\\s*plus\\s+",
+    "savesAgainst": "(?<n>[+-]\\s*\\d+)\\s*(?:bonus\\s*)?(?:to|on)\\s*(?:all\\s+)?(?:(?<save>{save})\\s+)?sav(?:es|ing throws?)\\s*(?:vs\\.?|versus|against)\\s*(?<what>[a-z ,'-]+)",
+    "neverSurprised": "\\bnever surprised\\b|\\bcan(?:not|'t) be surprised\\b",
+    "hide": "(?<n>[+-]\\s*\\d+)\\s*(?:bonus\\s*)?(?:to|on)\\s*(?:hide|hiding|stealth|sneak\\w*|move silently)"
+  },
+  "auras": {
+    "named": "\\b(?:aura|stench|stink\\w*|presence|gaze|song|wail\\w*|cloud)\\b",
+    "range": "(?<feet>\\d+)\\s*(?:'|ft|feet)"
+  },
+  "followUps": {
+    "rend": "\\brend|\\btear\\b",
+    "hits": "\\bif\\s+(?:more than\\s+)?(?<n>both|two|three|\\d+)\\s+(?<with>[a-z]+?)s?\\s+(?:attacks?\\s+)?hit",
+    "moreThan": "\\bmore than\\b",
+    "attack": "^attack$",
+    "hold": "\\bconstrict|\\bhug\\b|\\bcrush|\\bsqueez"
+  },
+  "riders": {
+    "range": ",?\\s*range\\s*[\\d']+'?",
+    "grab": "\\bgrab|\\bgrapple|\\bconstrict|\\bhold\\b",
+    "extra": "^\\+\\s*(?<dice>{formula})\\s*(?<kind>[a-z]+)?",
+    "perRound": "(?<dice>\\d*d\\d+)\\s*(?:dmg|damage|hp)?\\s*(?:per|each|every)\\s*round",
+    "death": "\\bor (?:\\w+ )?death\\b|\\bor die\\b|\\bdies\\b",
+    "hurt": "\\bor (?:take |an? )?(?:additional |extra )?(?<dice>{formula})\\s*(?:damage|dmg|hp)\\b"
+  }
+}
