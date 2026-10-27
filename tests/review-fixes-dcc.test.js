@@ -1,13 +1,15 @@
 /**
  * A review's findings: a player's Fleeting Luck written once for all its characters; spellburn taken as its pool counts
  * it; a spell's results table by its id as well as its name, and a blank one not shared; a stat line read once for its
- * spell check.
+ * spell check; XCC's Mojo put back by Rewind.
  */
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { burnable, commitDccChanges } from "../scripts/commit.js";
 import { DccTables } from "../scripts/tables.js";
 import { checkFor } from "../scripts/check-roll.js";
 import * as text from "../scripts/text.js";
+import { DccAdapter } from "../scripts/adapter.js";
+import { actorData, rewindScopes } from "../../fast-fighting/scripts/foundry/make-it-so.js";
 
 vi.mock("../scripts/text.js", async original => {
   const real = await original();
@@ -100,5 +102,14 @@ describe("a monster's spell check", () => {
     expect(text.statLine).toHaveBeenCalledTimes(1);
     expect(checkFor(caster("Player"), cast)).toEqual({ how: "spell", item: sp });
     expect(text.statLine).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("XCC's Mojo, on Rewind", () => {
+  test("the helper names XCC's flags for the core to put back (API 36): Mojo kept, another module's not", () => {
+    globalThis.foundry = { utils: { flattenObject: o => o } };
+    const scopes = rewindScopes("dcc", new DccAdapter().rewindFlagScopes);
+    expect(actorData({ "flags.xcc.mojo": 2, "flags.dcc.x": 1, "flags.other.y": 3, "system.attributes.hp.value": 4 }, scopes))
+      .toEqual({ "flags.xcc.mojo": 2, "flags.dcc.x": 1, "system.attributes.hp.value": 4 });
   });
 });

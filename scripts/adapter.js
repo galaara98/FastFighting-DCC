@@ -1411,6 +1411,11 @@ export class DccAdapter extends SystemAdapter {
     return [...taken.records, ...(receiverDoc?.actor ? await putDccGoods(receiverDoc, taken.goods) : [])];
   }
 
+  /** API 36: the flags Rewind puts back besides the dcc system's and FastFighting's: XCC's (a crawler's Mojo). */
+  get rewindFlagScopes() {
+    return ["xcc"];
+  }
+
   /** The loot settings apply: the fallen leave what they carry (the core's piles). */
   get supportsLoot() {
     return true;

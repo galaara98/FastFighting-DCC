@@ -34,7 +34,7 @@ describe("the core's API major, as this helper sees it", () => {
     expect(said.error).toEqual([game.i18n.localize("FFDCC.CoreTooOld")]);
   });
 
-  test.each([24, 25])("one it knows (%i): it registers, and says nothing", async major => {
+  test.each([24, 25, 36])("one it knows (%i): it registers, and says nothing", async major => {
     const { registered, said } = await start(major);
     expect(registered).toHaveLength(1);
     expect([...said.error, ...said.warn]).toEqual([]);
