@@ -53,6 +53,15 @@ export function statusName(key) {
   return name ? game.i18n.localize(name) : null;
 }
 
+/**
+ * Spellburn: the abilities it burns, in order (Strength, then Stamina, then Agility), none below 8; what's above that is
+ * its pool (adapter.js), so what the engine spends is what comes off.
+ */
+const BURNED = ["str", "sta", "agl"];
+const BURN_FLOOR = 8;
+/** The points it could burn: each ability's above the floor (`abilities`: the sheet's, `{str: {value}}`). */
+export const burnable = abilities => BURNED.reduce((n, k) => n + Math.max(0, (Number(abilities?.[k]?.value) || 0) - BURN_FLOOR), 0);
+
 /** Luck and spellburn spent, by the numbers. */
 function spent(spec, final, key) {
   const start = spec.resources?.[key];
@@ -134,12 +143,12 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
   const spentOf = c => Math.max(0, (Number(c?.from) || 0) - (Number(c?.to) || 0));
   const luck = spentOf(changes.resources?.luck);
   if ( luck ) ability("lck", -luck, { type: "luckSpend" });
-  // Spellburn: from Strength first, then Stamina, then Agility, none below 3.
+  // Spellburn: from Strength first, then Stamina, then Agility, none below the floor its pool counts from.
   let burn = spentOf(changes.resources?.spellburn);
-  for ( const key of ["str", "sta", "agl"] ) {
+  for ( const key of BURNED ) {
     if ( burn <= 0 ) break;
     const have = update[`system.abilities.${key}.value`] ?? (Number(sys.abilities?.[key]?.value) || 0);
-    const take = Math.min(burn, Math.max(0, have - 3));
+    const take = Math.min(burn, Math.max(0, have - BURN_FLOOR));
     if ( take > 0 ) ability(key, -take, { type: "spellburn" });
     burn -= take;
   }
@@ -153,17 +162,19 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
     set("system.class.disapproval", Math.max(1, (Number(sys.class?.disapproval) || 1) + s.disapproval - was.disapproval));
   }
   if ( s.tooCuteUsed && !was.tooCuteUsed ) set("system.class.tooCuteUsed", true);
-  // Fleeting Luck (Mojo) as this turn moved it: XCC's on the crawler, DCC's on its player.
-  const luckMoved = Number.isFinite(s.fleeting) && Number.isFinite(was.fleeting) ? s.fleeting - was.fleeting : 0;
-  if ( spec.fleeting && luckMoved ) {
-    if ( spec.fleeting.kind === "actor" ) set("flags.xcc.mojo", Math.max(0, (Number(foundry.utils.getProperty(actor, "flags.xcc.mojo")) || 0) + luckMoved));
+  // Fleeting Luck (Mojo) where this turn left it: XCC's on the crawler, DCC's on its player. The pool as the engine has
+  // it, not what this turn moved it by: a player's is one for all its characters, each of which writes it (the first;
+  // the rest find it so).
+  const luckNow = Number.isFinite(s.fleeting) && Number.isFinite(was.fleeting) && s.fleeting !== was.fleeting ? Math.max(0, s.fleeting) : null;
+  if ( spec.fleeting && luckNow !== null ) {
+    if ( spec.fleeting.kind === "actor" ) set("flags.xcc.mojo", luckNow);
     else {
       const player = game.users.get(spec.fleeting.id);
       const before = Number(player?.getFlag("dcc", "fleetingLuckValue")) || 0;
-      if ( player ) {
+      if ( player && before !== luckNow ) {
         undo.userId = player.id;
         undo.userUpdate = { "flags.dcc.fleetingLuckValue": before };
-        await player.setFlag("dcc", "fleetingLuckValue", Math.max(0, before + luckMoved));
+        await player.setFlag("dcc", "fleetingLuckValue", luckNow);
       }
     }
   }

@@ -144,6 +144,24 @@ describe("a spell's damage, rolled the dcc system's way", () => {
   });
 });
 
+describe("a spell's damage, safely and once", () => {
+  test("the spell's name escaped on its cards (an item's name is its owner's to write)", async () => {
+    const { token } = wizard();
+    const { chat } = dice([2, 1]);
+    await rollDccDamage(token, { name: "<img src=x onerror=boom()>", damage: [{ dice: [{ n: 1, faces: 6 }], type: "fire" }], repeat: { dice: [{ n: 1, faces: 4 }] } });
+    expect(chat.map(m => m.flavor)).toEqual(["&lt;img src=x onerror=boom()&gt;", "«DCC.RollsDamageWith:&lt;img src=x onerror=boom()&gt;»"]);
+  });
+
+  test("the result as the core hands it over: its damage rolled, the spell's table not read again", async () => {
+    const { token } = wizard({ table: false });
+    const { chat } = dice([9]);
+    const tier = { id: "actA.sp1@0", name: "Ember Spray", spell: true, itemId: "sp1", damage: [{ dice: [{ n: 2, faces: 6 }], type: "fire" }], repeat: null };
+    const out = await new DccAdapter().rollDamage(token, { action: tier, card: null });
+    expect(chat[0].rolls[0].formula).toBe("2d6");
+    expect(out).toEqual({ damage: { byType: { fire: 9 } }, card: "m1" });
+  });
+});
+
 describe("by kind, as rolled", () => {
   const parts = [{ dice: [{ n: 2, faces: 6 }], flat: 0, type: "fire" }, { dice: [{ n: 1, faces: 6 }], flat: 1, type: "cold" }];
 

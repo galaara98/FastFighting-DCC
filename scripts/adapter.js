@@ -19,7 +19,7 @@ import { deedsFrom, holdsWeapon, ARMED } from "./deeds.js";
 import { spellAction, layOnHandsAction, turnUnholyAction, chanceBetween } from "./spells.js";
 import { deriveDccTraits, speaksCommon, monsterKind, animalisticOf, aptitudesOf } from "./traits.js";
 import { rankDccLeaders } from "./leadership.js";
-import { commitDccChanges, deathClockOn, describeDccOutcome, conditionsOf, statusFor, statusName, sheetConditions, applyDccDamage, systemAppliesDamage } from "./commit.js";
+import { commitDccChanges, burnable, deathClockOn, describeDccOutcome, conditionsOf, statusFor, statusName, sheetConditions, applyDccDamage, systemAppliesDamage } from "./commit.js";
 import { readDccTurn, readDccDamage } from "./read-turn.js";
 import { dccAppetite, dccMeatFor, dccIsFood } from "./food.js";
 import { unmarkRolled } from "./cards.js";
@@ -549,7 +549,7 @@ export class DccAdapter extends SystemAdapter {
       });
       // Spellburn: Strength, Agility and Stamina burned on a spell check (a wizard's or an elf's).
       if ( actions.some(a => a.casting?.lostOnFail) ) {
-        const spare = ["str", "agl", "sta"].reduce((s, k) => s + Math.max(0, (Number(sys.abilities?.[k]?.value) || 0) - 8), 0);
+        const spare = burnable(sys.abilities);
         if ( spare > 0 ) {
           resources.spellburn = spare;
           boosts.push({ pool: "spellburn", label: game.i18n.localize("FFDCC.Spellburn"), kinds: ["cast"] });
@@ -1253,7 +1253,7 @@ export class DccAdapter extends SystemAdapter {
   #resourceLeft(actor, key) {
     const sys = actor.system;
     if ( key === "luck" ) return Number(sys.abilities?.lck?.value) || 0;
-    if ( key === "spellburn" ) return ["str", "agl", "sta"].reduce((s, k) => s + Math.max(0, (Number(sys.abilities?.[k]?.value) || 0) - 8), 0);
+    if ( key === "spellburn" ) return burnable(sys.abilities);
     if ( key === "fleeting" ) return fleetingOf(actor)?.points ?? 0;
     if ( key.startsWith("item:") ) return Math.max(0, Number(actor.items.get(key.slice(5))?.system?.quantity) || 0);
     return undefined;
@@ -1380,15 +1380,16 @@ export class DccAdapter extends SystemAdapter {
 
   /**
    * API 19. A spell's damage, at the result its check reached, rolled the dcc system's way once for all it catches, its
-   * Damage card in the chat (damage-roll.js rollDccDamage); null for anything else (the engine's dice).
+   * Damage card in the chat (damage-roll.js rollDccDamage); null for anything else (the engine's dice). The result as
+   * the core hands it over (its spell action's tier: the damage and count #spell read), else read again from its table.
    */
   async rollDamage(token, { action, secret = false } = {}) {
     const actor = token?.actor;
     const at = spellTier(actor, action);
     const item = at ? actor.items?.get?.(at.itemId) : null;
     if ( item?.type !== "spell" ) return null;
-    const spell = await this.#spell(actor, item, this.#caster(actor));
-    const tier = spell?.tiers?.[at.tier];
+    const built = action.spell && action.itemId === item.id && Array.isArray(action.damage);
+    const tier = built ? action : (await this.#spell(actor, item, this.#caster(actor)))?.tiers?.[at.tier];
     if ( !tier?.damage?.length ) return null;
     return rollDccDamage(token, { name: item.name, damage: tier.damage, repeat: tier.repeat, secret });
   }

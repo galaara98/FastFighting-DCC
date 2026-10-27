@@ -56,6 +56,16 @@ export function saveFor(save) {
 /** A skill on the sheet with something in it (a thief's, a halfling's: what the adapter counts as trained). */
 const trained = (actor, id) => String(actor.system?.skills?.[id]?.value ?? "").trim() !== "";
 
+/** A stat line's spell check, read once for each stat line (text.js statLine), not again at every cast. */
+const SPELL_CHECKS = new Map();
+function lineSpellCheck(text) {
+  if ( !SPELL_CHECKS.has(text) ) {
+    if ( SPELL_CHECKS.size >= 200 ) SPELL_CHECKS.delete(SPELL_CHECKS.keys().next().value);
+    SPELL_CHECKS.set(text, statLine(text).spellCheck);
+  }
+  return SPELL_CHECKS.get(text);
+}
+
 /**
  * What the dcc system rolls for a check: {how: "spell", item} or {how: "skill"|"ability", id}; null where it has no
  * roll for it (the engine's dice).
@@ -77,8 +87,7 @@ export function checkFor(actor, { purpose, action = null, kind = {}, skill: pick
       const item = own ? actor.items?.get?.(own) : null;
       if ( item?.type !== "spell" ) return null;
       // (A monster whose sheet keeps the default casts at its stat line's spell check: adapter.js #spells.)
-      const line = statLine(sys.details?.notes?.value ?? "");
-      if ( actor.type !== "Player" && Number.isFinite(line.spellCheck) && (Number(sys.class?.spellCheck) || 1) === 1 ) return null;
+      if ( actor.type !== "Player" && (Number(sys.class?.spellCheck) || 1) === 1 && Number.isFinite(lineSpellCheck(sys.details?.notes?.value ?? "")) ) return null;
       return { how: "spell", item };
     }
     case "talk": {

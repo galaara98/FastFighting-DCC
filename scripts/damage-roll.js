@@ -11,9 +11,11 @@
  *     spell's name on it), and every missile's damage is on the one Damage card.
  *   - By kind as rolled (each part's dice and bonus), keyed as the helper's rules key them (fire, cold ...; untyped):
  *     the engine counts each target's share and resistances from it, and applyDamageCard deals that (its `amount`).
- * Nothing is applied here, and nothing earns or costs Fleeting Luck. It's for the GMs only when secret.
+ * Nothing is applied here, and nothing earns or costs Fleeting Luck. It's for the GMs only when secret. The spell's name
+ * on a card is escaped (an item's name is its owner's to write).
  */
 import { HELPER_ID } from "./cards.js";
+import { escapeHtml } from "./core.js";
 
 /**
  * The spell and the result the core names: {itemId, tier} for "<actor id>.<item id>@<n>" (the core's id for a spell
@@ -94,7 +96,7 @@ export async function rollDccDamage(token, { name, damage, repeat = null, secret
     if ( repeat.dice?.length ) {
       const count = Roll.create(damageFormula([repeat]), data);
       await count.evaluate();
-      await count.toMessage({ speaker, flavor: name }, modeOf(secret));
+      await count.toMessage({ speaker, flavor: escapeHtml(name) }, modeOf(secret));
       times = Number(count.total);
     } else times = Number(repeat.flat);
     times = Math.max(1, Math.round(times) || 1);
@@ -109,7 +111,7 @@ export async function rollDccDamage(token, { name, damage, repeat = null, secret
   if ( roll.total < 1 ) roll._total = 1;
   const byType = byKind(roll, damage, times);
   const card = await roll.toMessage({
-    speaker, flavor: game.i18n.format("DCC.RollsDamageWith", { weapon: name }),
+    speaker, flavor: game.i18n.format("DCC.RollsDamageWith", { weapon: escapeHtml(name) }),
     // (FastFighting applies it: the system's Apply entries are gone from it, cards.js.)
     flags: { dcc: { RollType: "Damage", damageApplied: true }, [HELPER_ID]: { rolled: true } }
   }, modeOf(secret));

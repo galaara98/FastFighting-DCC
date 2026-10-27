@@ -29,10 +29,10 @@ function tablePacks(first = []) {
 async function findTable(match, packs) {
   for ( const pack of packs ) {
     const index = await pack.getIndex({ fields: ["flags.babele.originalName"] });
-    const entry = index.find(e => match(originalName(e)) || match(e.name));
+    const entry = index.find(e => match(originalName(e), e._id) || match(e.name, e._id));
     if ( entry ) return pack.getDocument(entry._id);
   }
-  return game.tables?.find(t => match(t.name)) ?? null;
+  return game.tables?.find(t => match(t.name, t.id)) ?? null;
 }
 
 /** A spell's name for matching: "Neutralize Poison/Disease" and "Neutralize Poison or Disease" are the same spell. */
@@ -123,11 +123,12 @@ export class DccTables {
   /**
    * A spell's results and what else a book says of it: {rows, range, save}, or null. A spell made by hand or by a
    * stat-block importer often names no table: then the same spell is looked for by name in the installed books (its
-   * table, range and save), and failing that any results table with its name.
+   * table, range and save), and failing that any results table with its name. The table a spell names is by its name
+   * or its id (bare or `RollTable.<id>`), as the dcc system finds it: in its pack, else among the world's tables.
    */
   spell(item) {
     const ref = item?.system?.results ?? {};
-    const key = `spell:${ref.collection ?? ""}:${ref.table ?? spellKey(item?.name)}`;
+    const key = `spell:${ref.collection ?? ""}:${ref.table || spellKey(item?.name)}`;
     return this.#once(key, async () => {
       let name = ref.table;
       let collection = ref.collection;
@@ -138,10 +139,14 @@ export class DccTables {
         collection = twin?.system?.results?.collection || null;
       }
       let table = null;
-      if ( name && collection && game.packs.get(collection) ) table = await findTable(n => n === name, [game.packs.get(collection)]);
-      const wanted = spellKey(name || item?.name);
-      table ??= game.tables?.find(t => spellKey(t.name) === wanted) ?? null;
-      table ??= await findTable(n => spellKey(n) === wanted, tablePacks().filter(p => /spell/i.test(p.collection)));
+      const id = String(name ?? "").replace(/^RollTable\./, "");
+      const named = (n, tableId) => n === name || (!!id && tableId === id);
+      if ( name && collection && game.packs.get(collection) ) table = await findTable(named, [game.packs.get(collection)]);
+      if ( name ) table ??= game.tables?.find(t => named(t.name, t.id)) ?? null;
+      // (Else by the spell's name, or the table's where it's one: "Neutralize Poison/Disease" as "... or Disease".)
+      const wanted = new Set([spellKey(name), spellKey(item?.name)].filter(Boolean));
+      table ??= game.tables?.find(t => wanted.has(spellKey(t.name))) ?? null;
+      table ??= await findTable(n => wanted.has(spellKey(n)), tablePacks().filter(p => /spell/i.test(p.collection)));
       if ( !table ) return null;
       return { rows: rowsOf(table), range: twin?.system?.range ?? null, save: twin?.system?.save ?? null, level: twin?.system?.level ?? null, mode: twin?.system?.config?.castingMode ?? null };
     });
