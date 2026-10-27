@@ -224,7 +224,15 @@
   "targets": {
     "area": "\\b(?:all|every|each) (?:\\w+ ){0,2}(?:creatures?|targets?|enemies|foes|opponents)\\b[^.]*\\b(?:within|in|inside)\\b|\\b(?:cone|radius|burst|cloud|sphere|line|blast)\\b",
     "upTo": "\\bup to (?<n>\\w+|\\d+) (?:\\w+ ){0,2}(?:targets?|creatures?|enemies|foes|opponents)",
-    "count": "\\b(?<n>\\w+|\\d+) (?:\\w+ ){0,2}targets?\\b"
+    "count": "\\b(?<n>\\w+|\\d+) (?:\\w+ ){0,2}targets?\\b",
+    "cone": "\\bcone\\b[^.]*?\\b(?<feet>\\d+)'?(?: ?ft\\.?| feet)? (?:long\\b|x )|\\b(?<feet2>\\d+)'?(?:-foot| ?ft\\.?| feet)?[- ](?:long )?cone\\b|\\bcone\\b",
+    "line": "\\bline\\b[^.]*?\\b(?<feet>\\d+)'?(?: ?ft\\.?| feet)? long\\b|\\b(?<feet2>\\d+)'?(?:-foot| ?ft\\.?| feet)?[- ](?:long )?line\\b",
+    "burst": "\\b(?<feet>\\d+)'?(?:-foot| ?ft\\.?| feet)?[- ]radius\\b|\\bradius of (?<feet2>\\d+)'?",
+    "width": "\\b(?<feet>\\d+)'?(?: ?ft\\.?| feet)? wide\\b|\\b(?:width of|cone measuring \\d+'? x) (?<feet2>\\d+)'?",
+    "diameter":"\\b(?<feet>\\d+)'?(?:-foot| ?ft\\.?| feet)?[- ]diameter\\b",
+    "aroundCaster": "\\b(?:around|surrounding|centered on|emanat\\w* from) (?:him|her|itself|the caster|the cleric|the wizard)\\b",
+    "selective": "\\b(?:all|every|each|any) (?:\\w+ ){0,2}(?:enemies|foes|unfriendly creatures)\\b|\\bonly (?:enemies|foes)\\b|\\b(?:targets?|creatures?) of (?:his|her|its|the caster's) choice\\b|\\ballies (?:are|aren't) (?:not affected|unaffected)\\b",
+    "friendlyFire": "\\bincluding (?:his |her |the caster's )?allies\\b|\\bboth friendly and unfriendly\\b"
   },
   "save": {
     "after": "\\b(?<save>{save})\\b(?:\\s+(?:save|saving throw|vs\\.?))",
@@ -319,5 +327,31 @@
     "damage": "(?<dice>{formula})\\s*(?:points? of\\s+)?(?:(?<kind>[a-z]+)\\s+)?damage",
     "unholyOnly": "\\b(?:un-?dead|unholy|demons?|devils?)\\b",
     "range": "(?<feet>\\d+)\\s*(?:'|ft\\.?|feet)"
+  },
+  "limited": {
+    "$comment": "A special a stat line names without its stats (text.js limitedIn): its name (named), and how often it comes, in the stat line or the creature's entry in the book: so many a day, once an hour (once a fight), every so many rounds (a die: it comes back after so many).",
+    "named": "\\b(?<name>breath weapon|breathes? (?:fire|frost|cold|ice|acid|lightning|poison|gas|flames?))\\b",
+    "perDay": "\\b(?<n>\\d+)\\s*/\\s*day\\b|\\b(?<n2>one|two|three|four|five)(?: times)? (?:per|a|each) day\\b",
+    "once": "\\bonce (?:per|a|an|each|every) (?:day|hour|turn|combat|battle|fight)\\b|\\b\\d+\\s*/\\s*(?:hour|turn)\\b",
+    "every": "\\bevery (?<n>\\d*)d(?<faces>\\d+) rounds?\\b"
+  },
+  "duel": {
+    "$comment": "The book's spell duel tables (duel.js), read as the dcc system finds them: by its ids in the core book's table pack, else by these names. compareCell: one cell of the check comparison table's row (the attacker's check and its die, or PD). A counterspell power row: the die it rolls, whose check it lowers, whose spell is cancelled or reflected. A phlogiston disturbance row: its name (label) and whether the duellists sit out rounds (sitOut, with the die).",
+    "tables": {
+      "compare": "^table 4-5\\b",
+      "attackerHigh": "^table 4-6\\b.*\\battacker high\\b",
+      "defenderHigh": "^table 4-6\\b.*\\bdefender high\\b",
+      "disturbance": "^table 4-7\\b"
+    },
+    "compareCell": "\\b(?<attacker>\\d+)\\s*:\\s*(?<die>d\\d+|pd)\\b",
+    "dice": "\\b(?<n>\\d*)d(?<faces>\\d+)\\b",
+    "label": "^\\s*(?<label>[^:.]+)",
+    "lowerSpell": "\\bsubtract\\b[^.]*\\battacker['’]?s spell check",
+    "lowerCounter": "\\bsubtract\\b[^.]*\\bdefender['’]?s spell check",
+    "spellCancelled": "\\battacker['’]?s spell is cancell?ed|\\bboth\\b[^.]*\\bspells (?:are cancell?ed|fail)",
+    "counterCancelled": "\\bdefender['’]?s spell is cancell?ed|\\bboth\\b[^.]*\\bspells (?:are cancell?ed|fail)",
+    "spellReflected": "\\battacker['’]?s spell (?:check )?(?:is )?reflect",
+    "counterReflected": "\\bdefender['’]?s spell (?:check )?(?:is )?reflect",
+    "sitOut": "\\brounds of combat among (?:the )?other"
   }
 }

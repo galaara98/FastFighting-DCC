@@ -9,7 +9,12 @@
     "Rolls": {
       "Morale": "Morale",
       "Stray": "Stray shot",
-      "Regeneration": "Regeneration"
+      "Regeneration": "Regeneration",
+      "CounterspellPower": "Counterspell power",
+      "Disturbance": "Phlogiston disturbance"
+    },
+    "Duel": {
+      "SamePatron": "Same patron: both invocations cancel"
     },
     "Spellburn": "Spellburn",
     "IntelligenceCheck": "Intelligence check",

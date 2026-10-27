@@ -82,7 +82,7 @@ function dccFeatures() {
 
 describe("this helper's rules for the planner's workers", () => {
   test("workerRules: rules.js beside the adapter, its dccRulesFor, the world's setting as data", async () => {
-    expect(RULES).toEqual({ url: new URL("../scripts/rules.js", import.meta.url).href, exportName: "dccRulesFor", data: { tiedStopsSpells: true } });
+    expect(RULES).toEqual({ url: new URL("../scripts/rules.js", import.meta.url).href, exportName: "dccRulesFor", data: { tiedStopsSpells: true, duelTables: null } });
     const made = (await import(RULES.url))[RULES.exportName](RULES.data);
     expect(Object.keys(made).sort()).toEqual(Object.keys(dccRules).sort());
     expect(made.tiedStopsSpells).toBe(true);

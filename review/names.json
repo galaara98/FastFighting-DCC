@@ -7,7 +7,7 @@
       "hooks and options": ["dcc.rollWeaponAttack", "abilityLogged", "showModifierDialog", "spellItem"],
       "settings": ["strictCriticalHits", "autoApplyDamage", "enableDeathClock", "enableFleetingLuck", "fleetingLuckValue", "enableAbilityScoreLog"],
       "CONFIG.DCC": ["currencyValue", "monsterCriticalHits", "abilityLogTypes", "abilities", "saves", "alignments"],
-      "data fields": ["critRange", "fumbleRange", "critTable", "critDie", "attackBonusWeapon", "backstabDamage", "otherMod", "sheetClass", "partyMembers", "abilityLog", "currency", "quantity", "equipped", "hitDice", "actionDice", "luckDie", "disapproval", "spellCheck", "twoWeaponPrimary", "twoWeaponSecondary", "twoWeaponCritRule", "subdual", "thrown", "melee"],
+      "data fields": ["critRange", "fumbleRange", "critTable", "critDie", "attackBonusWeapon", "backstabDamage", "otherMod", "sheetClass", "partyMembers", "abilityLog", "currency", "quantity", "equipped", "hitDice", "actionDice", "luckDie", "disapproval", "spellCheck", "twoWeaponPrimary", "twoWeaponSecondary", "twoWeaponCritRule", "subdual", "thrown", "melee", "patron"],
       "actor methods": ["rollWeaponAttack", "rollSavingThrow", "rollAbilityCheck", "rollSkillCheck", "rollSpellCheck", "applyDamage"],
       "language keys": ["DCC.ChatContextDamage", "DCC.ChatContextHealing", "DCC.TwoWeaponCritNone", "DCC.RollsDamageWith", "DCC.HideInShadows", "DCC.SneakAndHide", "DCC.FleetingLuck", "DCC.SettingAutoApplyDamage", "DCC.HitPoints"]
     },

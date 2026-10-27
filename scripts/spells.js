@@ -24,7 +24,8 @@ export function chanceBetween(mod, faces, lo, hi = Infinity) {
 
 /** What the action does at one result, as the fields of its kind. */
 function tierFields(kind, r) {
-  const area = r.targets > 1 ? { targets: r.targets } : null;
+  // (An area with a shape lands on everyone in it, friends too, unless it spares them: the core's, API 32.)
+  const area = r.targets > 1 ? { targets: r.targets, ...(r.areaShape ?? {}) } : null;
   const nothing = { damage: [], outcome: null, onSave: null, heal: [], healDice: 0 };
   switch ( kind ) {
     case "heal": return { ...nothing, heal: r.heal ?? [], healDice: r.healDice ?? 0 };

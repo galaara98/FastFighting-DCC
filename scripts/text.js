@@ -42,7 +42,7 @@ const FLAGS = {
   statLine: { immune: "g", halfFrom: "g", doubleFrom: "g", attack: "gi", savesAgainst: "g", melee: "i", attackLead: "i", riderLead: "i", riderPlus: "i" },
   riders: { range: "g" }
 };
-const SECTIONS = ["conditions", "outcome", "saveVs", "damage", "rounds", "targets", "save", "mods", "fumble", "spell", "mending", "statLine", "auras", "followUps", "riders", "thrown"];
+const SECTIONS = ["conditions", "outcome", "saveVs", "damage", "rounds", "targets", "save", "mods", "fumble", "spell", "mending", "statLine", "auras", "followUps", "riders", "thrown", "limited"];
 
 /** A reading's words and its patterns, compiled. */
 function compileReading(words) {
@@ -193,11 +193,46 @@ export function roundsIn(text, { casterLevel = 0 } = {}) {
   return null;
 }
 
-/** How many targets it takes: "up to two targets", "a single target", "all creatures within" (an area). */
+/**
+ * The shape of an area a result names, as the core's area (core API 32): a cone or a line from the caster, a radius
+ * (a burst where it's aimed; round the caster, an emanation), a diameter (a burst of half of it), its feet where it says;
+ * `selective` where it spares the caster's friends ("all enemies within", "creatures of his choice"), not where it says
+ * it catches them too. Null where it names no shape.
+ */
+export function areaShapeIn(text) {
+  const t = plain(text).toLowerCase();
+  const { targets: re } = R();
+  let shape = null;
+  let feet = null;
+  for ( const kind of ["cone", "line", "burst", "diameter"] ) {
+    const m = t.match(re[kind]);
+    if ( !m ) continue;
+    const n = Number(got(m, "feet"));
+    shape = kind === "diameter" ? "burst" : kind;
+    feet = Number.isFinite(n) && n > 0 ? (kind === "diameter" ? n / 2 : n) : null;
+    break;
+  }
+  if ( !shape ) return null;
+  if ( shape === "burst" && re.aroundCaster.test(t) ) shape = "emanation";
+  const selective = re.selective.test(t) && !re.friendlyFire.test(t);
+  // (DCC's own measures, not another system's: a cone as wide at its end as it says, its angle from that and its
+  // length; a line as wide as it says; a burst centered on what it's aimed at, DCC having no grid to snap it to.)
+  const width = Number(got(t.match(re.width), "feet"));
+  const wide = Number.isFinite(width) && width > 0 ? width : null;
+  const sized = {
+    ...(shape === "cone" && wide && feet ? { angle: Math.round(2 * Math.atan(wide / 2 / feet) * 180 / Math.PI * 100) / 100 } : {}),
+    ...(shape === "line" && wide ? { width: wide } : {}),
+    ...(shape === "burst" ? { center: "target" } : {})
+  };
+  return { shape, ...(feet ? { feet } : {}), ...sized, ...(selective ? { selective: true } : {}) };
+}
+
+/** How many targets it takes: "up to two targets", "a single target", "all creatures within" (an area), and its shape. */
 export function targetsIn(text) {
   const t = plain(text).toLowerCase();
   const { targets: re, numbers } = R();
-  if ( re.area.test(t) ) return { targets: 3, area: true };
+  const shape = areaShapeIn(t);
+  if ( re.area.test(t) || shape ) return { targets: 3, area: true, ...(shape ? { areaShape: shape } : {}) };
   const m = t.match(re.upTo) ?? t.match(re.count);
   if ( m ) {
     const n = numbers[got(m, "n")] ?? Number(got(m, "n"));
@@ -746,6 +781,43 @@ export function entryRider(names, entry) {
     if ( read.effects.some(e => e.kind === "save") ) return { effects: read.effects.filter(e => e.kind === "save"), damage: [] };
   }
   return { effects: [], damage: [] };
+}
+
+/**
+ * A special a stat line names without its stats ("or breath weapon", "breathe fire 3/day"), as the creature's entry in
+ * the book tells it: the sentences that speak of it, read for a save with its DC, damage, an area (areaShapeIn) and
+ * how often it comes (the stat line's, else the entry's: so many a day, once an hour or a fight, every so many rounds).
+ * {name, save, damage, area, uses, cooldown}, or null where the stat line names none or the entry doesn't say it
+ * plainly (no save with a DC, or no damage). Once, where neither says how often.
+ * @param {string} line    the stat line (its HTML is fine)
+ * @param {string} entry   the entry's text
+ */
+export function limitedIn(line, entry) {
+  const { limited: re, numbers, wordBreak } = R();
+  const said = plain(line).toLowerCase();
+  const named = said.match(re.named);
+  const name = got(named, "name");
+  if ( !name || !entry ) return null;
+  const stem = name.split(wordBreak).filter(Boolean)[0]?.slice(0, 5);
+  // (Each sentence that speaks of it, and the one after: "... its breath weapon; those caught must save ...".)
+  const all = sentences(entry);
+  const about = all.filter((s, i) => s.includes(stem) || all[i - 1]?.includes(stem)).slice(0, 4);
+  if ( !about.length ) return null;
+  const text = about.join(" ");
+  const save = saveIn(text);
+  const damage = damageIn(text);
+  if ( !save?.dc || !damage.length ) return null;
+  // (How often: what the stat line says beside its name, else the entry.)
+  const near = clausesOf(said).filter(c => c.includes(name));
+  const often = src => {
+    const day = src.match(re.perDay);
+    if ( day ) return { uses: numbers[got(day, "n")] ?? (Number(got(day, "n")) || 1) };
+    const every = src.match(re.every);
+    if ( every ) return { uses: 1, cooldown: { n: Number(got(every, "n")) || 1, faces: Number(got(every, "faces")) || 1 } };
+    return re.once.test(src) ? { uses: 1 } : null;
+  };
+  const area = areaShapeIn(text);
+  return { name, save: { type: save.type, dc: save.dc, half: !!save.half }, damage, area, ...(near.map(often).find(Boolean) ?? often(text) ?? { uses: 1 }) };
 }
 
 /**

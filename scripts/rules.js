@@ -37,6 +37,7 @@ import { t } from "./words.js";
 import { leftBehind } from "./statuses.js";
 import { tiedStopsSpells } from "./tied.js";
 import { holdsWeapon } from "./deeds.js";
+import { reckonDuel, currentDuelTables } from "./duel.js";
 
 const has = (u, key) => (u?.conds?.[key] ?? 0) > 0;
 const ABILITY_LOSS = ["str", "agl", "sta"];
@@ -47,6 +48,9 @@ const labelOf = u => (u.spec.boosts ?? []).find(b => b.pool === "fleeting")?.lab
 /** Is this a charge: a melee attack after moving at least half its speed this turn? */
 const charging = (u, action) => !!action?.melee && !!u && (u.feetMoved ?? 0) - (u.turnFeet ?? 0) >= (u.spec?.speeds?.walk ?? 30) / 2;
 
+/** A fire spell, by its name (Fire Resistance answers it). */
+const FIRE = /\bfire|flam|burn|scorch|inferno/;
+
 /** Can a spell (its name) answer another: the same spell, Dispel Magic, or the counters the rules name. */
 function counters(own, spell, fire) {
   if ( own === spell ) return true;
@@ -55,6 +59,17 @@ function counters(own, spell, fire) {
   if ( /magic shield/.test(own) && /magic missile/.test(spell) ) return true;
   return /invoke patron/.test(own) && /invoke patron/.test(spell);
 }
+
+/** Invoke Patron, by its name (the same words `counters` knows it by). */
+const invokesPatron = action => /invoke patron/.test(String(action?.name ?? "").toLowerCase());
+
+/**
+ * DCC's difficulties (5 child's play, 10 a man's deed, 15 derring-do, 20 a hero's work): hearing the din of a fight is
+ * child's play, raised voices a man's deed (as the approach of a cautious footpad is); one step harder past 30 feet,
+ * two past 60, three past 120, and one for each wall (two at most; talk through none). Harder than a hero's work, it
+ * isn't heard.
+ */
+const HEAR = Object.freeze({ fight: 5, talk: 10, step: 5, most: 20 });
 
 /** A morale check's DC. */
 const MORALE_DC = 11;
@@ -250,9 +265,54 @@ export const dccRules = {
    * A spell duel: a foe of the caster's, yet to act this round, able to act, answers a spell that worked with one of
    * its own that can counter it (and isn't lost for the day). Returns {by, counter}, or null.
    */
+  /**
+   * A duel's exchange by the book's tables, where the book is installed (duel.js): momentum, counterspell power,
+   * phlogiston disturbance; invocations of the same patron cancel. Null without them: the checks are compared.
+   */
+  duelResult(run, x) {
+    const samePatron = invokesPatron(x.action) && invokesPatron(x.counter) && !!x.caster.spec.patron && x.caster.spec.patron === x.by.spec.patron;
+    return reckonDuel(run, { ...x, samePatron }, this?.duelTables ?? null);
+  },
+  /** The book's spell duel tables as read (duel.js), or a planner worker's as given (dccRulesFor). */
+  get duelTables() {
+    return currentDuelTables();
+  },
+  /**
+   * Delay: DCC's rules give it only to a caster wanting to be later in the order to counterspell. One that could
+   * answer a spell of a foe's after it this round waits until that foe's turn is done; nothing else delays, and
+   * nothing is readied (DCC has no Ready).
+   */
+  delay: Object.freeze({
+    reasons: Object.freeze([]),
+    waitFor(run, u, later) {
+      if ( u.spec.flags?.mindless || u.dueled ) return null;
+      const own = (u.spec.actions ?? []).filter(a => a.casting && !u.lost?.has(a.id));
+      if ( !own.length ) return null;
+      for ( const f of later ) {
+        if ( !run.prep.sides[u.side]?.enemies?.has(f.side) || has(f, "incapacitated") ) continue;
+        const theirs = (f.spec.actions ?? []).filter(a => a.casting && !f.lost?.has(a.id));
+        const answers = theirs.some(s => {
+          const spell = String(s.name ?? "").toLowerCase();
+          return own.some(a => counters(String(a.name ?? "").toLowerCase(), spell, FIRE.test(spell)));
+        });
+        if ( answers ) return { why: "counter", afterId: f.id, forId: f.id };
+      }
+      return null;
+    }
+  }),
+  /**
+   * Hearing a fight, or talk (core API 32), at DCC's difficulties (HEAR): 5 for a fight within 30 feet, up to a hero's
+   * 20. A character listens with its Luck (modifiers.check).
+   */
+  hearDC({ feet, walls = 0, talk = false }) {
+    if ( walls > (talk ? 0 : 2) ) return null;
+    const far = feet <= 30 ? 0 : feet <= 60 ? 1 : feet <= 120 ? 2 : 3;
+    const dc = (talk ? HEAR.talk : HEAR.fight) + HEAR.step * (far + walls);
+    return dc > HEAR.most ? null : dc;
+  },
   duel(run, caster, action) {
     const spell = String(action?.name ?? "").toLowerCase();
-    const fire = /\bfire|flam|burn|scorch|inferno/.test(spell);
+    const fire = FIRE.test(spell);
     for ( const e of run.units ) {
       if ( e === caster || e.status !== STATUS.STANDING || !run.prep.sides[e.side]?.enemies?.has(caster.side) ) continue;
       if ( e.turnRound === run.round || e.dueled || has(e, "incapacitated") || has(e, "stunned") || has(e, "paralyzed") ) continue;
@@ -582,8 +642,10 @@ export const dccRules = {
     save({ unit } = {}) {
       return { bonus: conditionsOn(unit, "saves"), advantage: 0 };
     },
-    check() {
-      return { bonus: 0, advantage: 0 };
+    /** Listening is a Luck check in DCC: a character hearing a fight from afar rolls its Luck, not its wits. */
+    check({ unit, purpose, sense } = {}) {
+      const listens = purpose === "notice" && sense === "sound" && Number.isFinite(unit?.spec?.listen);
+      return { bonus: listens ? unit.spec.listen - (Number(unit.spec.perception) || 0) : 0, advantage: 0 };
     },
     steal() {
       return { bonus: 0, advantage: 0 };
@@ -699,11 +761,15 @@ export const dccRules = {
 
 /**
  * The same rules on one of the planner's background workers (the core's API 22: adapter.workerRules), where no world
- * setting can be read: the world's "tied up stops spells" given as data, the rest as they are.
- * @param {{tiedStopsSpells?: boolean}} [data]
+ * setting can be read: the world's "tied up stops spells" and the book's spell duel tables (duel.js) given as data, the
+ * rest as they are.
+ * @param {{tiedStopsSpells?: boolean, duelTables?: object}} [data]
  */
 export function dccRulesFor(data = {}) {
   const own = Object.getOwnPropertyDescriptors(dccRules);
   delete own.tiedStopsSpells;
-  return Object.defineProperties({}, { ...own, tiedStopsSpells: { value: data?.tiedStopsSpells !== false, enumerable: true } });
+  delete own.duelTables;
+  return Object.defineProperties({}, {
+    ...own, tiedStopsSpells: { value: data?.tiedStopsSpells !== false, enumerable: true }, duelTables: { value: data?.duelTables ?? null, enumerable: true }
+  });
 }

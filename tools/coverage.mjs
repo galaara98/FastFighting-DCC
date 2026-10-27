@@ -118,7 +118,7 @@ function specialsOf(plainText) {
 }
 
 /** What kind of special this is, by what the helper reads of it (statLine's own fields), else by its words. */
-function kindOf(special, text) {
+function kindOf(special, text, { limitedRead = false } = {}) {
   const s = special.toLowerCase();
   const line = text.statLine(`SP ${special}; SV`);
   if ( line.immune.length || line.fearless ) return ["immunity", true];
@@ -137,7 +137,8 @@ function kindOf(special, text) {
   if ( line.neverSurprised || line.stealth !== undefined ) return ["hiding or surprise", true];
   if ( /\baura\b|\bstench\b|\bpresence\b|\bgaze\b|\bstink/.test(s) ) return ["aura or gaze", false];
   if ( /\bsaves?\b.*\b(?:vs|against)\b|[+-]\d+\s*(?:to|on)\s*saves?/.test(s) ) return ["bonus to saves", false];
-  if ( /\bbreath\b|\/\s*day\b|\bper day\b|\btimes (?:a|per)\b|\bonce\b/.test(s) ) return ["limited use (breath, x/day)", false];
+  // (A breath read where the helper reads the special its stat line names without stats from the book: limitedIn.)
+  if ( /\bbreath|\/\s*day\b|\bper day\b|\btimes (?:a|per)\b|\bonce\b/.test(s) ) return ["limited use (breath, x/day)", limitedRead && /\bbreath/.test(s)];
   if ( /\bswallow|\bengulf|\bconstrict|\brend\b|\bhug\b|\bdrain|\bgrab|\bgrapple|\bhold\b|\bentangle|\bweb\b/.test(s) ) return ["follow-up on a hit (swallow, rend, drain, grab)", false];
   if ( /\bpoison|\bparaly|\bdisease|\bslime|\bacid|\bcorrosi|\bpetrif|\bcharm|\bsleep|\bfear\b|\bcurse|\bblind/.test(s) ) return ["named rider or affliction", false];
   if ( /\bmagic\b.*\bweapon|\bsilver|\bnon-?magical|\bcold iron/.test(s) ) return ["harmed only by magic or silver", false];
@@ -185,6 +186,8 @@ async function main() {
   let withSpecials = 0;
   let riders = 0;
   let ridersRead = 0;
+  let named = 0;
+  let namedRead = 0;
   const packsRead = [];
   for ( const p of packs ) {
     const docs = await readPack(p.path, ClassicLevel);
@@ -203,10 +206,16 @@ async function main() {
         if ( riderRead(text, a, entries) ) ridersRead++;
         else unread.set(`rider: ${a.rider.toLowerCase()}`, (unread.get(`rider: ${a.rider.toLowerCase()}`) ?? 0) + 1);
       }
+      // (A breath weapon named without stats: read from its entry in the book, text.js limitedIn.)
+      const limitedRead = entries.some(e => text.limitedIn(notes, e));
+      if ( /\bbreath weapon\b|\bbreathes? (?:fire|frost|cold|ice|acid|lightning|poison|gas|flame)/i.test(plainText) ) {
+        named++;
+        if ( limitedRead ) namedRead++;
+      }
       const specials = specialsOf(plainText);
       if ( specials.length ) withSpecials++;
       for ( const s of specials ) {
-        const [kind, read] = kindOf(s, text);
+        const [kind, read] = kindOf(s, text, { limitedRead });
         const k = kinds.get(kind) ?? { read: 0, unread: 0 };
         k[read ? "read" : "unread"]++;
         kinds.set(kind, k);
@@ -224,6 +233,7 @@ async function main() {
     `- **Creatures:** ${creatures}, ${withSpecials} with specials in their stat line.`,
     `- **Packs:** ${packsRead.join("; ") || "none installed"}.`,
     `- **Attack riders** ("plus poison"): ${ridersRead} of ${riders} read.`,
+    `- **Breath weapons named without stats** ("or breath weapon"): ${namedRead} of ${named} read from the creature's entry in the book.`,
     "",
     "| Kind of special | Read | Not read |",
     "| --- | --- | --- |",

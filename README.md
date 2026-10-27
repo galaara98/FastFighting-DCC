@@ -10,7 +10,7 @@ FastFighting Core knows no game's rules. It offers a large but fixed set of opti
 
 - **Foundry:** v14
 - **System:** `dcc` 0.70 or later
-- **Requires:** FastFighting Core 0.9.0 or later (API 29)
+- **Requires:** FastFighting Core 0.11.0 or later (API 31); the spell duel tables, Delay to counterspell, hearing a fight with Luck and bursts centered on their target need Core API 34
 
 ## Installation
 
@@ -37,6 +37,8 @@ The class is the character sheet chosen for the actor or its token, as in DCC an
 Each weapon brings its to-hit, damage, range, action die, crit range, crit die and table, and fumble range. DCC doesn't say whether a weapon cuts, pierces or crushes, so the damage formula or the weapon's name does. A monster's stat line fills in what its sheet leaves out: attacks, damage kept in a description, "crit on 21+", immunities, infravision, fly and swim speeds, its real spell check. Its specials and its attacks' riders count too, where they say what they do: a poison's or a disease's save and what a failure costs (damage, a condition, death), extra damage with the blow, damage each round after it, a grab; saves it's better at; an aura with a save; rend after so many hits, constriction on one it holds; harm only from magic or silver weapons (a weapon with a bonus of its own, or a name that says so); damage reduction; never surprised. A rider it only names ("plus disease") is read from the creature's entry in the book, where the stat line links one. [docs/coverage.md](docs/coverage.md) counts how much of the books' monsters it reads.
 
 Things carried that are thrown to harm, as their descriptions say (holy water, a lit flask of oil), are missile attacks, as many as the sheet has; holy water harms only the un-dead, demons and devils.
+
+A special a monster's stat line names without stats ("or breath weapon", "breathe fire 3/day") is read from the creature's entry in the installed book: the save and its DC, the damage, the area and how often (so many a day; once an hour, which is once a fight; every so many rounds). One the entry doesn't spell out isn't used.
 
 Natural attacks (a bite, claws, a slam, a Brawler's fists) need no free hand, except fists, which need their own. A creature with no weapon in hand can't be disarmed, by a deed or a crit.
 
@@ -76,7 +78,9 @@ A charge (a melee attack after moving at least half its speed that turn) is +2 t
 
 A creature that withdraws from a melee gives every foe engaged with it a free attack. An XCC Brawler's Toughness takes so much off every melee blow.
 
-A caster yet to act this round may answer a foe's spell that worked with one that counters it: the same spell, Dispel Magic, Fire Resistance against a fire spell, Magic Shield against Magic Missile, Invoke Patron against Invoke Patron (never one lost for the day). The spell checks are compared: higher, the spell is undone; a tie, neither stands; lower, or a failed check, the spell goes on. Answering costs the caster its next action.
+A caster yet to act this round may answer a foe's spell that worked with one that counters it: the same spell, Dispel Magic, Fire Resistance against a fire spell, Magic Shield against Magic Missile, Invoke Patron against Invoke Patron (never one lost for the day). Answering costs the caster its next action. A caster first in the order with such a spell delays until after the foe's caster, as the book allows, to be able to answer; nothing else delays, and DCC has no Ready.
+
+With the core book installed, the duel is played by its tables, read at run time: the two checks pick the die (Spell Duel Check Comparison), the winner of the exchange gains a point of momentum (each caster starts at 10), and the die plus the winner's momentum over the loser's picks the Counterspell Power row. Each spell then goes on at its check, at a lower one where the row subtracts a die (a weaker result from its own table, or nothing below its lowest), turned back on its caster where the row reflects it, or is cancelled. The answer lands at once, at the caster it answered. The same check is a Phlogiston Disturbance: both spells fail, and where the row says the casters lose rounds, they sit them out. The rest of a disturbance (planes, summonings, corruption) is the judge's: its row shows in chat. Two invocations of the same patron cancel. Without the book the checks are compared: higher, the spell is undone; a tie, neither stands; lower, or a failed check, the spell goes on.
 
 ### Grapples and bonds: the core's holds
 
@@ -103,6 +107,19 @@ A monster's stat line gives its regeneration ("regenerates 1d6 hp per round"; ha
 ### Morale: DCC's, in place of the core's
 
 DCC's morale is for creatures; a character's is its player's. A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. Whichever of the group acts next rolls for all: a d20 + its Will against DC 11 (a retainer adds its employer's Personality: the Friendly Team's leader's, else the best among the Friendlies). Under, the whole group flees. A warrior's rallying deed can add to the roll, or give one whose group has broken a second check: made, it stays while the rest run. The mindless and the fearless never break. The Statistician shows each roll.
+
+### Areas: as DCC's spells describe them
+
+A result that names an area's shape is laid on the map as DCC describes it, and catches everyone in it, the caster's friends too, unless it says it spares them ("all enemies within", "creatures of the caster's choice"):
+- a radius is centered on the target, not snapped to a grid corner (DCC has no grid rule); "around him", it's round the caster, who isn't caught;
+- a cone is as long and as wide at its end as the result says ("30' long and 10' wide" is a narrow cone); where the result gives no width, it's a quarter turn wide;
+- a line is as wide as it says (5 feet where it doesn't);
+- a diameter is a radius of half of it.
+A result that names no shape ("all creatures within 30'") takes foes only, up to its count.
+
+### Hearing a fight
+
+A bystander hears a fight at DCC's difficulties: child's play (5) within 30 feet, a man's deed (10) past it, derring-do (15) past 60, a hero's work (20) past 120; a wall one step harder, two walls two; talk with no blow struck starts at 10 and doesn't carry through walls. Past 20, nothing's heard. A character listens with its Luck, as DCC has it; a monster with its wits. Spotting is Intelligence.
 
 ### Sizing a foe up: the core's Lore-Collector
 
@@ -207,15 +224,16 @@ What DCC's rules or data don't give FastFighting to play:
 - **Reactions beyond the free attack.** DCC has no reaction economy: no Shield Block or Riposte to choose, and nothing a blow disrupts (a spell is one check).
 - **Rerolls.** Luck adds to a roll, before or after it; it never buys a reroll, so no Hero Point-like spending.
 - **Reloading, drawing and ammunition.** DCC's weapons keep no reload, capacity or ammunition link, and the rules give drawing a weapon no cost.
-- **Recharges.** Nothing in DCC recharges on a roll or a crit.
+- **Recharges.** Nothing in DCC recharges on a roll or a crit. (A special whose entry says "every 1d4 rounds" comes back after that roll.)
+- **Ready, minions commanded, effects that end with the turn, prepared slots.** DCC has no Ready action, no action spent to command a familiar or a hireling, no spell that lasts only to the end of its caster's turn, and no spell slots (a wizard loses a spell on a failed check instead). Delay is played only as the book gives it: to be in a position to counterspell.
+- **The rest of a phlogiston disturbance:** pocket dimensions, alignment rifts, time running fast or backward, merged spells, summoned creatures and corruption are the judge's; the row shows in chat.
 - **Bones broken in a fall** (a 6 on the dice): the rules leave what a broken bone costs to the judge.
 - **What the book's disarm rows do to claws and teeth:** nothing to disarm; a creature with only natural attacks is never disarmed.
 - **Consumables beyond things thrown to harm:** DCC's items keep no stats of their own (a potion's effect is only words, the judge's to apply).
-- **Specials a stat line names but doesn't explain** ("heightened senses", "slime creature", "see below"), where the book's entry says nothing a fight can play either. [docs/coverage.md](docs/coverage.md) counts them.
+- **Specials a stat line names but doesn't explain** ("heightened senses", "slime creature", "see below"; an XCC dragon's breath weapon), where the book's entry says nothing a fight can play either. [docs/coverage.md](docs/coverage.md) counts them.
 
 Possible, not played yet:
-- **The book's spell duel tables** (momentum, counterspell power, phlogiston disturbance): the checks are compared instead. Playing them needs the core to send a spell back at its caster or weaken it as it's cast, and to play the disturbance's planar effects.
-- **Limited-use specials** a stat line names without stats ("breath weapon", "plane shift 2/day"): read only where a weapon on the sheet carries them.
+- **Spell-like specials** a stat line names with uses ("charm 1/day", "heal 2/day", "plane shift 2/day"): they could be cast as the spell of that name, so many times.
 
 ## License
 

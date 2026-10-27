@@ -160,6 +160,28 @@ export class DccTables {
     });
   }
 
+  /**
+   * The book's spell duel tables (duel.js): {compare, attackerHigh, defenderHigh, disturbance}, each its rows, found by
+   * the reading's names (reading/<lang>.json duel.tables), the core book's table pack first; null without them all.
+   */
+  duel(names) {
+    return this.#once("duel", async () => {
+      const out = {};
+      for ( const [key, source] of Object.entries(names ?? {}) ) {
+        let re = null;
+        try {
+          re = new RegExp(source, "i");
+        } catch ( err ) {
+          return null;
+        }
+        const table = await findTable(n => re.test(n ?? ""), tablePacks(["dcc-core-book.dcc-core-tables"]));
+        if ( !table ) return null;
+        out[key] = rowsOf(table);
+      }
+      return Object.keys(out).length ? out : null;
+    });
+  }
+
   layOnHands() {
     return this.#once("layOnHands", async () => {
       const table = (await fromSetting(CONFIG.DCC?.layOnHandsTable)) ?? (await findTable(n => /^lay on hands$/i.test(n ?? ""), tablePacks()));

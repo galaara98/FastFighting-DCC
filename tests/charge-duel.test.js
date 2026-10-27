@@ -59,7 +59,7 @@ describe("spell duels", () => {
     expect(dccRules.duel(run, wiz, { name: "Fireball" })).toBe(null);
   });
 
-  test("in a fight: the checks compared, the higher stands; answering costs the next action", () => {
+  test("in a fight: the checks compared, the higher stands (the one first in the order delays to answer)", () => {
     let duels = 0;
     for ( let seed = 1; seed <= 40; seed++ ) {
       const spec = battle([caster("wiz", "friendly", "Magic Missile", 6), caster("hag", "hostile", "Magic Missile", 6)]);
@@ -67,7 +67,7 @@ describe("spell duels", () => {
       const r = replay(spec, dccRules, seed);
       for ( const d of r.log.filter(e => e.type === "duel") ) {
         duels++;
-        expect(d.actorId).toBe("hag");
+        expect(["hag", "wiz"]).toContain(d.actorId);
         expect(["wins", "both", "loses", "fails"]).toContain(d.outcome);
         if ( d.outcome === "wins" ) expect(d.total).toBeGreaterThan(d.against);
         if ( d.outcome === "loses" ) expect(d.total).toBeLessThan(d.against);

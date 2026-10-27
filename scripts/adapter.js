@@ -11,7 +11,7 @@
 import { SystemAdapter, parseFormula, part, hasWords, plainText, englishWords, statusesOf } from "./core.js";
 import { dccRules } from "./rules.js";
 import { tiedStopsSpells } from "./tied.js";
-import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn, ridersIn, entryRider, thrownIn } from "./text.js";
+import { plain, statLine, iwrIn, hitDice, actionDice, feet, critOnFor, outcomeIn, saveIn, mendingIn, linksIn, ridersIn, entryRider, thrownIn, limitedIn } from "./text.js";
 import { reading } from "./reading.js";
 import { classId, archetype } from "./classes.js";
 import { DccTables } from "./tables.js";
@@ -31,6 +31,7 @@ import { rollDccStrike } from "./strike-roll.js";
 import { rollDccSave, rollDccCheck } from "./check-roll.js";
 import { spellTier, rollDccDamage } from "./damage-roll.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
+import { duelTablesFrom, setDuelTables, currentDuelTables } from "./duel.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
 function flatOf(value) {
@@ -430,6 +431,23 @@ export function followUpActions(actorId, followUps = [], actions = []) {
 }
 
 /**
+ * A special its stat line names without stats, as its entry tells it (text.js limitedIn), as an engine action: a save
+ * against its damage (half on a save where it says so), over its area (a cone or a line from it, a burst where it's
+ * aimed) or at one foe; so many times a fight, back after so many rounds where it says.
+ */
+export function limitedAction(actorId, l) {
+  const area = l.area ? { targets: 3, ...l.area } : null;
+  const fromIt = !!area && area.shape !== "burst";
+  return {
+    id: `${actorId}.limited`, name: l.name, kind: "save", cost: 1, ability: true, traits: [],
+    save: { type: l.save.type, dc: l.save.dc, basic: !!l.save.half }, damage: l.damage,
+    ...(fromIt ? { range: { increment: area.feet ?? 30, max: area.feet ?? 30, noPenalty: true }, melee: false } : { range: { increment: 30 } }),
+    ...(area ? { area } : {}),
+    uses: l.uses, ...(l.cooldown ? { cooldown: l.cooldown } : {})
+  };
+}
+
+/**
  * What it could be talked (or robbed) out of: coins, what it carries put away, the weapons and shield in its hands, and
  * the armor it wears; each with how many and what one is worth (copper). Not a container (all in it would go too).
  */
@@ -475,7 +493,7 @@ export class DccAdapter extends SystemAdapter {
    * of Foundry's; the one world setting they read (tied.js) goes along as data (rules.js dccRulesFor).
    */
   workerRules() {
-    return { url: new URL("./rules.js", import.meta.url).href, exportName: "dccRulesFor", data: { tiedStopsSpells: tiedStopsSpells() } };
+    return { url: new URL("./rules.js", import.meta.url).href, exportName: "dccRulesFor", data: { tiedStopsSpells: tiedStopsSpells(), duelTables: currentDuelTables() } };
   }
 
   canHandle(actor) {
@@ -620,7 +638,11 @@ export class DccAdapter extends SystemAdapter {
       diesAtZero: !pc,
       // (Statuses on the token that the fight would feel: commit.js, which writes them too.)
       conditions: conditionsOf(actor),
-      perception: Math.max(Number(sys.abilities?.int?.mod) || 0, Number(sys.abilities?.per?.mod) || 0),
+      // (Searching and spotting is Intelligence in DCC; listening, Luck: a character's, in rules.js modifiers.check.)
+      perception: Number(sys.abilities?.int?.mod) || 0,
+      ...(pc ? { listen: luckMod } : {}),
+      // (Whose patron it invokes: two invocations of the same one cancel in a spell duel.)
+      patron: String(sys.class?.patron ?? "").trim().toLowerCase() || null,
       // (An employer's Personality steadies its retainers.)
       personality: Number(sys.abilities?.per?.mod) || 0,
       // (Infravision sees in the dark: the core's lowlight.)
@@ -752,6 +774,16 @@ export class DccAdapter extends SystemAdapter {
     return read;
   }
 
+  /** A special the stat line names without stats, from the first linked entry that tells it (text.js limitedIn). */
+  async #limited(sys) {
+    const notes = sys.details?.notes?.value ?? "";
+    for ( const uuid of linksIn(notes) ) {
+      const said = limitedIn(notes, await this.#tables.entry(uuid));
+      if ( said ) return said;
+    }
+    return null;
+  }
+
   async #mending(sys, line) {
     let { regen, fastHealing } = line;
     if ( !regen && line.regenNamed ) {
@@ -838,6 +870,11 @@ export class DccAdapter extends SystemAdapter {
     // What follows a hit, as its stat line says: rend (so many hits on one foe this turn) and constriction (on one it
     // holds), each its damage, no roll, once a turn.
     if ( !pc ) actions.push(...followUpActions(actor.id, line.followUps, actions));
+    // A special its stat line names without stats (a breath weapon), as its entry in the book tells it, so many times.
+    if ( !pc ) {
+      const limited = await this.#limited(sys);
+      if ( limited ) actions.push(limitedAction(actor.id, limited));
+    }
     // An XCC brawler's fists (fighting unarmed, or a free punch besides its weapon).
     const armed = actions.some(a => a.melee && a.kind === "strike");
     const fists = pc && kind.brawler ? brawlerFists(actor, { armed, firstDie, crit: await this.#crit(sys, null, luckMod) }) : [];
@@ -960,7 +997,18 @@ export class DccAdapter extends SystemAdapter {
       const action = await this.#spell(actor, item, caster);
       if ( action ) out.push(action);
     }
+    if ( out.length ) await this.#duelTables();
     return out;
+  }
+
+  /** The book's spell duel tables, read once a session for the rules (duel.js); none without the book. */
+  #duelRead = null;
+  #duelTables() {
+    this.#duelRead ??= (async () => {
+      const words = await reading();
+      setDuelTables(duelTablesFrom(await this.#tables.duel(words?.duel?.tables), words));
+    })().catch(err => console.warn("fast-fighting-dcc | couldn't read the spell duel tables", err));
+    return this.#duelRead;
   }
 
   /** One spell as an action, from its results table (spells.js spellAction); null where it can't be read or does nothing. */
