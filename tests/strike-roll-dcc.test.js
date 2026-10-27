@@ -129,6 +129,28 @@ describe("a strike, rolled the dcc system's way", () => {
     expect(await react(token)).toEqual({ attack: { degree: 2, natural: 15, total: 17 }, damage: { byType: { slashing: 6 } } });
   });
 
+  test("the deed die the system notes on the sheet as it rolls goes back with the turn (an undo record)", async () => {
+    scene();
+    const { token, actor } = fighter({ natural: 15, total: 17 });
+    actor.system = { details: { lastRolledAttackBonus: 2, lastRolledAttackBonusCombat: "", lastRolledAttackBonusRound: 6 } };
+    actor.uuid = "Actor.actA";
+    const roll = actor.rollWeaponAttack;
+    actor.rollWeaponAttack = async function(...args) {
+      // (As the system's actor does when a deed die is rolled.)
+      Object.assign(this.system.details, { lastRolledAttackBonus: 5, lastRolledAttackBonusCombat: "c1", lastRolledAttackBonusRound: 2 });
+      return roll.apply(this, args);
+    };
+    const out = await react(token);
+    expect(out.attack).toMatchObject({ degree: 2 });
+    expect(out.records).toHaveLength(1);
+    expect(out.records[0]).toMatchObject({ actorUuid: "Actor.actA", actorUpdate: {
+      "system.details.lastRolledAttackBonus": 2, "system.details.lastRolledAttackBonusCombat": "", "system.details.lastRolledAttackBonusRound": 6
+    } });
+    // (Nothing noted, nothing to put back.)
+    const plain = fighter({ natural: 15, total: 17 });
+    expect((await react(plain.token)).records).toBeUndefined();
+  });
+
   test("a critical hit is degree 3; its crit table's damage, still a button on the card, rolled as the button would and added", async () => {
     scene();
     const posted = dice(5);

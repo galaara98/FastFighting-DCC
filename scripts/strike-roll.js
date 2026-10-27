@@ -19,6 +19,7 @@ import { attackOf, rollMarked } from "./read-turn.js";
 import { HELPER_ID } from "./cards.js";
 import { harmOf, harmNamed } from "./words.js";
 import { damageMultiple } from "./text.js";
+import { undoRecord } from "./core.js";
 
 /** The dcc system's hook as it posts a weapon attack's card: (rolls, messageData), the card still to be made. */
 const ATTACK_HOOK = "dcc.rollWeaponAttack";
@@ -28,6 +29,22 @@ const ATTACK_HOOK = "dcc.rollWeaponAttack";
  * A mark, not words: the same in every language.
  */
 const TABLE_DAMAGE = "damage";
+
+/**
+ * What the dcc system writes on the striker's sheet as it rolls a deed die (actor.js: the last deed die rolled, and the
+ * combat and round it was rolled in, for a deed's damage): put back with the turn on a Rewind (core API 20 `records`).
+ */
+const DEED_FIELDS = Object.freeze(["lastRolledAttackBonus", "lastRolledAttackBonusCombat", "lastRolledAttackBonusRound"]);
+
+/** The undo record of the deed fields a roll changed on the striker's sheet, or null where it changed none. */
+export function deedRecord(token, actor, before) {
+  const details = actor?.system?.details ?? {};
+  const changed = DEED_FIELDS.filter(k => details[k] !== before[k]);
+  if ( !changed.length ) return null;
+  const undo = undoRecord(token, actor, { statusesBefore: false });
+  for ( const k of changed ) undo.actorUpdate[`system.details.${k}`] = before[k] ?? null;
+  return undo;
+}
 
 /** The weapon on the actor's sheet that a strike the adapter built names ("<actor id>.<item id>"), or null. */
 export function weaponFor(actor, action) {
@@ -139,19 +156,23 @@ export async function rollDccStrike(token, { action, target, secret = false } = 
     if ( secret ) globalThis.ChatMessage?.implementation?.applyMode?.(data, "gm");
     card = { flags: { ...flags }, rolls: [...(rolls ?? [])], system: { ...data.system }, speaker: data.speaker };
   });
+  const before = Object.fromEntries(DEED_FIELDS.map(k => [k, actor.system?.details?.[k]]));
   try {
     await actor.rollWeaponAttack(weapon.id, { showModifierDialog: false, token });
   } finally {
     Hooks.off(ATTACK_HOOK, hook);
     restore();
   }
-  if ( !card ) return null;
+  // (The deed die the system noted on the sheet, put back with the turn.)
+  const undo = deedRecord(token, actor, before);
+  const records = undo ? { records: [undo] } : {};
+  if ( !card ) return undo ? records : null;
   const { degree, natural, total, known } = attackOf(card);
   // (Whether it hit unknown, the target's AC unread: the engine's dice. A fumble, or a critical on the die's top, is sure.)
-  if ( !known && degree !== 0 && degree !== 3 ) return null;
+  if ( !known && degree !== 0 && degree !== 3 ) return undo ? records : null;
   const attack = { degree, natural, total };
   const rolled = degree >= 2 ? card.system.damageRoll ?? rollMarked(card, "dcc.isDamageRoll") : null;
-  if ( !rolled ) return { attack, damage: null };
+  if ( !rolled ) return { attack, damage: null, ...records };
   const byType = damageByKind(rolled, weapon.name);
   if ( degree === 3 ) {
     // (The crit table's row: so many times the blow's own damage, as text.js reads a row, and its damage rolls on top.)
@@ -163,7 +184,7 @@ export async function rollDccStrike(token, { action, target, secret = false } = 
       byType[kind] += extra;
     }
     // (More than the attack card's own damage: the core deals the sum.)
-    if ( times > 1 || extra > 0 ) return { attack, damage: { byType }, card: null };
+    if ( times > 1 || extra > 0 ) return { attack, damage: { byType }, card: null, ...records };
   }
-  return { attack, damage: { byType } };
+  return { attack, damage: { byType }, ...records };
 }
