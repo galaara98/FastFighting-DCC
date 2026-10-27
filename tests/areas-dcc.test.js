@@ -30,7 +30,13 @@ describe("an area's shape, from a result's words", () => {
 
   test("none named: no shape (a single target, or an area without one)", () => {
     expect(areaShapeIn("The target within line of sight takes 1d6 damage.")).toBeNull();
-    expect(areaShapeIn("All creatures within 30' must make a Will save.")).toBeNull();
+    expect(areaShapeIn("Up to three targets must make a Will save.")).toBeNull();
+  });
+
+  test("DCC's \"all targets within 20'\": round the caster; \"of the target\", on it", () => {
+    expect(areaShapeIn("A blast of fire centered on himself: all targets within 20' take 1d12 damage.")).toEqual({ shape: "emanation", feet: 20 });
+    expect(areaShapeIn("All creatures within 10' of the target are knocked down.")).toEqual({ shape: "burst", feet: 10, center: "target" });
+    expect(areaShapeIn("The caster can frighten all enemies within 30'.")).toEqual({ shape: "emanation", feet: 30, selective: true });
   });
 
   test("selective where it spares friends; not where it says it catches them too", () => {

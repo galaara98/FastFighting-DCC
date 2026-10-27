@@ -230,7 +230,8 @@
     "burst": "\\b(?<feet>\\d+)'?(?:-foot| ?ft\\.?| feet)?[- ]radius\\b|\\bradius of (?<feet2>\\d+)'?",
     "width": "\\b(?<feet>\\d+)'?(?: ?ft\\.?| feet)? wide\\b|\\b(?:width of|cone measuring \\d+'? x) (?<feet2>\\d+)'?",
     "diameter":"\\b(?<feet>\\d+)'?(?:-foot| ?ft\\.?| feet)?[- ]diameter\\b",
-    "aroundCaster": "\\b(?:around|surrounding|centered on|emanat\\w* from) (?:him|her|itself|the caster|the cleric|the wizard)\\b",
+    "within": "\\b(?:all|every|each|any) (?:[a-z-]+ ){0,2}(?:creatures?|targets?|enemies|foes|beings|opponents)\\b[^.]*?\\bwithin (?:a range of )?(?<feet>\\d+)'?(?<of> of (?:the|that|a|its|his|her) (?:target|point|location|spot|place))?",
+    "aroundCaster":"\\b(?:around|surrounding|centered on|emanat\\w* from) (?:him|her|itself|the caster|the cleric|the wizard)\\b",
     "selective": "\\b(?:all|every|each|any) (?:\\w+ ){0,2}(?:enemies|foes|unfriendly creatures)\\b|\\bonly (?:enemies|foes)\\b|\\b(?:targets?|creatures?) of (?:his|her|its|the caster's) choice\\b|\\ballies (?:are|aren't) (?:not affected|unaffected)\\b",
     "friendlyFire": "\\bincluding (?:his |her |the caster's )?allies\\b|\\bboth friendly and unfriendly\\b"
   },

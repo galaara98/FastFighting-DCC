@@ -112,10 +112,11 @@ DCC's morale is for creatures; a character's is its player's. A group checks whe
 
 A result that names an area's shape is laid on the map as DCC describes it, and catches everyone in it, the caster's friends too, unless it says it spares them ("all enemies within", "creatures of the caster's choice"):
 - a radius is centered on the target, not snapped to a grid corner (DCC has no grid rule); "around him", it's round the caster, who isn't caught;
+- "all targets within 20'" is round the caster, who isn't caught; "within 10' of the target" is centered on the target;
 - a cone is as long and as wide at its end as the result says ("30' long and 10' wide" is a narrow cone); where the result gives no width, it's a quarter turn wide;
 - a line is as wide as it says (5 feet where it doesn't);
 - a diameter is a radius of half of it.
-A result that names no shape ("all creatures within 30'") takes foes only, up to its count.
+A result that names no area (up to so many targets) takes foes only.
 
 ### Hearing a fight
 

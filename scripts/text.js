@@ -212,6 +212,12 @@ export function areaShapeIn(text) {
     feet = Number.isFinite(n) && n > 0 ? (kind === "diameter" ? n / 2 : n) : null;
     break;
   }
+  // (DCC's "all targets within 20'": within so far of the caster, unless it says of what else (a target, a point).)
+  const within = shape ? null : t.match(re.within);
+  if ( within ) {
+    shape = within.groups?.of ? "burst" : "emanation";
+    feet = Number(got(within, "feet")) || null;
+  }
   if ( !shape ) return null;
   if ( shape === "burst" && re.aroundCaster.test(t) ) shape = "emanation";
   const selective = re.selective.test(t) && !re.friendlyFire.test(t);
