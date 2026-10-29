@@ -2,7 +2,7 @@
   "id": "fast-fighting-dcc",
   "title": "FastFighting DCC",
   "description": "Dungeon Crawl Classics (and Xcrawl Classics) support for FastFighting Core: action dice, Mighty Deeds, crits and fumbles, Luck and spellburn, spell checks, morale, bleeding out. Works from the free system, reads the DCC and XCC core books' tables when installed, and writes live battles onto dcc actors.",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "authors": [
     {
       "name": "galaara98",
@@ -30,7 +30,7 @@
         "manifest": "https://github.com/galaara98/FastFighting/releases/latest/download/module.json",
         "compatibility": {
           "minimum": "0.15.0",
-          "verified": "0.15.0"
+          "verified": "0.16.1"
         }
       }
     ]
