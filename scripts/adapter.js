@@ -32,6 +32,7 @@ import { rollDccSave, rollDccCheck } from "./check-roll.js";
 import { spellTier, rollDccDamage } from "./damage-roll.js";
 import { helpAction, grappleAction, hideAction, weakSpot } from "./moves.js";
 import { duelTablesFrom, setDuelTables, currentDuelTables } from "./duel.js";
+import { deathClockCard } from "./system-cards.js";
 
 /** A signed number from DCC's text fields ("+3", "-1", 4, "d5+3" -> 3 with the die left out). */
 function flatOf(value) {
@@ -1107,6 +1108,7 @@ export class DccAdapter extends SystemAdapter {
       deedDie: pc && !!deedOf(sys.details?.attackBonus),
       construct: !!line.construct,
       fearless: !!line.fearless,
+      noMorale: !pc && !!sys.config?.moraleImmune,
       casts: actions.some(a => a.casting || a.spell) || spells.length > 0 || !!line.spellcasting,
       flies: (Number(spec?.speeds?.fly) || feet(sys.attributes?.speed?.fly) || line.fly || 0) > 0,
       pack: !!(spec?.flags?.packTactics || line.pack),
@@ -1172,6 +1174,8 @@ export class DccAdapter extends SystemAdapter {
       unholy: !!read.unholy,
       construct: !!read.construct,
       fearImmune: !!read.fearless,
+      // (The judge's mark on its sheet: it never checks morale. dcc 0.70.77.)
+      noMorale: !pc && !!sys.config?.moraleImmune,
       pack: !!read.pack,
       immune: read.immune ?? [],
       casts: casts || spells.length > 0,
@@ -1302,6 +1306,14 @@ export class DccAdapter extends SystemAdapter {
   /** With the dcc system's Death Clock on, it counts a dying character's rounds itself. */
   liveOwnership() {
     return { recovery: deathClockOn() };
+  }
+
+  /**
+   * Core API 40. The dcc system's own cards as rounds go: its Death Clock's (system-cards.js), taken with their
+   * character's turn, so Rewind takes them back.
+   */
+  systemTurnCard(message) {
+    return deathClockCard(message);
   }
 
   /** A player's turn, read from the dcc system's cards (read-turn.js). */

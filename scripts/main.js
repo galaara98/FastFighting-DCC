@@ -7,6 +7,7 @@ import { DccAdapter } from "./adapter.js";
 import { hideApplyMenu } from "./cards.js";
 import { registerTiedStopsSpells } from "./tied.js";
 import { loadReading } from "./reading.js";
+import { quietMoralePrompt } from "./system-cards.js";
 
 export const MODULE_ID = "fast-fighting-dcc";
 
@@ -15,7 +16,7 @@ export const MODULE_ID = "fast-fighting-dcc";
  * helper. Older than the oldest, it doesn't run (it uses what came since); any other it doesn't know, it runs, and the
  * GM is told it hasn't been tried with that core yet. Add a major once this helper has been tried with it.
  */
-const KNOWN_API = Object.freeze([24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37]);
+const KNOWN_API = Object.freeze([24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]);
 
 /** The core's API major, when it's one this helper doesn't know: the GM is told when the world is ready. */
 let untested = null;
@@ -28,6 +29,9 @@ const KNOWN_TRANSLATIONS = {};
 
 // The damage cards FastFighting applies itself: no Apply Damage on them in the chat menu, which would apply them again (cards.js).
 Hooks.on("getChatMessageContextOptions", hideApplyMenu);
+// No half-HP morale prompt from the system for an NPC whose morale a live battle plays (system-cards.js). The system
+// registers its own preUpdateActor as it loads, so this one runs after it.
+Hooks.on("preUpdateActor", quietMoralePrompt);
 
 Hooks.once("init", () => {
   // Whether a creature tied up can still cast (tied.js).

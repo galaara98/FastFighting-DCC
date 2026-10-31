@@ -123,7 +123,7 @@ const UNBREAKABLE_WILL = 10;
  * @param {boolean} [f.deedDie]     its attack bonus is a deed die
  * A creature's:
  * @param {boolean} [f.undead]  @param {boolean} [f.mindless]  @param {boolean} [f.construct]  @param {boolean} [f.beast]
- * @param {boolean} [f.fearless]   immune to fear   @param {boolean} [f.casts]   @param {boolean} [f.flies]   @param {boolean} [f.pack]
+ * @param {boolean} [f.fearless]   immune to fear   @param {boolean} [f.noMorale]   never checks morale   @param {boolean} [f.casts]   @param {boolean} [f.flies]   @param {boolean} [f.pack]
  * @param {number} [f.will]        its Will save
  * @param {object} [f.names]       the words shown: {cls, alignment, will, luck, lucky, deed, chosen, favored, trained, twoWeapons, deeds, layOnHands, scroll, poison}
  * @returns {Record<string, {value, why}>}
@@ -212,6 +212,7 @@ function creatureTactics(f, set) {
   if ( f.undead ) set("retreat", "never", t("Reason.UndeadNeverFlees"));
   else if ( mindless ) set("retreat", "never", f.construct ? plainly : t("Reason.NeverFlees"));
   else if ( f.fearless ) set("retreat", "never", t("Reason.ImmuneFear"));
+  else if ( f.noMorale ) set("retreat", "never", t("Reason.NoMorale"));
   else if ( morale && will >= UNBREAKABLE_WILL ) set("retreat", "never", morale);
   else if ( f.beast ) set("retreat", "hurt", t("Reason.BeastFlees"));
   else if ( morale ) set("retreat", "losing", morale);

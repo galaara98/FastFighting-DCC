@@ -262,6 +262,7 @@ export function animalisticOf({ pc = false, beast = false, mindless = false, int
  * @param {boolean} [d.unholy]   a demon or devil
  * @param {boolean} [d.construct]   construct traits: no mind to speak of
  * @param {boolean} [d.fearImmune]  immune to fear itself
+ * @param {boolean} [d.noMorale]    never checks morale (the sheet's Never checks morale)
  * @param {boolean} [d.pack]     pack tactics
  * @param {string[]} [d.immune]  what it's immune to ("frightened", "charm" ...)
  * A player character's own:
@@ -319,6 +320,8 @@ export function deriveDccTraits(d) {
   if ( mindless ) flags.mindless = true;
   // (Immune to fear itself: its group's morale can't break it, as its "never flees" says.)
   if ( d.fearImmune ) flags.fearless = true;
+  // (Marked on its sheet as never checking morale: it fights on whatever befalls its group.)
+  if ( d.noMorale ) flags.noMorale = true;
   if ( beast ) flags.beast = true;
   if ( d.pack ) flags.packTactics = true;
   const side = names.alignment ?? alignmentName(a);

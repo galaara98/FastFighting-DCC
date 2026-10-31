@@ -15,8 +15,8 @@
  *
  * Morale (creatures; characters are their players'): a group checks when its first falls and when half are down; a
  * creature alone, when it has lost half its hit points. One roll for the group, by whichever of it acts next: a d20 +
- * its Will (a retainer adds its employer's Personality) against DC 11; under, the whole group flees. The mindless and
- * the fearless never break.
+ * its Will (a retainer adds its employer's Personality) against DC 11; under, the whole group flees. The mindless, the
+ * fearless and one its sheet marks as never checking morale never break.
  *
  * A charge: a melee attack after moving at least half its speed this turn, +2 to hit and -2 AC until its next turn.
  * A spell duel: a caster yet to act this round may answer a foe's spell that worked (the same spell, Dispel Magic, Fire
@@ -331,7 +331,7 @@ export const dccRules = {
    */
   morale(run, u) {
     if ( u.spec.kind === "pc" ) return null;
-    if ( u.spec.flags?.mindless || u.spec.flags?.fearless ) return MORALE.HOLD;
+    if ( u.spec.flags?.mindless || u.spec.flags?.fearless || u.spec.flags?.noMorale ) return MORALE.HOLD;
     const key = groupOf(u);
     const groups = run.dccMorale ??= new Map();
     const g = groups.get(key) ?? { first: false, half: false, hurt: false, broke: false, breaks: 0 };
