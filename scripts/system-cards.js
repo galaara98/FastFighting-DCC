@@ -45,6 +45,9 @@ export function quietMoralePrompt(actor, changes, options) {
   }
 }
 
+/** Where a key's other values go, to cut its words there: a private-use character, which HTML parsing keeps (a NUL it drops). */
+const GAP = "\uE000";
+
 /** A card's words, without its markup: the text the reader sees. */
 function plainOf(html) {
   const text = String(html ?? "");
@@ -68,8 +71,8 @@ export function deathClockCard(message) {
   const escape = globalThis.foundry?.utils?.escapeHTML ?? (s => s);
   for ( const key of DEATH_CLOCK_CARDS ) {
     if ( !i18n?.has?.(key) ) continue;
-    const words = plainOf(i18n.format(key, { name: escape(actor.name), rounds: "\u0000", scar: "\u0000" }));
-    const opening = words.split("\u0000")[0].trim();
+    const words = plainOf(i18n.format(key, { name: escape(actor.name), rounds: GAP, scar: GAP }));
+    const opening = words.split(GAP)[0].trim();
     if ( opening && said.startsWith(opening) ) return true;
   }
   return false;

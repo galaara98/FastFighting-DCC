@@ -83,6 +83,18 @@ describe("the Death Clock's cards, taken with their character's turn", () => {
     expect(new DccAdapter().systemTurnCard(card("Dwarf has bled to death."))).toBe(true);
   });
 
+  test("read as a browser parses HTML (which drops a NUL)", () => {
+    setUp();
+    const had = globalThis.DOMParser;
+    globalThis.DOMParser = class { parseFromString(s) { return { body: { textContent: s.replace(/<[^>]*>/g, "").replace(/\u0000/g, "") } }; } };
+    try {
+      expect(deathClockCard(card("<p>Dwarf falls, bleeding: 3 round(s) left.</p>"))).toBe(true);
+      expect(deathClockCard(card("Dwarf falls over laughing."))).toBe(false);
+    } finally {
+      globalThis.DOMParser = had;
+    }
+  });
+
   test("nothing else: another's words, a roll, a creature, a card of words alone", () => {
     setUp();
     expect(deathClockCard(card("Elf has bled to death."))).toBe(false);

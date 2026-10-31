@@ -105,6 +105,47 @@ export function deathClockOn() {
   }
 }
 
+/** The Death Clock's Dying effect on a character, where it has one (death-clock.mjs: status "dying", its count in flags.dcc.deathClock). */
+const dyingOf = actor => actor?.effects?.find?.(e => e.statuses?.has?.("dying") && e.flags?.dcc?.deathClock) ?? null;
+
+/**
+ * A character falling with the Death Clock on: its Dying effect laid here, as the system lays it (death-clock.mjs: as
+ * many rounds as its level), before its hit points go down, so the system finds it and starts no clock of its own; the
+ * system's own words for it in the chat. Kept in the undo record, so Rewind takes it off before it puts the hit points
+ * back: the system would otherwise read that as being saved from bleeding out (a point of Stamina for good, a scar).
+ * A 0-level character, nothing: it dies at once, as the system has it.
+ */
+export async function layDying(actor, undo) {
+  if ( dyingOf(actor) ) return;
+  const rounds = Number(actor.system?.details?.level?.value) || 0;
+  if ( rounds <= 0 ) return;
+  const [effect] = await actor.createEmbeddedDocuments("ActiveEffect", [{
+    name: game.i18n.localize("DCC.StatusDying"), img: "icons/svg/blood.svg", statuses: ["dying"],
+    flags: { dcc: { deathClock: { roundsRemaining: rounds } } }
+  }]);
+  if ( effect ) undo.createdEffects.push(effect.id);
+  await ChatMessage.create({ content: game.i18n.format("DCC.DeathClockStarted", { name: escapeHtml(actor.name), rounds }), speaker: ChatMessage.getSpeaker({ actor }) });
+}
+
+/**
+ * A dying character healed with the Death Clock on: the system lifts its Dying and takes a point of Stamina for good
+ * (its maximum, its hit points' maximum and its Ability Score Log with it). The undo record keeps them as they were, the
+ * Dying effect among the effects a turn took off, so Rewind puts the effect back before the sheet: the system then
+ * finds its clock still running and does nothing.
+ */
+export function keepDying(actor, undo) {
+  const dying = dyingOf(actor);
+  if ( !dying ) return;
+  undo.deletedEffects.push(dying.toObject());
+  const sys = actor.system ?? {};
+  const was = {
+    "system.abilities.sta.value": sys.abilities?.sta?.value, "system.abilities.sta.max": sys.abilities?.sta?.max,
+    "system.attributes.hp.max": sys.attributes?.hp?.max, "system.abilityLog": Array.isArray(sys.abilityLog) ? foundry.utils.deepClone(sys.abilityLog) : undefined
+  };
+  for ( const [path, value] of Object.entries(was) ) if ( value !== undefined && !(path in undo.actorUpdate) ) undo.actorUpdate[path] = value;
+  undo.systemOptions = { dcc: { abilityLogged: true } };
+}
+
 /**
  * A live battle: one turn's changes (the core's engine/changes.js) written onto a token. Hit points; Luck and
  * spellburn spent this turn; bleeding out and being saved from it (where the dcc system's Death Clock is on, it marks
@@ -184,6 +225,7 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
     // (Bleeding out: the Death Clock starts itself when the hit points reach 0.)
     if ( final.stable ) await toggleStatus(actor, "unconscious", true, undo);
     else if ( !clock ) await toggleStatus(actor, "dying", true, undo);
+    else await layDying(actor, undo);
     await toggleStatus(actor, "prone", true, undo);
   } else if ( !dead && changes.stable?.to && final.status === STATUS.DOWN ) {
     // (No longer bleeding: out, and the clock stopped.)
@@ -191,8 +233,9 @@ export async function commitDccChanges(tokenDoc, spec, changes, final, options =
     await toggleStatus(actor, "unconscious", true, undo);
   }
   if ( changes.revived ) {
-    // (Healed: the Death Clock lifts its own Dying.)
+    // (Healed: the Death Clock lifts its own Dying, kept for Rewind.)
     if ( !clock ) await toggleStatus(actor, "dying", false, undo);
+    else keepDying(actor, undo);
     await toggleStatus(actor, "unconscious", false, undo);
   }
   if ( found ) {
@@ -378,6 +421,12 @@ export async function applyDccDamage(message, tokenDoc, { multiplier = 1, amount
   undo.actorUpdate["system.attributes.hp.value"] = Number(actor.system?.attributes?.hp?.value) || 0;
   const combatant = game.combat?.getCombatantsByToken?.(tokenDoc)?.[0];
   if ( combatant ) undo.combatant = { uuid: combatant.uuid, defeated: !!combatant.defeated };
+  // (A character falling, or healed while bleeding out, with the Death Clock on: as a turn's are, for Rewind.)
+  if ( actor.type === "Player" && deathClockOn() ) {
+    const hp = Number(actor.system?.attributes?.hp?.value) || 0;
+    if ( !healing && hp > 0 && hp - amount <= 0 ) await layDying(actor, undo);
+    if ( healing && hp <= 0 && hp + amount > 0 ) keepDying(actor, undo);
+  }
   await actor.applyDamage(amount, healing ? -1 : 1);
   return [undo];
 }
