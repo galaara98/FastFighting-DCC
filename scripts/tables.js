@@ -100,6 +100,21 @@ export class DccTables {
     });
   }
 
+  /**
+   * A weapon's own fumble table's rows (dcc 0.70.76's fumbleTableOverride), found by its name as the system finds it:
+   * among the world's tables, as "pack.collection.Table Name", then in every table pack. Null for a name that matches
+   * none (the system then uses the usual table).
+   */
+  fumbleNamed(name) {
+    const wanted = String(name ?? "").trim();
+    if ( !wanted ) return Promise.resolve(null);
+    return this.#once(`fumble:${wanted}`, async () => {
+      const match = n => n === wanted;
+      const table = game.tables?.find(t => match(t.name) || match(originalName(t))) ?? (await fromSetting(wanted)) ?? (await findTable(match, tablePacks()));
+      return table ? rowsOf(table).map(r => tableRow(r, { fumble: true })) : null;
+    });
+  }
+
   /** Mighty Deed tables by kind ({trip, blind, disarm, defend, rally}: rows), or null. */
   deeds() {
     return this.#once("deeds", async () => {

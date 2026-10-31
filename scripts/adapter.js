@@ -953,6 +953,10 @@ export class DccAdapter extends SystemAdapter {
       // (A bite, claws, a slam: no weapon in hand.)
       ...naturalOf(w.name, worthOf(w))
     };
+    // (A weapon with its own fumble table, dcc 0.70.76: its rows, on the character's fumble die and Luck. A name that
+    // matches no table is ignored, as the system does. Core API 41.)
+    const fumbleRows = pc ? await this.#tables.fumbleNamed(s.config?.fumbleTableOverride) : null;
+    if ( fumbleRows?.length ) action.fumbleTable = { rows: fumbleRows };
     // (A monster's weapon: what its stat line's attack of that name carries, "plus poison (DC 12 Fort or death)".)
     const said = !pc ? line.attacks.find(a => a.rider && sameAttack(a.name, w.name)) : null;
     if ( said ) {
