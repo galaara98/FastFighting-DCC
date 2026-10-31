@@ -106,7 +106,7 @@ A monster's stat line gives its regeneration ("regenerates 1d6 hp per round"; ha
 
 ### Morale: DCC's, in place of the core's
 
-DCC's morale is for creatures; a character's is its player's. A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. Whichever of the group acts next rolls for all: a d20 + its Will against DC 11 (a retainer adds its employer's Personality: the Friendly Team's leader's, else the best among the Friendlies). Under, the whole group flees. A warrior's rallying deed can add to the roll, or give one whose group has broken a second check: made, it stays while the rest run. The mindless and the fearless never break. The Statistician shows each roll.
+DCC's morale is for creatures; a character's is its player's. A group checks when its first falls and when half of it is down; a creature alone, when it has lost half its hit points. Whichever of the group acts next rolls for all: a d20 + its Will against DC 11 (a retainer adds its employer's Personality: the Friendly Team's leader's, else the best among the Friendlies). Under, the whole group flees. A warrior's rallying deed can add to the roll, or give one whose group has broken a second check: made, it stays while the rest run. The mindless, the fearless and an NPC whose sheet says it never checks morale never break. The Statistician shows each roll. In a live battle the dcc system's half-HP morale prompt doesn't come up for FastFighting's creatures, as their morale is already played.
 
 ### Areas: as DCC's spells describe them
 
@@ -199,7 +199,7 @@ In a live battle, each turn's changes go onto the tokens as the turn is played:
 - Luck and spellburn spent (spellburn from Strength, then Stamina, then Agility, none below 3), and Fleeting Luck or Mojo as the fight left it (on the player, or the crawler). With the system's Ability Score Log on, each loss is logged as what it was (Luck spent, spellburn, bleeding out, rolling the body);
 - spells lost for the day, and a cleric's disapproval range;
 - things thrown: the sheet's count down, the item gone at none;
-- the Stamina lost to bleeding out, or, for a body rolled after the fight and found alive, the ability lost, Groggy, and no longer dead (with the dcc system's Death Clock on, the system marks the dying, counts their rounds and scars the saved itself);
+- the Stamina lost to bleeding out, or, for a body rolled after the fight and found alive, the ability lost, Groggy, and no longer dead (with the dcc system's Death Clock on, the system counts the dying's rounds and scars the saved itself; Rewind puts the clock, the Stamina and its cards back too);
 - statuses put on or taken off, by the fight or by the GM in the Battle Vantage: Prone, Stunned, Paralyzed, Asleep, Unconscious, Blind, Deaf, Silenced, Frightened, Restrained (DCC's held), Invisible, Poisoned, and Disarmed (the dcc system's palette) or Slowed and Grappled (XCC's). Each turn the token's statuses are read back, so one the GM takes off is gone from the fight too. FastFighting keeps what DCC has no status for (turned, hidden, can't move, can't act on its own);
 - the disposition of a creature whose side changed (won over: its new side; talked out of the fight: Neutral; a neutral that turned on the Friendlies: Hostile);
 - what a creature hands over (or has stolen): coins, or things, as many as the deal says, set aside and out of any container;
