@@ -6,57 +6,25 @@
 
 Dungeon Crawl Classics support for [FastFighting Core](https://github.com/galaara98/FastFighting), the Foundry VTT battle estimator, storyteller and resolver. Xcrawl Classics worlds work too.
 
-The core plays every system with one fixed set of options: conditions, maneuvers, holds, reactions, resources and outcomes. This module maps DCC onto them: a Mighty Deed is a maneuver riding the blow, Luck a resource, a crit table's row an outcome.
+## What it does
 
-- **Foundry:** v14
-- **System:** `dcc` 0.70 or later
-- **Requires:** FastFighting Core 0.15.0 or later
+FastFighting predicts how a fight will go, plays the creatures you don't want to run by hand, and writes every turn back onto the sheets. This module teaches it DCC: action dice, Mighty Deeds, Luck and spellburn, crit and fumble tables, spell checks and disapproval, spell duels, bleeding out and rolling the body, and DCC's morale. XCC's classes, Fleeting Luck and Mojo are played too.
 
-## With and without the books
+It works from the free system alone. With the DCC or XCC core book installed, it reads the book's tables as the system does and copies nothing from them.
 
-It works from the free system alone. With the DCC or XCC core book installed, it reads the book's tables at run time (crits, fumbles, Mighty Deeds, spell results, spell duels, Lay on Hands, Turn Unholy) and copies nothing. Without a book, a crit adds the crit die as damage, deeds and cleric abilities use rough built-in versions, and spells it can't read are left out.
+## Why you'd want it
 
-## What plays
+- **Before the fight:** see whether an encounter is a cakewalk or a funnel massacre.
+- **During it:** let FastFighting run the monsters, or anyone whose player is away, rolled with the dcc system's own cards.
+- **After it:** Rewind a turn or the whole encounter, sheets, chat and Death Clock included.
 
-**Characters and monsters.** The class comes from the actor's character sheet, the rest from its numbers, so other books' classes work. A monster's stat line fills what its sheet leaves out: attacks, crit ranges, immunities, poisons, auras, rend, magic or silver to harm. A special it only names ("breath weapon") is read from the book's entry. [docs/coverage.md](docs/coverage.md) counts how much it reads.
+Where the rules leave a call to the judge, it uses DCC's own mechanics. [How DCC plays](docs/how-dcc-plays.md) has every rule and number.
 
-**Action dice.** One action per die, each with its crit range scaled to the die (per the system's **Strict critical hits** setting). Two-weapon fighting follows Table 4-3.
+## Requirements
 
-**Mighty Deeds.** The deed die rolls with every attack. The warrior declares the deed that helps most (trip, blind, disarm, pushback, defend, rally, precision shot), landing on a hit with a 3 or more.
-
-**Crits and fumbles.** A crit rolls on the attacker's crit table, Luck added. A PC's fumble rolls its armor's fumble die on the fumble table, or on the weapon's own table where it names one (dcc 0.70.76 and Core 0.20.0).
-
-**Combat.** DCC's penalties for prone, blinded, frightened, cover and the rest; charges; firing into melee, with misses that hit friends; falling damage; free attacks on a withdrawing foe; grapples as opposed rolls with size's edge.
-
-**Luck and spellburn.** PCs burn Luck when a roll falls short, more readily the more is at stake: thieves with their luck die, halflings double and for friends. Wizards and elves spellburn. Fleeting Luck and XCC's Mojo are spent first.
-
-**Spells.** Spell checks read each spell's results table. Wizards lose spells, clerics gain disapproval. Casters can counter a foe's spell, played by the book's spell duel tables when installed.
-
-**Dying and morale.** Bleeding out, rolling the body after the fight, and DCC's morale checks in place of the core's. An NPC marked "Never checks morale" never breaks.
-
-**XCC classes.** The Messenger plays as a cleric, Specialists as thieves, and the Brawler, Dungeon Hottie, Jammer, Half-Orc, Gnome, Athlete, Acrobat and Half-Elf use their own abilities.
-
-## Homebrew
-
-Where the rules are silent:
-- **Help:** a step up the dice chain on a friend's next roll.
-- **Hide:** a thief's Hide in Shadows, else an untrained check.
-- **Binding a wound:** stops a friend's bleeding on that friend's Luck check.
-- **Subdual:** blunt blows and bare hands can knock out instead of kill.
-
-## Live battles
-
-Each turn writes to the sheets: HP, statuses, Luck, spellburn, spells lost, disapproval, Stamina lost to bleeding, and side changes. The dcc system rolls the attacks, saves and checks with its own cards; FastFighting applies the damage. **Apply players' damage** is greyed out while the system's Auto-apply damage is on. With the Death Clock on, Rewind puts the clock and the Stamina back.
-
-## Settings
-
-It sets two core settings: **Max rounds** (4 to 12, 10 at first) and **Lore-Collector advantage** (2.25×). Its own: **Tied up stops spells** (on by default): whether a creature tied up can cast.
-
-## What isn't played
-
-- What DCC doesn't have: reactions beyond the free attack, rerolls, ammunition, recharges, Ready, spell slots.
-- What's the judge's call: most phlogiston disturbances, broken bones, potions.
-- Specials a stat line names without saying what they do, and spell-like specials ("charm 1/day").
+- Foundry v14
+- The `dcc` system, 0.70 or later
+- FastFighting Core 0.15.0 or later
 
 ## License
 
